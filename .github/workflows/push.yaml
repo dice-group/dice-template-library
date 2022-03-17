@@ -17,4 +17,4 @@ jobs:
         run: mkdir build; cd build; CC=clang CXX=clang++ cmake .. -DBUILD_TESTING=ON; make -j$(nproc)
 
       - name: run the tests
-        run: make test
+        run: ls; make test
