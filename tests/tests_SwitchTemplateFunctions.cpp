@@ -1,6 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include "../include/SwitchTemplateFunctions.hpp"
+#include <Dice/SwitchTemplateFunctions.hpp>
 #include <doctest/doctest.h>
 
 namespace Dice::templateLibrary {
