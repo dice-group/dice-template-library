@@ -1,0 +1,48 @@
+libs/hypertrie/src/Dice/hypertrie/Hypertrie_version.hpp
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# project folders
+cmake-build*/
+
+# intellij
+.idea/
+venv/
+/build/
+
+# documentation folders
+docu/
+
+# typical sym links
+compile_commands.json
