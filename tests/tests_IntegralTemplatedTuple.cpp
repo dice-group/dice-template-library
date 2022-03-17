@@ -1,6 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include "../include/IntegralTemplatedTuple.hpp"
+#include <Dice/IntegralTemplatedTuple.hpp>
 #include <doctest/doctest.h>
 
 #include <algorithm>
