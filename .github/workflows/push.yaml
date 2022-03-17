@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: install build tools
-        run: sudo apt install -qq -y clang make cmake ctest
+        run: sudo apt install -qq -y clang make cmake
 
       - name: build code
         run: mkdir build; cd build; CC=clang CXX=clang++ cmake .. -DBUILD_TESTING=ON; make -j$(nproc)
