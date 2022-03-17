@@ -18,3 +18,14 @@ jobs:
 
       - name: run the tests
         run: cd build && make test
+
+  check-conan-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: install python and conan
+        run: sudo apt install -qq -y python3 python3-pip && pip3 install conan
+
+      - name: run conan
+        run: conan create . cicd/test
