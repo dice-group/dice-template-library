@@ -22,6 +22,10 @@ template<std::size_t N>
 static constexpr int Fib_v = Fib<N>::value;
 
 
+template<std::size_t L, std::size_t M, std::size_t N>
+static constexpr std::size_t Prod = L *M *N;
+
+
 int main() {
 	{
 		std::cout << "Using compile time fib with runtime parameter:\n";
@@ -36,5 +40,20 @@ int main() {
 		auto res = switch_cases<0, 20>(
 				input, [](auto i) { return Fib_v<i>; }, []() { return -1; });
 		std::cout << "fib(" << input << ") = " << res << '\n';
+	}
+
+	{
+		std::cout << "Working with multiple parameters:\n";
+		std::size_t a = 2;
+		std::size_t b = 3;
+		std::size_t c = 4;
+		auto res = switch_cases<0, 5>(a, [&](auto A) {
+			return switch_cases<0, 5>(b, [&](auto B) {
+				return switch_cases<0, 5>(c, [&](auto C) {
+					return Prod<A, B, C>;
+				});
+			});
+		});
+		std::cout << a << "*" << b << "*" << c << " = " << res << '\n';
 	}
 }
