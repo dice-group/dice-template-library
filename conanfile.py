@@ -4,7 +4,7 @@ from conans import ConanFile, CMake
 from conans.tools import load
 
 
-class Hypertrie(ConanFile):
+class DiceTemplateLibrary(ConanFile):
     name = "DiceTemplateLibrary"
     author = "DICE Group <info@dice-research.org>"
     description = None

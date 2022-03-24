@@ -1,0 +1,5 @@
+add_executable(examples_SwitchTemplateFunctions examples_SwitchTemplateFunctions.cpp)
+target_link_libraries(examples_SwitchTemplateFunctions PRIVATE DiceTemplateLibrary)
+
+add_executable(examples_IntegralTemplatedTuple examples_IntegralTemplatedTuple.cpp)
+target_link_libraries(examples_IntegralTemplatedTuple  PRIVATE DiceTemplateLibrary)
