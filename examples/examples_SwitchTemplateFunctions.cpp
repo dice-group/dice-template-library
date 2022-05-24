@@ -1,7 +1,8 @@
-#include <Dice/SwitchTemplateFunctions.hpp>
+#include <Dice/template_library/SwitchTemplateFunctions.hpp>
+
 #include <iostream>
 
-using namespace Dice::templateLibrary;
+using namespace Dice::template_library;
 
 template<std::size_t N>
 struct Fib {
@@ -38,7 +39,9 @@ int main() {
 		std::cout << "Setting a default to be called, when the input is out of range:\n";
 		std::size_t input = 100;
 		auto res = switch_cases<0, 20>(
-				input, [](auto i) { return Fib_v<i>; }, []() { return -1; });
+				input,
+				[](auto i) { return Fib_v<i>; },
+				[]() { return -1; });
 		std::cout << "fib(" << input << ") = " << res << '\n';
 	}
 
@@ -49,9 +52,7 @@ int main() {
 		std::size_t c = 4;
 		auto res = switch_cases<0, 5>(a, [&](auto A) {
 			return switch_cases<0, 5>(b, [&](auto B) {
-				return switch_cases<0, 5>(c, [&](auto C) {
-					return Prod<A, B, C>;
-				});
+				return switch_cases<0, 5>(c, [&](auto C) { return Prod<A, B, C>; });
 			});
 		});
 		std::cout << a << "*" << b << "*" << c << " = " << res << '\n';

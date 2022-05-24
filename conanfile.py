@@ -9,7 +9,9 @@ class DiceTemplateLibrary(ConanFile):
     author = "DICE Group <info@dice-research.org>"
     description = None
     homepage = "https://dice-research.org/"
-    url = homepage
+    url = "https://github.com/dice-group/DiceTemplateLibrary.git"
+    license = "MIT"
+    topics = ("template", "template library", "compile-time", "switch", "integral tuple")
     settings = "build_type", "compiler", "os", "arch"
     generators = "cmake", "cmake_find_package", "cmake_paths"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*"
@@ -18,7 +20,7 @@ class DiceTemplateLibrary(ConanFile):
     def set_version(self):
         if not hasattr(self, 'version') or self.version is None:
             cmake_file = load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-            self.version = re.search(r"project\([^)]*VERSION\s+(\d+\.\d+)[^)]*\)", cmake_file).group(1)
+            self.version = re.search(r"project\([^)]*VERSION\s+(\d+\.\d+.\d+)[^)]*\)", cmake_file).group(1)
         if not hasattr(self, 'description') or self.description is None:
             cmake_file = load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
             self.description = re.search(r"project\([^)]*DESCRIPTION\s+\"([^\"]+)\"[^)]*\)", cmake_file).group(1)

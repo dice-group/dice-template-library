@@ -1,11 +1,13 @@
 #ifndef HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 #define HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 
+#include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <tuple>
+#include <utility>
 
-namespace Dice::templateLibrary {
+namespace Dice::template_library {
 	/**
 	 * This class is a wrapper around a tuple std::tuple<T<FIRST> .. T<LAST>>.
 	 * FIRST is allowed to be smaller then LAST.
@@ -22,8 +24,7 @@ namespace Dice::templateLibrary {
 	 * @tparam LAST
 	 * @tparam Args Types of the constructor parameters.
 	 */
-	template<template<std::integral auto> typename EntryTypeTemplate,
-			 std::integral auto FIRST, std::integral auto LAST, typename... Args>
+	template<template<std::integral auto> typename EntryTypeTemplate, std::integral auto FIRST, std::integral auto LAST, typename... Args>
 	class IntegralTemplatedTuple {
 		static constexpr bool USE_SIGNED = FIRST < 0 or LAST < 0;
 		using integral_type = std::conditional_t<USE_SIGNED, intmax_t, uintmax_t>;
@@ -101,11 +102,10 @@ namespace Dice::templateLibrary {
 			return std::get<calcPos<I>()>(count_tuple_);
 		}
 	};
-	template<template<auto> typename EntryTypeTemplate,
-			 std::integral auto FIRST, std::integral auto LAST, typename... Args>
+	template<template<auto> typename EntryTypeTemplate, std::integral auto FIRST, std::integral auto LAST, typename... Args>
 	auto make_integral_template_tuple(Args &&...args) {
 		return IntegralTemplatedTuple<EntryTypeTemplate, FIRST, LAST, Args...>(std::forward<Args>(args)...);
 	}
-}// namespace Dice::templateLibrary
+}// namespace Dice::template_library
 
 #endif//HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP

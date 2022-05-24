@@ -1,5 +1,8 @@
-libs/hypertrie/src/Dice/hypertrie/Hypertrie_version.hpp
 
+# Created by https://www.toptal.com/developers/gitignore/api/c++,cmake
+# Edit at https://www.toptal.com/developers/gitignore?templates=c++,cmake
+
+### C++ ###
 # Prerequisites
 *.d
 
@@ -33,16 +36,21 @@ libs/hypertrie/src/Dice/hypertrie/Hypertrie_version.hpp
 *.out
 *.app
 
-# project folders
-cmake-build*/
-
-# intellij
-.idea/
-venv/
-/build/
-
-# documentation folders
-docu/
-
-# typical sym links
+### CMake ###
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
 compile_commands.json
+CTestTestfile.cmake
+_deps
+
+### CMake Patch ###
+# External projects
+*-prefix/
+
+# End of https://www.toptal.com/developers/gitignore/api/c++,cmake
