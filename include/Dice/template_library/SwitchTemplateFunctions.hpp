@@ -6,7 +6,7 @@
 #include <concepts>
 #include <cstdint>
 
-namespace Dice::templateLibrary {
+namespace Dice::template_library {
 
 	namespace detail_switch_cases {
 
@@ -23,11 +23,11 @@ namespace Dice::templateLibrary {
 			static constexpr int_type max = std::max(first_typed, last_typed);
 		};
 
-		template<std::integral auto i, std::integral auto max, class T, class F, std::integral auto min = i>
+		template<std::integral auto i, std::integral auto max, class T, class F,
+				 std::integral auto min = i>
 		constexpr decltype(auto) execute_case(T value, F f) {
 			if constexpr (i < ((max == min) ? max : max - 1))
-				if (value != i)
-					return execute_case<i + 1, max, T, F, min>(value, f);
+				if (value != i) return execute_case<i + 1, max, T, F, min>(value, f);
 			static_assert(i < max);
 			return f(std::integral_constant<T, i>{});
 		}
@@ -70,8 +70,7 @@ namespace Dice::templateLibrary {
    * @return The value returned from the switch case
    */
 	template<std::integral auto first, std::integral auto last, class F, class D>
-	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<first, last>::int_type condition, F cases_function,
-										  D default_function) {
+	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<first, last>::int_type condition, F cases_function, D default_function) {
 		using namespace detail_switch_cases;
 		using range = Range<first, last>;
 		if constexpr (range::min != range::max)
@@ -115,8 +114,7 @@ namespace Dice::templateLibrary {
 	 * @return The value returned from the switch case
 	 */
 	template<std::integral auto last, class F, class D>
-	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<0, last>::int_type condition, F cases_function,
-										  D default_function) {
+	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<0, last>::int_type condition, F cases_function, D default_function) {
 		return switch_cases<0, last>(condition, cases_function, default_function);
 	}
 
@@ -139,6 +137,6 @@ namespace Dice::templateLibrary {
 		using namespace detail_switch_cases;
 		return switch_cases<0, last, F>(condition, cases_function, UnReachable<F, last>);
 	}
-}// namespace Dice::templateLibrary
+}// namespace Dice::template_library
 
 #endif//HYPERTRIE_SWITCHTEMPLATEFUNCTIONS_HPP

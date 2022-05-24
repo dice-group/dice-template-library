@@ -1,9 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <Dice/SwitchTemplateFunctions.hpp>
+#include <Dice/template_library/SwitchTemplateFunctions.hpp>
+
 #include <doctest/doctest.h>
 
-namespace Dice::templateLibrary {
+namespace Dice::template_library {
 	TEST_SUITE("testing of the compiled switch") {
 		const int value = 1;
 		template<int i>
@@ -109,4 +110,4 @@ namespace Dice::templateLibrary {
 			REQUIRE_EQ(res_ref, TestType<value>::get());
 		}
 	}
-}// namespace Dice::templateLibrary
+}// namespace Dice::template_library

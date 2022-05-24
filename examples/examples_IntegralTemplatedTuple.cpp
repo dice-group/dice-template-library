@@ -1,8 +1,9 @@
-#include <Dice/IntegralTemplatedTuple.hpp>
+#include <Dice/template_library/IntegralTemplatedTuple.hpp>
+
 #include <array>
 #include <iostream>
 
-using namespace Dice::templateLibrary;
+using namespace Dice::template_library;
 
 template<std::size_t N>
 struct intArray : std::array<int, N> {
@@ -43,7 +44,7 @@ int main() {
 	}
 
 	{
-		std::cout << "tuple of integer arrays, size 5 to 8, casted down:\n";
+		std::cout << "tuple of integer arrays, size 5 to 8, cast down:\n";
 		IntegralTemplatedTuple<intArray, 5, 8> itt;
 		auto *casted_itt = reinterpret_cast<IntegralTemplatedTuple<intArray, 5, 6> *>(&itt);
 		std::cout << "  " << casted_itt->get<5>() << '\n';

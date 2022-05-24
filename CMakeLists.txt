@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(
-        DiceTemplateLibrary
-        VERSION 0.1.0
-        DESCRIPTION "A small collection of usefully template constructs"
-        HOMEPAGE_URL "https://dice-research.org/")
+  DiceTemplateLibrary
+  VERSION 0.1.0
+  DESCRIPTION
+    "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains `switch_cases` (Use runtime values in compile-time context) and `IntegralTemplatedTuple` (Create a tuple-like structure that instantiates a template for a range of values)."
+  HOMEPAGE_URL "https://dice-research.org/")
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   set(CMAKE_CXX_STANDARD 20)
@@ -17,8 +18,8 @@ add_library(DiceTemplateLibrary INTERFACE)
 add_library(DiceTemplateLibrary::DiceTemplateLibrary ALIAS DiceTemplateLibrary)
 
 target_include_directories(
-        DiceTemplateLibrary
-        INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+  DiceTemplateLibrary
+  INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
 target_compile_features(DiceTemplateLibrary INTERFACE cxx_std_20)
 

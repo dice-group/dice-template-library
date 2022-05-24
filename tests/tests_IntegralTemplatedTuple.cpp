@@ -1,12 +1,13 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <Dice/IntegralTemplatedTuple.hpp>
+#include <Dice/template_library/IntegralTemplatedTuple.hpp>
+
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <iostream>
 
-namespace Dice::templateLibrary {
+namespace Dice::template_library {
 
 	template<typename T>
 	std::ostream &operator<<(std::ostream &os, std::vector<T> const &v) {
@@ -176,4 +177,4 @@ namespace Dice::templateLibrary {
 		TEST_CASE_TEMPLATE_INVOKE(recastDownToNeg, short);
 	}
 
-}// namespace Dice::templateLibrary
+}// namespace Dice::template_library
