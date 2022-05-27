@@ -87,49 +87,49 @@ namespace Dice::template_library {
 	}
 
 	TEST_SUITE("testing of the integral templated tuple") {
-		TEST_CASE_TEMPLATE_DEFINE("Is same for single value at 0", T, singleAtZero) {
+		TEST_CASE("Is same for single value at 0") {
 			IntegralTemplatedTuple<Data, 0, 0> inTuple;
 			auto vec = toIntVector<0, 0>(inTuple);
 			REQUIRE(is_equal(vec, {0}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("Is same for single value at 0", T, singleAtFour) {
+		TEST_CASE("Is same for single value at 0") {
 			IntegralTemplatedTuple<Data, 4, 4> inTuple;
 			auto vec = toIntVector<4, 4>(inTuple);
 			REQUIRE(is_equal(vec, {4}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("Is same for multiple values starting at 0", T, multipleAtZero) {
+		TEST_CASE("Is same for multiple values starting at 0") {
 			IntegralTemplatedTuple<Data, 0, 4> inTuple;
 			auto vec = toIntVector<0, 4>(inTuple);
 			REQUIRE(is_equal(vec, {0, 1, 2, 3, 4}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("Is same for multiple values starting at 4", T, multipleAtFour) {
+		TEST_CASE("Is same for multiple values starting at 4") {
 			IntegralTemplatedTuple<Data, 4, 8> inTuple;
 			auto vec = toIntVector<4, 8>(inTuple);
 			REQUIRE(is_equal(vec, {4, 5, 6, 7, 8}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("Is same for multiple values counting down", T, multipleDown) {
+		TEST_CASE("Is same for multiple values counting down") {
 			IntegralTemplatedTuple<Data, 8, 4> inTuple;
 			auto vec = toIntVector<4, 8>(inTuple);
 			REQUIRE(is_equal(vec, {4, 5, 6, 7, 8}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("Negative values counting up", T, negCountingUp) {
+		TEST_CASE("Negative values counting up") {
 			IntegralTemplatedTuple<Data, -2, 2> inTuple;
 			auto vec = toIntVector<-2, 2>(inTuple);
 			REQUIRE(is_equal(vec, {-2, -1, 0, 1, 2}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("Negative values counting down", T, negCountingDown) {
+		TEST_CASE("Negative values counting down") {
 			IntegralTemplatedTuple<Data, 2, -2> inTuple;
 			auto vec = toIntVector<-2, 2>(inTuple);
 			REQUIRE(is_equal(vec, {-2, -1, 0, 1, 2}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("reinterpret_cast counting up", T, recastUp) {
+		TEST_CASE("reinterpret_cast counting up") {
 			IntegralTemplatedTuple<Data, 0, 3> inTuple;
 			// NOLINTNEXTLINE
 			auto *casted = reinterpret_cast<IntegralTemplatedTuple<Data, 0, 2> *>(&inTuple);
@@ -137,7 +137,7 @@ namespace Dice::template_library {
 			REQUIRE(is_equal(vec, {0, 1, 2}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("reinterpret_cast counting down", T, recastDown) {
+		TEST_CASE("reinterpret_cast counting down") {
 			IntegralTemplatedTuple<Data, 3, 0> inTuple;
 			// NOLINTNEXTLINE
 			auto *casted = reinterpret_cast<IntegralTemplatedTuple<Data, 3, 1> *>(&inTuple);
@@ -145,8 +145,7 @@ namespace Dice::template_library {
 			REQUIRE(is_equal(vec, {1, 2, 3}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("reinterpret_cast counting up from negative", T,
-								  recastUpFromNeg) {
+		TEST_CASE("reinterpret_cast counting up from negative") {
 			IntegralTemplatedTuple<Data, -1, 3> inTuple;
 			// NOLINTNEXTLINE
 			auto *casted = reinterpret_cast<IntegralTemplatedTuple<Data, -1, 2> *>(&inTuple);
@@ -154,27 +153,13 @@ namespace Dice::template_library {
 			REQUIRE(is_equal(vec, {-1, 0, 1, 2}));
 		}
 
-		TEST_CASE_TEMPLATE_DEFINE("reinterpret_cast counting down into negative", T,
-								  recastDownToNeg) {
+		TEST_CASE("reinterpret_cast counting down into negative") {
 			IntegralTemplatedTuple<Data, 3, -2> inTuple;
 			// NOLINTNEXTLINE
 			auto *casted = reinterpret_cast<IntegralTemplatedTuple<Data, 3, -1> *>(&inTuple);
 			auto vec = toIntVector<-1, 3>(*casted);
 			REQUIRE(is_equal(vec, {-1, 0, 1, 2, 3}));
 		}
-
-		TEST_CASE_TEMPLATE_INVOKE(singleAtZero, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(singleAtFour, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(multipleAtZero, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(multipleAtFour, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(multipleDown, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(negCountingUp, short);
-		TEST_CASE_TEMPLATE_INVOKE(negCountingDown, short);
-
-		TEST_CASE_TEMPLATE_INVOKE(recastUp, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(recastDown, unsigned, short);
-		TEST_CASE_TEMPLATE_INVOKE(recastUpFromNeg, short);
-		TEST_CASE_TEMPLATE_INVOKE(recastDownToNeg, short);
 	}
 
 }// namespace Dice::template_library
