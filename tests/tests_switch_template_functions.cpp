@@ -1,6 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <Dice/template_library/SwitchTemplateFunctions.hpp>
+#include <Dice/template-library/switch_template_functions.hpp>
 
 #include <doctest/doctest.h>
 

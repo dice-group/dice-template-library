@@ -1,4 +1,4 @@
-#include <Dice/template_library/IntegralTemplatedTuple.hpp>
+#include <Dice/template-library/integral_templated_tuple.hpp>
 
 #include <array>
 #include <iostream>
