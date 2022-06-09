@@ -4,7 +4,7 @@ project(
   dice-template-library
   VERSION 0.1.0
   DESCRIPTION
-    "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains `switch_cases` (Use runtime values in compile-time context) and `IntegralTemplatedTuple` (Create a tuple-like structure that instantiates a template for a range of values)."
+    "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains `switch_cases` (Use runtime values in compile-time context) and `integral_template_tuple` (Create a tuple-like structure that instantiates a template for a range of values)."
   HOMEPAGE_URL "https://dice-research.org/")
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -16,6 +16,7 @@ endif()
 
 add_library(dice-template-library INTERFACE)
 add_library(dice-template-library::dice-template-library ALIAS dice-template-library)
+add_library(Dice::dice-template-library ALIAS dice-template-library)
 
 target_include_directories(
   dice-template-library

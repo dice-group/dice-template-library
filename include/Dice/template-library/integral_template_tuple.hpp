@@ -19,13 +19,13 @@ namespace Dice::template_library {
 	 * the elements. However all elements will get exactly the same parameter.
 	 * You can use the function make_integral_template_tuple to create an
 	 * IntegralTemplatedTuple without explicitly listing the Args parameters.
-	 * @tparam EntryTypeTemplate T in the text above.
+	 * @tparam entry_type_template T in the text above.
 	 * @tparam FIRST
 	 * @tparam LAST
 	 * @tparam Args Types of the constructor parameters.
 	 */
-	template<template<std::integral auto> typename EntryTypeTemplate, std::integral auto FIRST, std::integral auto LAST, typename... Args>
-	class IntegralTemplatedTuple {
+	template<template<std::integral auto> typename entry_type_template, std::integral auto FIRST, std::integral auto LAST, typename... Args>
+	class integral_template_tuple {
 		static constexpr bool USE_SIGNED = FIRST < 0 or LAST < 0;
 		using integral_type = std::conditional_t<USE_SIGNED, intmax_t, uintmax_t>;
 		static constexpr integral_type MIN = std::min(integral_type(FIRST), integral_type(LAST));
@@ -38,12 +38,12 @@ namespace Dice::template_library {
 
 	public:
 		template<integral_type N>
-		using Entry = EntryTypeTemplate<N>;
+		using Entry = entry_type_template<N>;
 
 	private:
 		/** A helper struct to generate tuples of the Form (T<MIN>, T<MIN+1>,..., T<MAX>).
          */
-		struct TupleGenerator {
+		struct tuple_generator {
 			/** Generates the tuple based on entries of an integer_sequence.
 			 * @tparam IDS The indices itself.
 			 */
@@ -68,11 +68,11 @@ namespace Dice::template_library {
 			using type = std::invoke_result_t<decltype(make_tuple), Args &&...>;
 		};
 
-		typename TupleGenerator::type count_tuple_;
+		typename tuple_generator::type count_tuple_;
 
 	public:
-		explicit IntegralTemplatedTuple(Args &&...args)
-			: count_tuple_(TupleGenerator::make_tuple(std::forward<Args>(args)...)) {}
+		explicit integral_template_tuple(Args &&...args)
+			: count_tuple_(tuple_generator::make_tuple(std::forward<Args>(args)...)) {}
 
 	private:
 		/** Because FIRST can be larger than LAST the indexing must change based on those values.
@@ -102,9 +102,9 @@ namespace Dice::template_library {
 			return std::get<calcPos<I>()>(count_tuple_);
 		}
 	};
-	template<template<auto> typename EntryTypeTemplate, std::integral auto FIRST, std::integral auto LAST, typename... Args>
+	template<template<auto> typename entry_type_template, std::integral auto FIRST, std::integral auto LAST, typename... Args>
 	auto make_integral_template_tuple(Args &&...args) {
-		return IntegralTemplatedTuple<EntryTypeTemplate, FIRST, LAST, Args...>(std::forward<Args>(args)...);
+		return integral_template_tuple<entry_type_template, FIRST, LAST, Args...>(std::forward<Args>(args)...);
 	}
 }// namespace Dice::template_library
 

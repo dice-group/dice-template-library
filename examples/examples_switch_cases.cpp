@@ -1,26 +1,26 @@
-#include <Dice/template-library/switch_template_functions.hpp>
+#include <Dice/template-library/switch_cases.hpp>
 
 #include <iostream>
 
 using namespace Dice::template_library;
 
 template<std::size_t N>
-struct Fib {
-	static constexpr int value = Fib<N - 1>::value + Fib<N - 2>::value;
+struct fib {
+	static constexpr int value = fib<N - 1>::value + fib<N - 2>::value;
 };
 
 template<>
-struct Fib<0> {
+struct fib<0> {
 	static constexpr int value = 0;
 };
 
 template<>
-struct Fib<1> {
+struct fib<1> {
 	static constexpr int value = 1;
 };
 
 template<std::size_t N>
-static constexpr int Fib_v = Fib<N>::value;
+static constexpr int fib_v = fib<N>::value;
 
 
 template<std::size_t L, std::size_t M, std::size_t N>
@@ -31,7 +31,7 @@ int main() {
 	{
 		std::cout << "Using compile time fib with runtime parameter:\n";
 		std::size_t input = 15;
-		auto res = switch_cases<0, 20>(input, [](auto i) { return Fib_v<i>; });
+		auto res = switch_cases<0, 20>(input, [](auto i) { return fib_v<i>; });
 		std::cout << "fib(" << input << ") = " << res << '\n';
 	}
 
@@ -40,7 +40,7 @@ int main() {
 		std::size_t input = 100;
 		auto res = switch_cases<0, 20>(
 				input,
-				[](auto i) { return Fib_v<i>; },
+				[](auto i) { return fib_v<i>; },
 				[]() { return -1; });
 		std::cout << "fib(" << input << ") = " << res << '\n';
 	}

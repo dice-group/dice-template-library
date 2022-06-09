@@ -1,6 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <Dice/template-library/switch_template_functions.hpp>
+#include <Dice/template-library/switch_cases.hpp>
 
 #include <doctest/doctest.h>
 
@@ -77,7 +77,7 @@ namespace Dice::template_library {
 
 	TEST_SUITE("references") {
 		template<int N>
-		class TestType {
+		class test_type {
 			// NOLINTNEXTLINE
 			static inline int data = N;
 			static void reset() noexcept {
@@ -88,26 +88,26 @@ namespace Dice::template_library {
 			static int &get() noexcept {
 				return data;
 			}
-			static void resetAll() noexcept {
+			static void reset_all() noexcept {
 				if constexpr (N > 0) {
-					TestType<N - 1>::resetAll();
+					test_type<N - 1>::reset_all();
 				}
 				reset();
 			}
 		};
 
 		TEST_CASE("Test type works") {
-			TestType<5>::resetAll();
-			REQUIRE_EQ(5, TestType<5>::get());
+			test_type<5>::reset_all();
+			REQUIRE_EQ(5, test_type<5>::get());
 		}
 
 		TEST_CASE("simple return") {
-			TestType<5>::resetAll();
+			test_type<5>::reset_all();
 			static constexpr int value = 1;
 			int &res_ref = switch_cases<0, 5>(
-					value, [](auto i) -> auto & { return TestType<i>::get(); });
+					value, [](auto i) -> auto & { return test_type<i>::get(); });
 			res_ref += 1;
-			REQUIRE_EQ(res_ref, TestType<value>::get());
+			REQUIRE_EQ(res_ref, test_type<value>::get());
 		}
 	}
 }// namespace Dice::template_library

@@ -5,11 +5,11 @@ from conans.tools import load
 
 
 class DiceTemplateLibrary(ConanFile):
-    name = "DiceTemplateLibrary"
+    name = "dice-template-library"
     author = "DICE Group <info@dice-research.org>"
     description = None
     homepage = "https://dice-research.org/"
-    url = "https://github.com/dice-group/DiceTemplateLibrary.git"
+    url = "https://github.com/dice-group/dice-template-library.git"
     license = "MIT"
     topics = ("template", "template library", "compile-time", "switch", "integral tuple")
     settings = "build_type", "compiler", "os", "arch"
