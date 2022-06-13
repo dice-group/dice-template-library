@@ -45,7 +45,7 @@ to your CMakeLists.txt
 You can now add it to your target with:
 ```cmake
 target_link_libraries(your_target
-        dice-template-library::dice-template-library
+        dice::template-library
         )
 ```
 
