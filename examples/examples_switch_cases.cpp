@@ -1,8 +1,8 @@
-#include <Dice/template-library/switch_cases.hpp>
+#include <dice/template-library/switch_cases.hpp>
 
 #include <iostream>
 
-using namespace Dice::template_library;
+using namespace dice::template_library;
 
 template<std::size_t N>
 struct fib {

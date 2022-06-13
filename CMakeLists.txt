@@ -7,25 +7,20 @@ project(
     "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains `switch_cases` (Use runtime values in compile-time context) and `integral_template_tuple` (Create a tuple-like structure that instantiates a template for a range of values)."
   HOMEPAGE_URL "https://dice-research.org/")
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-  set(CMAKE_CXX_STANDARD 20)
-  set(CMAKE_CXX_STANDARD_REQUIRED True)
-  set(CMAKE_CXX_EXTENSIONS OFF)
-  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-endif()
-
-add_library(dice-template-library INTERFACE)
-add_library(dice-template-library::dice-template-library ALIAS dice-template-library)
-add_library(Dice::dice-template-library ALIAS dice-template-library)
+add_library(${PROJECT_NAME} INTERFACE)
+add_library(dice::template-library ALIAS ${PROJECT_NAME})
 
 target_include_directories(
-  dice-template-library
+        ${PROJECT_NAME}
   INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
-target_compile_features(dice-template-library INTERFACE cxx_std_20)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+        CXX_STANDARD 20
+        CXX_EXTENSIONS OFF
+        CXX_STANDARD_REQUIRED ON)
 
-include(cmake/header-only-install.cmake)
-installheaderonly(dice-template-library include/Dice)
+include(cmake/install_interface_library.cmake)
+install_interface_library(${PROJECT_NAME} "dice" "template-library" "include")
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
   include(CTest)

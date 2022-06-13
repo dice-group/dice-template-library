@@ -7,7 +7,7 @@
 #include <tuple>
 #include <utility>
 
-namespace Dice::template_library {
+namespace dice::template_library {
 	/**
 	 * This class is a wrapper around a tuple std::tuple<T<FIRST> .. T<LAST>>.
 	 * FIRST is allowed to be smaller then LAST.
@@ -106,6 +106,6 @@ namespace Dice::template_library {
 	auto make_integral_template_tuple(Args &&...args) {
 		return integral_template_tuple<entry_type_template, FIRST, LAST, Args...>(std::forward<Args>(args)...);
 	}
-}// namespace Dice::template_library
+}// namespace dice::template_library
 
 #endif//HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
