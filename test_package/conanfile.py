@@ -1,5 +1,5 @@
 import os
-from conans import ConanFile
+from conans import ConanFile, tools
 from conan.tools.cmake import CMake, CMakeToolchain
 from conan.tools.layout import cmake_layout
 
@@ -15,6 +15,13 @@ class TestPackageConan(ConanFile):
 
     def layout(self):
         cmake_layout(self)
+
+    def _min_cppstd(self):
+        return "20"
+
+    def validate(self):
+        if self.settings.compiler.get_safe("cppstd"):
+            tools.check_min_cppstd(self, self._min_cppstd)
 
     def build(self):
         cmake = CMake(self)
