@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(
   dice-template-library
-  VERSION 0.1.0
+  VERSION 0.1.1
   DESCRIPTION
     "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains `switch_cases` (Use runtime values in compile-time context) and `integral_template_tuple` (Create a tuple-like structure that instantiates a template for a range of values)."
   HOMEPAGE_URL "https://dice-research.org/")
