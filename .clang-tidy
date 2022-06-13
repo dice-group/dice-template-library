@@ -26,7 +26,7 @@ Checks: '-*,
 '
 WarningsAsErrors: ''
 # this might need fixing
-HeaderFilterRegex: 'include\/Dice\/|libs\/(einsum|hypertrie)\/'
+HeaderFilterRegex: 'include\/dice\/|libs\/(einsum|hypertrie)\/'
 FormatStyle:     none
 CheckOptions:
   - key: readability-function-cognitive-complexity.Threshold

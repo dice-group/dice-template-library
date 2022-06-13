@@ -1,9 +1,9 @@
-#include <Dice/template-library/integral_template_tuple.hpp>
+#include <dice/template-library/integral_template_tuple.hpp>
 
 #include <array>
 #include <iostream>
 
-using namespace Dice::template_library;
+using namespace dice::template_library;
 
 template<std::size_t N>
 struct int_array : std::array<int, N> {

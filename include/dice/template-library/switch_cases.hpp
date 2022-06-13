@@ -6,7 +6,7 @@
 #include <concepts>
 #include <cstdint>
 
-namespace Dice::template_library {
+namespace dice::template_library {
 
 	namespace detail_switch_cases {
 
@@ -137,6 +137,6 @@ namespace Dice::template_library {
 		using namespace detail_switch_cases;
 		return switch_cases<0, last, F>(condition, cases_function, UnReachable<F, last>);
 	}
-}// namespace Dice::template_library
+}// namespace dice::template_library
 
 #endif//HYPERTRIE_SWITCHTEMPLATEFUNCTIONS_HPP

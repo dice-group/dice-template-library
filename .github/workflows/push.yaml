@@ -28,4 +28,4 @@ jobs:
         run: sudo apt install -qq -y python3 python3-pip && pip3 install conan
 
       - name: run conan
-        run: conan create . cicd/test
+        run: CC=clang CXX=clang++ conan create . cicd/test -pr:b=default

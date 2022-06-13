@@ -1,13 +1,13 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <Dice/template-library/integral_template_tuple.hpp>
+#include <dice/template-library/integral_template_tuple.hpp>
 
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <iostream>
 
-namespace Dice::template_library {
+namespace dice::template_library {
 
 	template<typename T>
 	std::ostream &operator<<(std::ostream &os, std::vector<T> const &v) {
@@ -162,4 +162,4 @@ namespace Dice::template_library {
 		}
 	}
 
-}// namespace Dice::template_library
+}// namespace dice::template_library
