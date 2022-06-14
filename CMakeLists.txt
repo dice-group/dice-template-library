@@ -8,7 +8,7 @@ project(
   HOMEPAGE_URL "https://dice-research.org/")
 
 add_library(${PROJECT_NAME} INTERFACE)
-add_library(dice::template-library ALIAS ${PROJECT_NAME})
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_include_directories(
         ${PROJECT_NAME}
@@ -20,7 +20,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CXX_STANDARD_REQUIRED ON)
 
 include(cmake/install_interface_library.cmake)
-install_interface_library(${PROJECT_NAME} "dice" "template-library" "include")
+install_interface_library(${PROJECT_NAME} ${PROJECT_NAME} ${PROJECT_NAME} "include")
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
   include(CTest)

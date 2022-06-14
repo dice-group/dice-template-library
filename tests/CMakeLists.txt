@@ -21,7 +21,7 @@ macro(CUSTOM_ADD_TEST)
         "Call to 'CUSTOM_ADD_TEST' with ${ARGC} arguments instead of 1")
   endif()
   add_test(NAME ${ARGV0} COMMAND ${ARGV0})
-  target_link_libraries(${ARGV0} PRIVATE doctest dice::template-library)
+  target_link_libraries(${ARGV0} PRIVATE doctest dice-template-library::dice-template-library)
   add_dependencies(build_tests ${ARGV0})
 endmacro()
 

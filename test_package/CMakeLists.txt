@@ -6,7 +6,7 @@ find_package(dice-template-library REQUIRED)
 add_executable(${PROJECT_NAME} test_package.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-        dice::template-library)
+        dice-template-library::dice-template-library)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CXX_STANDARD 20

@@ -11,11 +11,10 @@ class DiceTemplateLibrary(ConanFile):
     homepage = "https://dice-research.org/"
     url = "https://github.com/dice-group/dice-template-library.git"
     license = "MIT"
-    topics = ("template", "template library", "compile-time", "switch", "integral tuple")
+    topics = ("template", "template-library", "compile-time", "switch", "integral-tuple")
     settings = "build_type", "compiler", "os", "arch"
     generators = ("CMakeDeps", "CMakeToolchain")
-    exports = "LICENSE"
-    exports_sources = "include/*", "CMakeLists.txt", "cmake/*"
+    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
 
     def set_name(self):
@@ -35,8 +34,5 @@ class DiceTemplateLibrary(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.install()
-        rmdir(os.path.join(self.package_folder, "cmake"))
-
-    def package_info(self):
-        self.cpp_info.set_property("cmake_target_name", "dice::template-library")
-
+        rmdir(os.path.join(self.package_folder, "share"))
+        self.copy("LICENSE", src=self.folders.base_export_sources, dst="licenses")
