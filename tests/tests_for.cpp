@@ -24,6 +24,12 @@ namespace dice::template_library {
 			});
 			REQUIRE(result == (-5 + 2 + 3 + 4 + 5 + 6));
 		}
+
+		TEST_CASE("constexpr") {
+			for_values<-5, 2, 3, 4, 5, 6>([](auto x) {
+				[[maybe_unused]] constexpr auto y = x;
+			});
+		}
 	}
 
 	TEST_SUITE("testing of compile time for_range") {
@@ -41,6 +47,12 @@ namespace dice::template_library {
 				result += x;
 			});
 			REQUIRE(result == 0);
+		}
+
+		TEST_CASE("constexpr") {
+			for_range<-5, 6>([](auto x) {
+				[[maybe_unused]] constexpr auto y = x;
+			});
 		}
 	}
 }// namespace dice::template_library

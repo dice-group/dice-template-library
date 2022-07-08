@@ -21,7 +21,7 @@ namespace dice::template_library {
 		struct cont {
 			template<auto FIRST, auto... TAIL>
 			static constexpr void for_values_consume(F &&f) {
-				(f(FIRST));
+				(f(std::integral_constant<decltype(FIRST), FIRST>()));
 				if constexpr (sizeof...(TAIL) > 0)
 					for_values_consume<TAIL...>(std::forward<F>(f));
 			}
