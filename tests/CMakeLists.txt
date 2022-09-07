@@ -35,3 +35,6 @@ custom_add_test(tests_integral_templated_tuple)
 
 add_executable(tests_for tests_for.cpp)
 custom_add_test(tests_for)
+
+add_executable(tests_static_vec tests_static_vector.cpp)
+custom_add_test(tests_static_vec)
