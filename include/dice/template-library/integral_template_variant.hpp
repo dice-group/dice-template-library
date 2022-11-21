@@ -83,13 +83,10 @@ namespace dice::template_library {
 		}
 
 	public:
-		constexpr integral_template_variant(integral_template_variant const &other)
-			: repr{other.repr} {
-		}
-
-		constexpr integral_template_variant(integral_template_variant &&other)
-			: repr{std::move(other.repr)} {
-		}
+		constexpr integral_template_variant(integral_template_variant const &other) = default;
+		constexpr integral_template_variant(integral_template_variant &&other) = default;
+		constexpr integral_template_variant &operator=(integral_template_variant const &other) = default;
+		constexpr integral_template_variant &operator=(integral_template_variant &&other) = default;
 
 		template<std::integral auto IX>
 		constexpr integral_template_variant(T<IX> const &value) noexcept(std::is_nothrow_copy_constructible_v<T<IX>>)

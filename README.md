@@ -30,6 +30,17 @@ Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to 
 Negative indices, recasting to fewer values and non-default construction is also possible. Examples can be
 found [here](examples/examples_integral_template_tuple.cpp).
 
+### `integral_template_variant`
+
+Creates a variant-like structure that instantiates a template for a range of values. Let's say you have a type like
+```cpp
+template <std::size_t N> struct my_type{...};
+```
+
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of `integral_template_variant<my_type, i, j>`.
+Negative indices, and j <= i are also possible. Examples can be
+found [here](examples/examples_integral_template_variant.cpp).
+
 ### `for_{types,values,range}`
 
 Different flavors of compile time loops that allow to iterate types, values or ranges at compile time. Types and values are provided as template arguments and a lambda to be called for each of them is passed as function argument, e.g. `for_types<uint8_t, uint64_t>([]<typename T>() {})` and `for_values<1, 1.1, 'c'>([](auto x) {})`. Ranges are defined by template parameters for start and exclusive end and receive a function to be applied to each range element as function argument, e.g. `for_range<3, 5>([](auto x) {})`, including support for decreasing ranges and negative indices, e.g. `for_range<2, -4>([](auto x) {})`. Examples can
