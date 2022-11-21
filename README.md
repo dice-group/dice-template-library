@@ -6,8 +6,8 @@ It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
 - `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
+- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>` where $\texttt{IX}\in [\texttt{FIRST},\texttt{LAST}]$ (inclusive).
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
-- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>`. Where $\texttt{IX}\in [\texttt{FIRST},\texttt{LAST}]$ (inclusive).
 
 ## Usage
 
