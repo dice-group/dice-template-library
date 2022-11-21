@@ -6,6 +6,8 @@ It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
 - `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
+- `for_{types,values,range}`: Compile time for loops for types, values or ranges
+- `integral_templated_variant`: A wrapper type for std::variant guarantees to only contain variants of the form `T<IX>`. Where $\texttt{IX}\in [\texttt{FIRST},\texttt{LAST}]$ (inclusive).
 
 ## Usage
 
@@ -30,7 +32,12 @@ found [here](examples/examples_integral_template_tuple.cpp).
 
 ### `for_{types,values,range}`
 
-Different flavors of compile time loops that allow to iterate types, values or ranges at compile time.
+Different flavors of compile time loops that allow to iterate types, values or ranges at compile time. Types and values are provided as template arguments and a lambda to be called for each of them is passed as function argument, e.g. `for_types<uint8_t, uint64_t>([]<typename T>() {})` and `for_values<1, 1.1, 'c'>([](auto x) {})`. Ranges are defined by template parameters for start and exclusive end and receive a function to be applied to each range element as function argument, e.g. `for_range<3, 5>([](auto x) {})`, including support for decreasing ranges and negative indices, e.g. `for_range<2, -4>([](auto x) {})`. Examples can
+be found [here](examples/examples_for.cpp).
+
+### `integral_templated_variant`
+
+TODO
 
 ### Further Examples
 
