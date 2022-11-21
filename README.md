@@ -46,10 +46,6 @@ found [here](examples/examples_integral_template_variant.cpp).
 Different flavors of compile time loops that allow to iterate types, values or ranges at compile time. Types and values are provided as template arguments and a lambda to be called for each of them is passed as function argument, e.g. `for_types<uint8_t, uint64_t>([]<typename T>() {})` and `for_values<1, 1.1, 'c'>([](auto x) {})`. Ranges are defined by template parameters for start and exclusive end and receive a function to be applied to each range element as function argument, e.g. `for_range<3, 5>([](auto x) {})`, including support for decreasing ranges and negative indices, e.g. `for_range<2, -4>([](auto x) {})`. Examples can
 be found [here](examples/examples_for.cpp).
 
-### `integral_template_variant`
-
-TODO
-
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
