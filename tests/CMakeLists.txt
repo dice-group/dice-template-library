@@ -33,5 +33,9 @@ add_executable(tests_integral_templated_tuple
                tests_integral_templated_tuple.cpp)
 custom_add_test(tests_integral_templated_tuple)
 
+add_executable(tests_integral_templated_variant
+        tests_integral_templated_variant.cpp)
+custom_add_test(tests_integral_templated_variant)
+
 add_executable(tests_for tests_for.cpp)
 custom_add_test(tests_for)
