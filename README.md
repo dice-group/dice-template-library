@@ -6,6 +6,8 @@ It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
 - `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
+- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>` where $\texttt{IX}\in [\texttt{FIRST},\texttt{LAST}]$ (inclusive).
+- `for_{types,values,range}`: Compile time for loops for types, values or ranges
 
 ## Usage
 
@@ -28,9 +30,21 @@ Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to 
 Negative indices, recasting to fewer values and non-default construction is also possible. Examples can be
 found [here](examples/examples_integral_template_tuple.cpp).
 
+### `integral_template_variant`
+
+Creates a variant-like structure that instantiates a template for a range of values. Let's say you have a type like
+```cpp
+template <std::size_t N> struct my_type{...};
+```
+
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of `integral_template_variant<my_type, i, j>`.
+Negative indices, and j <= i are also possible. Examples can be
+found [here](examples/examples_integral_template_variant.cpp).
+
 ### `for_{types,values,range}`
 
-Different flavors of compile time loops that allow to iterate types, values or ranges at compile time.
+Different flavors of compile time loops that allow to iterate types, values or ranges at compile time. Types and values are provided as template arguments and a lambda to be called for each of them is passed as function argument, e.g. `for_types<uint8_t, uint64_t>([]<typename T>() {})` and `for_values<1, 1.1, 'c'>([](auto x) {})`. Ranges are defined by template parameters for start and exclusive end and receive a function to be applied to each range element as function argument, e.g. `for_range<3, 5>([](auto x) {})`, including support for decreasing ranges and negative indices, e.g. `for_range<2, -4>([](auto x) {})`. Examples can
+be found [here](examples/examples_for.cpp).
 
 ### Further Examples
 
@@ -51,7 +65,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v0.2.0
+        GIT_TAG v0.3.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -70,7 +84,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/0.2.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/0.3.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
