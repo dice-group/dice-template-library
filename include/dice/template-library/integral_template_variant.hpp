@@ -1,5 +1,5 @@
-#ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATED_VARIANT_HPP
-#define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATED_VARIANT_HPP
+#ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
+#define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
 
 #include <algorithm>
 #include <concepts>
@@ -43,7 +43,7 @@ namespace dice::template_library {
 
 		/**
 		 * Generates the std::variant type corresponding to
-		 * integral_templated_variant<FIRST, LAST, T> by calling make_itv_type_impl with the correct index_sequence.
+		 * integral_template_variant<FIRST, LAST, T> by calling make_itv_type_impl with the correct index_sequence.
 		 *
 		 * Note: only callable in decltype context
 		 */
@@ -66,7 +66,7 @@ namespace dice::template_library {
 	 * @tparam T the template that gets instantiated with T<IX> for IX in FIRST..LAST (inclusive)
 	 */
 	template<template<std::integral auto> typename T, std::integral auto FIRST, std::integral auto LAST>
-	struct integral_templated_variant {
+	struct integral_template_variant {
 		static constexpr std::integral auto MIN = std::min(FIRST, LAST);
 		static constexpr std::integral auto MAX = std::max(FIRST, LAST);
 
@@ -83,51 +83,48 @@ namespace dice::template_library {
 		}
 
 	public:
-		constexpr integral_templated_variant(integral_templated_variant const &other)
-			: repr{other.repr} {
-		}
-
-		constexpr integral_templated_variant(integral_templated_variant &&other)
-			: repr{std::move(other.repr)} {
-		}
+		constexpr integral_template_variant(integral_template_variant const &other) = default;
+		constexpr integral_template_variant(integral_template_variant &&other) = default;
+		constexpr integral_template_variant &operator=(integral_template_variant const &other) = default;
+		constexpr integral_template_variant &operator=(integral_template_variant &&other) = default;
 
 		template<std::integral auto IX>
-		constexpr integral_templated_variant(T<IX> const &value) noexcept(std::is_nothrow_copy_constructible_v<T<IX>>)
+		constexpr integral_template_variant(T<IX> const &value) noexcept(std::is_nothrow_copy_constructible_v<T<IX>>)
 			: repr{value} {
 			check_ix<IX>();
 		}
 
 		template<std::integral auto IX>
-		constexpr integral_templated_variant(T<IX> &&value) noexcept(std::is_nothrow_move_constructible_v<T<IX>>)
+		constexpr integral_template_variant(T<IX> &&value) noexcept(std::is_nothrow_move_constructible_v<T<IX>>)
 			: repr{std::move(value)} {
 			check_ix<IX>();
 		}
 
 		template<typename U, typename ...Args>
-		explicit constexpr integral_templated_variant(std::in_place_type_t<U>, Args &&...args)
+		explicit constexpr integral_template_variant(std::in_place_type_t<U>, Args &&...args)
 			: repr{std::in_place_type<U>, std::forward<Args>(args)...} {
 		}
 
 		template<std::integral auto IX>
-		friend constexpr T<IX> &get(integral_templated_variant &variant) {
+		friend constexpr T<IX> &get(integral_template_variant &variant) {
 			check_ix<IX>();
 			return std::get<T<IX>>(variant.repr);
 		}
 
 		template<std::integral auto IX>
-		friend constexpr T<IX> const &get(integral_templated_variant const &variant) {
+		friend constexpr T<IX> const &get(integral_template_variant const &variant) {
 			check_ix<IX>();
 			return std::get<T<IX>>(variant.repr);
 		}
 
 		template<std::integral auto IX>
-		friend constexpr T<IX> &&get(integral_templated_variant &&variant) {
+		friend constexpr T<IX> &&get(integral_template_variant &&variant) {
 			check_ix<IX>();
 			return std::get<T<IX>>(std::move(variant.repr));
 		}
 
 		template<std::integral auto IX>
-		friend constexpr T<IX> const &&get(integral_templated_variant const &&variant) {
+		friend constexpr T<IX> const &&get(integral_template_variant const &&variant) {
 			check_ix<IX>();
 			return std::get<T<IX>>(static_cast<variant_t const &&>(variant.repr));
 		}
@@ -143,4 +140,4 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
-#endif//DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATED_VARIANT_HPP
+#endif//DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
