@@ -1,17 +1,16 @@
 import os
-from conans import ConanFile, tools
-from conan.tools.cmake import CMake, CMakeToolchain
-from conan.tools.layout import cmake_layout
 
-required_conan_version = ">=1.43.0"
+from conan.tools.build import check_min_cppstd
+from conan.tools.cmake import CMake
+from conan.tools.layout import cmake_layout
+from conans import ConanFile
+
+required_conan_version = ">=1.59.0"
+
 
 class TestPackageConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeDeps"
-
-    def generate(self):
-        tc = CMakeToolchain(self)
-        tc.generate()
+    generators = "CMakeDeps", "CMakeToolchain"
 
     def layout(self):
         cmake_layout(self)
@@ -21,7 +20,7 @@ class TestPackageConan(ConanFile):
 
     def validate(self):
         if self.settings.compiler.get_safe("cppstd"):
-            tools.check_min_cppstd(self, self._min_cppstd)
+            check_min_cppstd(self, self._min_cppstd)
 
     def build(self):
         cmake = CMake(self)
