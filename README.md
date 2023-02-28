@@ -65,7 +65,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v0.3.1
+        GIT_TAG v0.3.2
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
