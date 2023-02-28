@@ -1,0 +1,59 @@
+name: Build and run Tests
+
+on: [ push ]
+
+concurrency:
+  group: build-and-run-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-run-tests:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - os: ubuntu-20.04
+            compiler: clang-10
+          - os: ubuntu-22.04
+            compiler: gcc-10
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }} (${{ matrix.config.compiler }})
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install CMake
+        uses: lukka/get-cmake@v3.24.3
+        with:
+          cmakeVersion: 3.16.9
+
+      - name: Install compiler
+        id: install_cc
+        uses: rlalik/setup-cpp-compiler@v1.2
+        with:
+          compiler: ${{ matrix.config.compiler }}
+
+      - name: Set compiler
+        run: |
+          echo "CC=${{ steps.install_cc.outputs.cc }}" >> $GITHUB_ENV
+          echo "CXX=${{ steps.install_cc.outputs.cxx }}" >> $GITHUB_ENV
+
+      - name: Install Linker
+        uses: rui314/setup-mold@v1
+
+      - uses: actions/checkout@v3
+
+      - name: Configure CMake
+        run: |
+          cmake -DBUILD_TESTING=On -G Ninja -B build .
+
+      - name: Build tests
+        working-directory: build
+        run: |
+          cmake --build . --parallel 2
+
+      - name: Run tests
+        working-directory: build
+        run: ctest --parallel 2
