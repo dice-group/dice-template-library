@@ -31,7 +31,7 @@ int main() {
 	{
 		std::cout << "Using compile time fib with runtime parameter:\n";
 		std::size_t input = 15;
-		auto res = switch_cases<0, 20>(input, [](auto i) { return fib_v<i>; });
+		auto res = switch_cases<0, 20>(input, []<auto i>() { return fib_v<i>; });
 		std::cout << "fib(" << input << ") = " << res << '\n';
 	}
 
@@ -40,7 +40,7 @@ int main() {
 		std::size_t input = 100;
 		auto res = switch_cases<0, 20>(
 				input,
-				[](auto i) { return fib_v<i>; },
+				[]<auto i>() { return fib_v<i>; },
 				[]() { return -1; });
 		std::cout << "fib(" << input << ") = " << res << '\n';
 	}
@@ -50,9 +50,9 @@ int main() {
 		std::size_t a = 2;
 		std::size_t b = 3;
 		std::size_t c = 4;
-		auto res = switch_cases<0, 5>(a, [&](auto A) {
-			return switch_cases<0, 5>(b, [&](auto B) {
-				return switch_cases<0, 5>(c, [&](auto C) { return Prod<A, B, C>; });
+		auto res = switch_cases<0, 5>(a, [&b, &c]<auto A>() {
+			return switch_cases<0, 5>(b, [&c]<auto B>() {
+				return switch_cases<0, 5>(c, []<auto C>() { return Prod<A, B, C>; });
 			});
 		});
 		std::cout << a << "*" << b << "*" << c << " = " << res << '\n';
