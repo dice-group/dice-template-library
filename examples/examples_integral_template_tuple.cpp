@@ -36,7 +36,7 @@ int main() {
 
 	{
 		std::cout << "tuple of integer arrays, size 5 to 8, specific constructor:\n";
-		integral_template_tuple<5UL, 8, int_array> itt{individual_construct, 42};
+		integral_template_tuple<5UL, 8, int_array> itt{uniform_construct, 42};
 		std::cout << "  " << itt.template get<5>() << '\n';
 		std::cout << "  " << itt.template get<6>() << '\n';
 		std::cout << "  " << itt.template get<7>() << '\n';

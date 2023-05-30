@@ -10,6 +10,12 @@
 
 namespace dice::template_library {
 
+	struct uniform_construct_t {};
+	inline constexpr uniform_construct_t uniform_construct;
+
+	struct individual_construct_t {};
+	inline constexpr individual_construct_t individual_construct;
+
 	namespace itt_detail {
 		/**
 		 * generates the std::integer_sequence<Int, first, ..., last>
@@ -32,6 +38,9 @@ namespace dice::template_library {
 			}
 		}
 
+		/**
+		 * Selects the nth type from the given parameter pack
+		 */
 		template<size_t index, typename ...Ts>
 		struct nth_type;
 
@@ -47,7 +56,18 @@ namespace dice::template_library {
 
 		template<size_t, typename T>
 		struct struct_tuple_leaf {
-			T value;
+			T value_;
+
+			constexpr struct_tuple_leaf() noexcept(std::is_nothrow_default_constructible_v<T>)
+				: value_{} {
+			}
+
+			template<typename Arg>
+			explicit constexpr struct_tuple_leaf(individual_construct_t, Arg &&arg) noexcept(std::is_nothrow_constructible_v<T, decltype(std::forward<Arg>(arg))>)
+				: value_{std::forward<Arg>(arg)} {
+			}
+
+			constexpr auto operator<=>(struct_tuple_leaf const &other) const noexcept = default;
 		};
 
 		template<typename Markers, typename ...Ts>
@@ -55,30 +75,39 @@ namespace dice::template_library {
 
 		template<size_t ...ixs, typename ...Ts>
 		struct struct_tuple_base<std::index_sequence<ixs...>, Ts...> : struct_tuple_leaf<ixs, Ts>... {
+			constexpr struct_tuple_base() noexcept((std::is_default_constructible_v<Ts> && ...)) = default;
+
+			template<typename ...Args> requires (sizeof...(Args) == sizeof...(Ts))
+			explicit constexpr struct_tuple_base(Args &&...args) noexcept((std::is_nothrow_constructible_v<Ts, decltype(std::forward<Args>(args))> && ...))
+				: struct_tuple_leaf<ixs, Ts>{individual_construct, std::forward<Args>(args)}... {
+			}
+
 			template<size_t ix>
 			[[nodiscard]] constexpr auto const &get() const & noexcept {
-				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type const &>(*this).value;
+				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type const &>(*this).value_;
 			}
 
 			template<size_t ix>
 			[[nodiscard]] constexpr auto &get() & noexcept {
-				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type &>(*this).value;
+				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type &>(*this).value_;
 			}
 
 			template<size_t ix>
 			[[nodiscard]] constexpr auto const &&get() const && noexcept {
-				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type const &&>(*this).value;
+				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type const &&>(*this).value_;
 			}
 
 			template<size_t ix>
 			[[nodiscard]] constexpr auto &&get() && noexcept {
-				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type &&>(*this).value;
+				return static_cast<typename nth_type<ix, struct_tuple_leaf<ixs, Ts>...>::type &&>(*this).value_;
 			}
 
 			template<typename Self, typename Visitor>
 			[[nodiscard]] static constexpr decltype(auto) visit(Self &&self, Visitor &&visitor) {
 				return (std::invoke(visitor, std::forward<Self>(self).template get<ixs>()), ...);
 			}
+
+			constexpr auto operator<=>(struct_tuple_base const &other) const noexcept = default;
 		};
 
 		/**
@@ -91,6 +120,15 @@ namespace dice::template_library {
 		template<typename ...Ts>
 		struct struct_tuple : struct_tuple_base<std::make_index_sequence<sizeof...(Ts)>, Ts...> {
 			static constexpr size_t size = sizeof...(Ts);
+
+			constexpr struct_tuple() noexcept((std::is_nothrow_default_constructible_v<Ts> && ...)) = default;
+
+			template<typename ...Args> requires (sizeof...(Args) == sizeof...(Ts))
+			explicit constexpr struct_tuple(Args &&...args) noexcept((std::is_nothrow_constructible_v<Ts, decltype(std::forward<Args>(args))> && ...))
+				: struct_tuple_base<std::make_index_sequence<sizeof...(Ts)>, Ts...>{std::forward<Args>(args)...} {
+			}
+
+			constexpr auto operator<=>(struct_tuple const &other) const noexcept = default;
 		};
 
 		/**
@@ -117,9 +155,6 @@ namespace dice::template_library {
 		template<std::integral Int, Int first, Int last, template<Int> typename T>
 		using itt_type_t = std::invoke_result_t<decltype(make_itt_type<Int, first, last, T>)>;
 	} // namespace itt_detail
-
-	struct individual_construct_t {};
-	inline constexpr individual_construct_t individual_construct;
 
 	/**
 	 * A std::tuple-like type holding elements T<first> .. T<last> (inclusive).
@@ -164,17 +199,21 @@ namespace dice::template_library {
 		constexpr integral_template_tuple &operator=(integral_template_tuple &&other) noexcept(std::is_nothrow_move_assignable_v<underlying_type>) = default;
 		constexpr ~integral_template_tuple() noexcept(std::is_nothrow_destructible_v<underlying_type>) = default;
 
+		/**
+		 * Constructs the integral_template_tuple by providing each element one of args...
+		 * @param args args to provide to the elements
+		 */
 		template<typename ...Args>
-		explicit constexpr integral_template_tuple(Args &&...args) noexcept(std::is_nothrow_constructible_v<underlying_type, decltype(std::forward<Args>(args))...>)
+		explicit constexpr integral_template_tuple(individual_construct_t, Args &&...args) noexcept(std::is_nothrow_constructible_v<underlying_type, decltype(std::forward<Args>(args))...>)
 			: repr_{std::forward<Args>(args)...} {
 		}
 
 		/**
-		 * Constructs the integral_template_tuple by providing each element with args...
+		 * Uniformly constructs the integral_template_tuple by providing each element with args...
 		 * @param args args to provide to each element for construction
 		 */
 		template<typename ...Args>
-		explicit constexpr integral_template_tuple(individual_construct_t, Args &&...args) noexcept(noexcept(make_underlying(itt_detail::make_integer_sequence<index_type, first, last>(), std::forward<Args>(args)...)))
+		explicit constexpr integral_template_tuple(uniform_construct_t, Args &&...args) noexcept(noexcept(make_underlying(itt_detail::make_integer_sequence<index_type, first, last>(), std::forward<Args>(args)...)))
 			: repr_{make_underlying(itt_detail::make_integer_sequence<index_type, first, last>(), std::forward<Args>(args)...)} {
 		}
 

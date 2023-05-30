@@ -59,7 +59,13 @@ namespace dice::template_library {
 
 	template<auto N>
 	struct Data {
+		int value_;
+
+		Data() = default;
+		explicit Data(int value) : value_{value} {}
+
 		operator int() const { return static_cast<int>(N); }
+		constexpr auto operator<=>(Data const &other) const noexcept = default;
 	};
 
 	TEST_SUITE("checking test utilities") {
@@ -111,11 +117,38 @@ namespace dice::template_library {
 
 			// best effort correctness detection
 			REQUIRE((sizeof(example_struct) == sizeof(example_tuple)));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.a) == offset(&example_tuple_v, &example_tuple_v.template get<0>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.b) == offset(&example_tuple_v, &example_tuple_v.template get<1>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.v) == offset(&example_tuple_v, &example_tuple_v.template get<2>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.t) == offset(&example_tuple_v, &example_tuple_v.template get<3>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.f) == offset(&example_tuple_v, &example_tuple_v.template get<4>())));
+			REQUIRE((offset(&example_struct_v, &example_struct_v.a) == offset(&example_tuple_v, &example_tuple_v.get<0>())));
+			REQUIRE((offset(&example_struct_v, &example_struct_v.b) == offset(&example_tuple_v, &example_tuple_v.get<1>())));
+			REQUIRE((offset(&example_struct_v, &example_struct_v.v) == offset(&example_tuple_v, &example_tuple_v.get<2>())));
+			REQUIRE((offset(&example_struct_v, &example_struct_v.t) == offset(&example_tuple_v, &example_tuple_v.get<3>())));
+			REQUIRE((offset(&example_struct_v, &example_struct_v.f) == offset(&example_tuple_v, &example_tuple_v.get<4>())));
+		}
+
+		TEST_CASE("ctor") {
+			integral_template_tuple<0, 3, Data> tuple{individual_construct, 0, 1, 2, 3};
+			REQUIRE(tuple.get<0>().value_ == 0);
+			REQUIRE(tuple.get<1>().value_ == 1);
+			REQUIRE(tuple.get<2>().value_ == 2);
+			REQUIRE(tuple.get<3>().value_ == 3);
+
+			integral_template_tuple<0, 3, Data> tuple2{uniform_construct, 0};
+			REQUIRE(tuple2.get<0>().value_ == 0);
+			REQUIRE(tuple2.get<0>().value_ == 0);
+			REQUIRE(tuple2.get<0>().value_ == 0);
+			REQUIRE(tuple2.get<0>().value_ == 0);
+
+			integral_template_tuple<0, 3, Data> copy{tuple};
+			tuple = copy;
+			tuple = std::move(copy);
+
+			integral_template_tuple<0, 3, Data> moved{std::move(tuple2)};
+		}
+
+		TEST_CASE("comparision") {
+			integral_template_tuple<0, 3, Data> tuple{individual_construct, 0, 1, 2, 3};
+			integral_template_tuple<0, 3, Data> tuple2{individual_construct, 1, 2, 3, 4};
+
+			REQUIRE(tuple <=> tuple2 == std::strong_ordering::less);
 		}
 
 		TEST_CASE("Is same for single value at 0") {
@@ -193,7 +226,7 @@ namespace dice::template_library {
 		}
 
 		TEST_CASE("visit") {
-			integral_template_tuple<1, 2, Data> const tuple;
+			integral_template_tuple<1, 2, Data> const tuple{};
 
 			SUBCASE("non-void return") {
 				auto const res = tuple.visit([acc = 0]<auto I>(Data<I> const &data) mutable {
