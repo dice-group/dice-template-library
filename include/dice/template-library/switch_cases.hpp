@@ -5,39 +5,22 @@
 #include <cassert>
 #include <concepts>
 #include <cstdint>
+#include <functional>
 
 namespace dice::template_library {
 
 	namespace detail_switch_cases {
+		template<std::integral auto i, decltype(i) max, decltype(i) min = i, typename F>
+		constexpr decltype(auto) execute_case(decltype(i) value, F &&cases_function) {
+			if constexpr (i < ((max == min) ? max : max - 1)) {
+				if (value != i) {
+					return execute_case<i + 1, max, min>(value, std::forward<F>(cases_function));
+				}
+			}
 
-		template<std::integral auto first, std::integral auto last>
-		struct Range {
-			using int_type = std::conditional_t < first < 0 or last<0, intmax_t, uintmax_t>;
-
-		private:
-			static constexpr int_type first_typed = first;
-			static constexpr int_type last_typed = last;
-
-		public:
-			static constexpr int_type min = std::min(first_typed, last_typed);
-			static constexpr int_type max = std::max(first_typed, last_typed);
-		};
-
-		template<std::integral auto i, std::integral auto max, class T, class F,
-				 std::integral auto min = i>
-		constexpr decltype(auto) execute_case(T value, F f) {
-			if constexpr (i < ((max == min) ? max : max - 1))
-				if (value != i) return execute_case<i + 1, max, T, F, min>(value, f);
 			static_assert(i < max);
-			return f(std::integral_constant<T, i>{});
+			return std::invoke(std::forward<F>(cases_function), std::integral_constant<decltype(i), i>{});
 		}
-
-		/**
-		 * The function given to the `switch_cases` needs to have the same (or interchangeable) return type for all parameter values.
-		 * Because of that, you can simply choose any valid number to retract the return type.
-		 */
-		template<typename F, auto NUM>
-		using RType = std::invoke_result_t<F, std::integral_constant<decltype(NUM), NUM>>;
 
 		/**
 		 * This function mimics the return type of the function given to `switch_cases`.
@@ -48,7 +31,7 @@ namespace dice::template_library {
 		 * @return Nothing.
 		 */
 		template<typename F, auto NUM>
-		RType<F, NUM> UnReachable() noexcept {
+		std::invoke_result_t<F, std::integral_constant<decltype(NUM), NUM>> unreachable() noexcept {
 			assert(false);
 			__builtin_unreachable();
 		}
@@ -69,14 +52,20 @@ namespace dice::template_library {
    * @param default_function the default fallback if condition is out of range [min,max) spanned b first, last
    * @return The value returned from the switch case
    */
-	template<std::integral auto first, std::integral auto last, class F, class D>
-	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<first, last>::int_type condition, F cases_function, D default_function) {
+	template<std::integral auto first, decltype(first) last, typename F, typename D>
+	constexpr decltype(auto) switch_cases(decltype(first) condition, F &&cases_function, D &&default_function) {
 		using namespace detail_switch_cases;
-		using range = Range<first, last>;
-		if constexpr (range::min != range::max)
-			if (range::min <= condition and condition < range::max)
-				return execute_case<range::min, range::max>(condition, cases_function);
-		return default_function();
+
+		constexpr decltype(first) min = std::min(first, last);
+		constexpr decltype(last) max = std::max(first, last);
+
+		if constexpr (min != max) {
+			if (min <= condition && condition < max) {
+				return execute_case<min, max>(condition, std::forward<F>(cases_function));
+			}
+		}
+
+		return std::invoke(std::forward<D>(default_function));
 	}
 
 	/**
@@ -94,10 +83,9 @@ namespace dice::template_library {
 	 * @param default_function the default fallback if condition is out of range [min,max) spanned b first, last
 	 * @return The value returned from the switch case
 	 */
-	template<std::integral auto first, std::integral auto last, class F>
-	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<first, last>::int_type condition, F cases_function) {
-		using namespace detail_switch_cases;
-		return switch_cases<first, last, F>(condition, cases_function, UnReachable<F, first>);
+	template<std::integral auto first, decltype(first) last, typename F>
+	constexpr decltype(auto) switch_cases(decltype(first) condition, F &&cases_function) {
+		return switch_cases<first, last>(condition, std::forward<F>(cases_function), detail_switch_cases::unreachable<F, first>);
 	}
 
 	/**
@@ -113,9 +101,9 @@ namespace dice::template_library {
 	 * @param default_function the default fallback if condition is out of range [min,max) spanned b first, last
 	 * @return The value returned from the switch case
 	 */
-	template<std::integral auto last, class F, class D>
-	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<0, last>::int_type condition, F cases_function, D default_function) {
-		return switch_cases<0, last>(condition, cases_function, default_function);
+	template<std::integral auto last, typename F, typename D>
+	constexpr decltype(auto) switch_cases(decltype(last) condition, F &&cases_function, D &&default_function) {
+		return switch_cases<decltype(last){}, last>(condition, std::forward<F>(cases_function), std::forward<D>(default_function));
 	}
 
 
@@ -132,10 +120,9 @@ namespace dice::template_library {
 	* @param default_function the default fallback if condition is out of range [min,max) spanned b first, last
 	* @return The value returned from the switch case
 	 */
-	template<std::integral auto last, class F>
-	constexpr decltype(auto) switch_cases(typename detail_switch_cases::Range<0, last>::int_type condition, F cases_function) {
-		using namespace detail_switch_cases;
-		return switch_cases<0, last, F>(condition, cases_function, UnReachable<F, last>);
+	template<std::integral auto last, typename F>
+	constexpr decltype(auto) switch_cases(decltype(last) condition, F &&cases_function) {
+		return switch_cases<decltype(last){}, last>(condition, std::forward<F>(cases_function), detail_switch_cases::unreachable<F, last>);
 	}
 }// namespace dice::template_library
 
