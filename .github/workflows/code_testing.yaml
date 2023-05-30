@@ -13,10 +13,10 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: ubuntu-20.04
-            compiler: clang-10
           - os: ubuntu-22.04
-            compiler: gcc-10
+            compiler: clang-12
+          - os: ubuntu-22.04
+            compiler: gcc-12
     runs-on: ${{ matrix.config.os }}
     name: ${{ matrix.config.os }} (${{ matrix.config.compiler }})
     defaults:
