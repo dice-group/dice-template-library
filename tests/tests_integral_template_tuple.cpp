@@ -196,7 +196,7 @@ namespace dice::template_library {
 		TEST_CASE("reinterpret_cast counting up") {
 			integral_template_tuple<0, 3, Data> inTuple;
 			// NOLINTNEXTLINE
-			auto &casted = inTuple.template subtuple<1, 2>();
+			integral_template_tuple<1, 2, Data> &casted = inTuple.template subtuple<1, 2>();
 			auto vec = to_int_vector<1, 2>(casted);
 			REQUIRE(is_equal(vec, {1, 2}));
 		}
@@ -204,7 +204,7 @@ namespace dice::template_library {
 		TEST_CASE("reinterpret_cast counting down") {
 			integral_template_tuple<3, 0, Data> inTuple;
 			// NOLINTNEXTLINE
-			auto &casted = inTuple.template subtuple<2, 1>();
+			integral_template_tuple<2, 1, Data> &casted = inTuple.template subtuple<2, 1>();
 			auto vec = to_int_vector<1, 2>(casted);
 			REQUIRE(is_equal(vec, {1, 2}));
 		}
@@ -212,7 +212,7 @@ namespace dice::template_library {
 		TEST_CASE("reinterpret_cast counting up from negative") {
 			integral_template_tuple<-1, 3, Data> inTuple;
 			// NOLINTNEXTLINE
-			auto &casted = inTuple.template subtuple<0, 2>();
+			integral_template_tuple<0, 2, Data> &casted = inTuple.template subtuple<0, 2>();
 			auto vec = to_int_vector<0, 2>(casted);
 			REQUIRE(is_equal(vec, {0, 1, 2}));
 		}
@@ -220,7 +220,7 @@ namespace dice::template_library {
 		TEST_CASE("reinterpret_cast counting down into negative") {
 			integral_template_tuple<3, -2, Data> inTuple;
 			// NOLINTNEXTLINE
-			auto &casted = inTuple.template subtuple<2, -1>();
+			integral_template_tuple<2, -1, Data> &casted = inTuple.template subtuple<2, -1>();
 			auto vec = to_int_vector<-1, 2>(casted);
 			REQUIRE(is_equal(vec, {-1, 0, 1, 2}));
 		}

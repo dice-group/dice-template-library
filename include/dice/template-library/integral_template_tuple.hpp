@@ -281,11 +281,11 @@ namespace dice::template_library {
 		 * @return subtuple
 		 */
 		template<index_type new_first, index_type new_last>
-		constexpr integral_template_tuple<new_first, new_last, value_type> const &subtuple() const noexcept {
+		constexpr integral_template_tuple<new_first, new_last, T> const &subtuple() const noexcept {
 			static_assert(first <= last ? (new_first >= first && new_last <= last) : (new_first <= first && new_last >= last),
 						  "Cannot add elements to a tuple by casting");
 
-			return *reinterpret_cast<integral_template_tuple<new_first, new_last, value_type> const *>(this);
+			return *reinterpret_cast<integral_template_tuple<new_first, new_last, T> const *>(this);
 		}
 
 		/**
@@ -296,11 +296,11 @@ namespace dice::template_library {
 		 * @return subtuple
 		 */
 		template<index_type new_first, index_type new_last>
-		constexpr integral_template_tuple<new_first, new_last, value_type> &subtuple() noexcept {
+		constexpr integral_template_tuple<new_first, new_last, T> &subtuple() noexcept {
 			static_assert(first <= last ? (new_first >= first && new_last <= last) : (new_first <= first && new_last >= last),
 						  "Cannot add elements to a tuple by casting");
 
-			return *reinterpret_cast<integral_template_tuple<new_first, new_last, value_type> *>(this);
+			return *reinterpret_cast<integral_template_tuple<new_first, new_last, T> *>(this);
 		}
 	};
 }// namespace dice::template_library
