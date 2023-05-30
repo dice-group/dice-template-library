@@ -67,7 +67,9 @@ namespace dice::template_library {
 				: value_{std::forward<Arg>(arg)} {
 			}
 
-			constexpr auto operator<=>(struct_tuple_leaf const &other) const noexcept = default;
+			constexpr auto operator<=>(struct_tuple_leaf const &other) const noexcept requires requires (T const &value) { value <=> value; } {
+				return value_ <=> other.value_;
+			}
 		};
 
 		template<typename Markers, typename ...Ts>

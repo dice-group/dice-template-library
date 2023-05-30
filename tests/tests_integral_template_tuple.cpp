@@ -65,7 +65,9 @@ namespace dice::template_library {
 		explicit Data(int value) : value_{value} {}
 
 		operator int() const { return static_cast<int>(N); }
-		constexpr auto operator<=>(Data const &other) const noexcept = default;
+		auto operator<=>(Data const &other) const noexcept {
+			return value_ <=> other.value_;
+		}
 	};
 
 	TEST_SUITE("checking test utilities") {
