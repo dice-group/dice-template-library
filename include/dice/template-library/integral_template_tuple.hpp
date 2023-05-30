@@ -26,7 +26,7 @@ namespace dice::template_library {
 		 * @tparam last the end integer
 		 */
 		template<std::integral Int, Int first, Int last, Int ...ixs>
-		consteval auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
+		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
 			std::integer_sequence<Int, ixs..., first> const acc;
 
 			if constexpr (first == last) {
@@ -148,7 +148,7 @@ namespace dice::template_library {
 		 * Note: only callable in decltype context
 		 */
 		template<std::integral Int, Int first, Int last, template<Int> typename T>
-		consteval auto make_itt_type() {
+		auto make_itt_type() {
 			return make_itt_type_impl<Int, T>(make_integer_sequence<Int, first, last>());
 		}
 
