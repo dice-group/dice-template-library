@@ -108,8 +108,8 @@ namespace dice::template_library {
 														   std::tuple<double, int>,
 														   float>;
 
-			static constexpr example_tuple example_tuple_v{};
-			static constexpr example_struct example_struct_v{};
+			example_tuple example_tuple_v{};
+			example_struct example_struct_v{};
 
 			auto const offset = [](void const *base, void const *member) -> size_t {
 				return reinterpret_cast<std::byte const *>(base) - reinterpret_cast<std::byte const *>(member);
