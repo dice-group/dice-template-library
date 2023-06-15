@@ -252,6 +252,17 @@ namespace dice::template_library {
 		 *
 		 * @param visitor function to be called on each element
 		 * @return whatever the last invocation (on the last element) of visitor returned
+		 *
+		 * @example
+		 * A typical use case for the return value would be accumulation of some value over all elements:
+		 *
+		 * @code
+		 * integral_template_tuple<1, 5, some_container_type> tup;
+		 *
+		 * auto combined_size = tup.visit([acc = 0ul](auto const &c) mutable {
+		 *     return acc += c.size();
+		 * });
+		 * @endcode
 		 */
 		template<typename Visitor>
 		constexpr decltype(auto) visit(Visitor &&visitor) const & {

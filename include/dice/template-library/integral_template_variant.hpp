@@ -32,7 +32,7 @@ namespace dice::template_library {
 
 		/**
 		 * Generates the actual std::variant type
-		 * for an IntegralTemplatedTuple<first, last, T> where Ixs = 0, 1, ..., last - first
+		 * for an integral_template_variant<first, last, T> where Ixs = 0, 1, ..., last - first
 		 * aka std::variant<T<first + 0>, T<first + 1>, ...>.
 		 *
 		 * Note: This function does not have an implementation because it is only used in decltype context.
