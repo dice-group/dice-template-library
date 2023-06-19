@@ -27,27 +27,27 @@ std::ostream &operator<<(std::ostream &os, int_array<N> const &arr) {
 int main() {
 	{
 		std::cout << "tuple of integer arrays, size 5 to 8, default constructor:\n";
-		integral_template_tuple<int_array, 5, 8> itt;
-		std::cout << "  " << itt.get<5>() << '\n';
-		std::cout << "  " << itt.get<6>() << '\n';
-		std::cout << "  " << itt.get<7>() << '\n';
-		std::cout << "  " << itt.get<8>() << "\n\n";
+		integral_template_tuple<5UL, 8, int_array> itt;
+		std::cout << "  " << itt.template get<5>() << '\n';
+		std::cout << "  " << itt.template get<6>() << '\n';
+		std::cout << "  " << itt.template get<7>() << '\n';
+		std::cout << "  " << itt.template get<8>() << "\n\n";
 	}
 
 	{
 		std::cout << "tuple of integer arrays, size 5 to 8, specific constructor:\n";
-		auto itt = make_integral_template_tuple<int_array, 5, 8>(42);
-		std::cout << "  " << itt.get<5>() << '\n';
-		std::cout << "  " << itt.get<6>() << '\n';
-		std::cout << "  " << itt.get<7>() << '\n';
-		std::cout << "  " << itt.get<8>() << "\n\n";
+		integral_template_tuple<5UL, 8, int_array> itt{uniform_construct, 42};
+		std::cout << "  " << itt.template get<5>() << '\n';
+		std::cout << "  " << itt.template get<6>() << '\n';
+		std::cout << "  " << itt.template get<7>() << '\n';
+		std::cout << "  " << itt.template get<8>() << "\n\n";
 	}
 
 	{
-		std::cout << "tuple of integer arrays, size 5 to 8, cast down:\n";
-		integral_template_tuple<int_array, 5, 8> itt;
-		auto *casted_itt = reinterpret_cast<integral_template_tuple<int_array, 5, 6> *>(&itt);
-		std::cout << "  " << casted_itt->get<5>() << '\n';
-		std::cout << "  " << casted_itt->get<6>() << '\n';
+		std::cout << "tuple of integer arrays, size 5 to 8, subtuple:\n";
+		integral_template_tuple<5UL, 8, int_array> itt;
+		auto &sub_itt = itt.template subtuple<6, 7>();
+		std::cout << "  " << sub_itt.template get<6>() << '\n';
+		std::cout << "  " << sub_itt.template get<7>() << '\n';
 	}
 }

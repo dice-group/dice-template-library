@@ -6,7 +6,7 @@ It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
 - `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
-- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>` where $\texttt{IX}\in [\texttt{FIRST},\texttt{LAST}]$ (inclusive).
+- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 
 ## Usage
@@ -65,7 +65,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v0.3.2
+        GIT_TAG v1.0.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -84,7 +84,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/0.3.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.0.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
