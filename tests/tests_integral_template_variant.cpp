@@ -39,115 +39,131 @@ namespace dice::template_library {
 
 	TEST_SUITE("integral_template_variant") {
 		TEST_CASE("asc pos") {
-			integral_template_variant<Data, 2, 7> itv{Data<5>{}};
-			integral_template_variant<Data, 2, 7> lower{Data<2>{}};
-			integral_template_variant<Data, 2, 7> upper{Data<7>{}};
+			integral_template_variant<2, 7, Data> itv{Data<5>{}};
+			integral_template_variant<2, 7, Data> lower{Data<2>{}};
+			integral_template_variant<2, 7, Data> upper{Data<7>{}};
 
-			CHECK(get<5>(itv) == 5);
-			CHECK(get<2>(lower) == 2);
-			CHECK(get<7>(upper) == 7);
+			CHECK(itv.index() == 5);
+			CHECK(lower.index() == 2);
+			CHECK(upper.index() == 7);
 
-			visit([]<auto N>(Data<N> const &) {
+			CHECK(itv.template get<5>() == 5);
+			CHECK(lower.template get<2>() == 2);
+			CHECK(upper.template get<7>() == 7);
+
+			itv.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == 5);
-			}, itv);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			lower.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == 2);
-			}, lower);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			upper.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == 7);
-			}, upper);
+			});
 		}
 
 		TEST_CASE("desc pos") {
-			integral_template_variant<Data, 5, 1> itv{Data<3>{}};
-			integral_template_variant<Data, 5, 1> lower{Data<5>{}};
-			integral_template_variant<Data, 5, 1> upper{Data<1>{}};
+			integral_template_variant<5, 1, Data> itv{Data<3>{}};
+			integral_template_variant<5, 1, Data> lower{Data<5>{}};
+			integral_template_variant<5, 1, Data> upper{Data<1>{}};
 
-			CHECK(get<3>(itv) == 3);
-			CHECK(get<5>(lower) == 5);
-			CHECK(get<1>(upper) == 1);
+			CHECK(itv.index() == 3);
+			CHECK(lower.index() == 5);
+			CHECK(upper.index() == 1);
 
-			visit([]<auto N>(Data<N> const &) {
+			CHECK(itv.template get<3>() == 3);
+			CHECK(lower.template get<5>() == 5);
+			CHECK(upper.template get<1>() == 1);
+
+			itv.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == 3);
-			}, itv);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			lower.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == 5);
-			}, lower);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			upper.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == 1);
-			}, upper);
+			});
 		}
 
 		TEST_CASE("asc neg") {
-			integral_template_variant<Data, -6, -1> itv{Data<-3>{}};
-			integral_template_variant<Data, -6, -1> lower{Data<-6>{}};
-			integral_template_variant<Data, -6, -1> upper{Data<-1>{}};
+			integral_template_variant<-6, -1, Data> itv{Data<-3>{}};
+			integral_template_variant<-6, -1, Data> lower{Data<-6>{}};
+			integral_template_variant<-6, -1, Data> upper{Data<-1>{}};
 
-			CHECK(get<-3>(itv) == -3);
-			CHECK(get<-6>(lower) == -6);
-			CHECK(get<-1>(upper) == -1);
+			CHECK(itv.index() == -3);
+			CHECK(lower.index() == -6);
+			CHECK(upper.index() == -1);
 
-			visit([]<auto N>(Data<N> const &) {
+			CHECK(itv.template get<-3>() == -3);
+			CHECK(lower.template get<-6>() == -6);
+			CHECK(upper.template get<-1>() == -1);
+
+			itv.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == -3);
-			}, itv);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			lower.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == -6);
-			}, lower);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			upper.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == -1);
-			}, upper);
+			});
 		}
 
 		TEST_CASE("desc pos") {
-			integral_template_variant<Data, -2, -8> itv{Data<-5>{}};
-			integral_template_variant<Data, -2, -8> lower{Data<-2>{}};
-			integral_template_variant<Data, -2, -8> upper{Data<-8>{}};
+			integral_template_variant<-2, -8, Data> itv{Data<-5>{}};
+			integral_template_variant<-2, -8, Data> lower{Data<-2>{}};
+			integral_template_variant<-2, -8, Data> upper{Data<-8>{}};
 
-			CHECK(get<-5>(itv) == -5);
-			CHECK(get<-2>(lower) == -2);
-			CHECK(get<-8>(upper) == -8);
+			CHECK(itv.index() == -5);
+			CHECK(lower.index() == -2);
+			CHECK(upper.index() == -8);
 
-			visit([]<auto N>(Data<N> const &) {
+			CHECK(itv.template get<-5>() == -5);
+			CHECK(lower.template get<-2>() == -2);
+			CHECK(upper.template get<-8>() == -8);
+
+			itv.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == -5);
-			}, itv);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			lower.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == -2);
-			}, lower);
+			});
 
-			visit([]<auto N>(Data<N> const &) {
+			upper.visit([]<auto N>(Data<N> const &) {
 				CHECK(N == -8);
-			}, upper);
+			});
 		}
 
 		TEST_CASE("single entry") {
-			integral_template_variant<Data, 0, 0> itv{Data<0>{}};
-			CHECK(get<0>(itv) == 0);
+			integral_template_variant<0, 0, Data> itv{Data<0>{}};
+			CHECK(itv.template get<0>() == 0);
 		}
 
 		TEST_CASE("in place construction") {
-			integral_template_variant<CompoundData, 0, 2> itv{std::in_place_type<CompoundData<1>>, 2.0, 3.f, 5};
-			CHECK(get<1>(itv) == 1 + 2 + 3 + 5);
+			integral_template_variant<0, 2, CompoundData> itv{std::in_place_type<CompoundData<1>>, 2.0, 3.f, 5};
+			CHECK(itv.template get<1>() == 1 + 2 + 3 + 5);
 		}
 
 		TEST_CASE("visit forwarding") {
-			integral_template_variant<Data, 1, 1> const copyable{std::in_place_type<Data<1>>};
+			integral_template_variant<1, 1, Data> const copyable{std::in_place_type<Data<1>>};
 
-			visit([](auto &&x) {
+			copyable.visit([](auto &&x) {
 				call_counted(std::forward<decltype(x)>(x));
-			}, copyable);
+			});
 
-			integral_template_variant<Data, 1, 1> movable{std::in_place_type<Data<1>>};
+			integral_template_variant<1, 1, Data> movable{std::in_place_type<Data<1>>};
 
-			visit([](auto &&x) {
+			std::move(movable).visit([](auto &&x) {
 				call_counted(std::forward<decltype(x)>(x));
-			}, std::move(movable));
+			});
 		}
 	}
 
