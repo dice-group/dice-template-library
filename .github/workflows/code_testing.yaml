@@ -74,7 +74,7 @@ jobs:
 
       - name: Run Tests
         working-directory: build
-        run: ctest --parallel 2
+        run: ctest --verbose --parallel 2
 
       - name: Run Examples
         working-directory: build
