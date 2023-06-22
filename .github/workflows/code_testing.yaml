@@ -21,8 +21,6 @@ jobs:
             compiler: clang-16
 
           - os: ubuntu-22.04
-            compiler: gcc-11
-          - os: ubuntu-22.04
             compiler: gcc-12
           - os: ubuntu-22.04
             compiler: gcc-13
