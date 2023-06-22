@@ -8,7 +8,6 @@ concurrency:
 
 jobs:
   build-and-run-tests:
-
     strategy:
       fail-fast: false
       matrix:
@@ -31,7 +30,7 @@ jobs:
         shell: bash
 
     steps:
-      - name: Add Repos for for gcc-13 and clang-16
+      - name: Add repos for for gcc-13 and clang-16
         run: |
           # gcc-13
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
@@ -54,7 +53,7 @@ jobs:
         with:
           compiler: ${{ matrix.config.compiler }}
 
-      - name: Install Linker
+      - name: Install linker
         uses: rui314/setup-mold@v1
 
       - uses: actions/checkout@v3
@@ -66,15 +65,15 @@ jobs:
           CXX: ${{ steps.install_cc.outputs.cxx }}
           CXXFLAGS: -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
 
-      - name: Build Tests
+      - name: Build tests and examples
         working-directory: build
         run: cmake --build . --parallel 2
 
-      - name: Run Tests
+      - name: Run tests
         working-directory: build
         run: ctest --verbose --parallel 2
 
-      - name: Run Examples
+      - name: Run examples
         working-directory: build
         run: |
           for example in examples/examples_*; do
