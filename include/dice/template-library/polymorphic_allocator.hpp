@@ -114,7 +114,7 @@ namespace dice::template_library {
 		using inner_variant_t = std::variant<Allocators<T>...>;
 		inner_variant_t alloc_;
 
-		constexpr polymorphic_allocator(inner_variant_t &&inner)
+		explicit constexpr polymorphic_allocator(inner_variant_t &&inner)
 			: alloc_{std::move(inner)} {
 		}
 
