@@ -21,7 +21,7 @@ class DiceTemplateLibrary(ConanFile):
 
     def requirements(self):
         if self.options.with_boost:
-            self.requires("boost/1.81.1")
+            self.requires("boost/1.81.0")
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:
