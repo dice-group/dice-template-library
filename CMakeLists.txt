@@ -17,7 +17,7 @@ if (PROJECT_IS_TOP_LEVEL AND USE_CONAN AND WITH_BOOST)
 endif ()
 
 if (WITH_BOOST)
-  find_package(Boost REQUIRED COMPONENTS headers)
+  find_package(Boost REQUIRED COMPONENTS)
   set(DICE_TEMPLATE_LIB_BOOST_DEP "Boost::headers")
 endif ()
 
