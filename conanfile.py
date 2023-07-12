@@ -16,6 +16,12 @@ class DiceTemplateLibrary(ConanFile):
     generators = ("CMakeDeps", "CMakeToolchain")
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
+    options = {"with_boost": [True, False]}
+    default_options = {"with_boost": False}
+
+    def requirements(self):
+        if self.options.with_boost:
+            self.requires("boost/1.81.1")
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:
@@ -45,5 +51,3 @@ class DiceTemplateLibrary(ConanFile):
             rmdir(self, os.path.join(self.package_folder, dir))
 
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
-
-

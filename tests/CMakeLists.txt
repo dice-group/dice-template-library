@@ -39,3 +39,11 @@ custom_add_test(tests_integral_template_variant)
 
 add_executable(tests_for tests_for.cpp)
 custom_add_test(tests_for)
+
+add_executable(tests_polymorphic_allocator tests_polymorphic_allocator.cpp)
+
+if (WITH_BOOST)
+  target_compile_definitions(tests_polymorphic_allocator PRIVATE DICE_TEMPLATE_LIBRARY_WITH_BOOST=1)
+endif ()
+
+custom_add_test(tests_polymorphic_allocator)
