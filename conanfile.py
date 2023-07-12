@@ -42,10 +42,21 @@ class DiceTemplateLibrary(ConanFile):
     def package_id(self):
         self.info.header_only()
 
+    _cmake = None
+
+    def _configure_cmake(self):
+        if self._cmake:
+            return self._cmake
+        self._cmake = CMake(self)
+        self._cmake.configure(variables={"USE_CONAN": False})
+
+        return self._cmake
+
+    def build(self):
+        self._configure_cmake().build()
+
     def package(self):
-        cmake = CMake(self)
-        cmake.configure()
-        cmake.install()
+        self._configure_cmake().install()
 
         for dir in ("lib", "res", "share"):
             rmdir(self, os.path.join(self.package_folder, dir))
