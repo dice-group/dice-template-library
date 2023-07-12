@@ -114,6 +114,10 @@ namespace dice::template_library {
 		using inner_variant_t = std::variant<Allocators<T>...>;
 		inner_variant_t alloc_;
 
+		constexpr polymorphic_allocator(inner_variant_t &&inner)
+			: alloc_{std::move(inner)} {
+		}
+
 	public:
 		constexpr polymorphic_allocator() noexcept(std::is_nothrow_default_constructible_v<typename detail_pmr::first_type<Allocators<T>...>::type>) = default;
 

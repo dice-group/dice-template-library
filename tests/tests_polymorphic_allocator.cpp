@@ -66,5 +66,10 @@ TEST_SUITE("polymorphic_allocator") {
 			poly_alloc_t<int> alloc2{std::pmr::polymorphic_allocator<int>{}};
 			CHECK(alloc2.template holds_allocator<std::pmr::polymorphic_allocator>());
 		}
+
+		SUBCASE("select on container copy construction") {
+			poly_alloc_t<int> alloc{};
+			auto alloc2 = alloc.select_on_container_copy_construction();
+		}
 	}
 }
