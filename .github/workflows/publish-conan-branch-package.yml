@@ -13,7 +13,7 @@ jobs:
       public_artifactory: true
       os: ubuntu-22.04
       compiler: clang-14
-      cmake-version: 3.22.6
+      cmake-version: 3.25.3
       conan-version: 1.59
     secrets:
       CONAN_USER: ${{ secrets.CONAN_USER }}

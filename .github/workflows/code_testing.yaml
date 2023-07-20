@@ -43,9 +43,9 @@ jobs:
           sudo apt-get update -y
 
       - name: Install CMake
-        uses: lukka/get-cmake@v3.24.3
+        uses: lukka/get-cmake@v3.27
         with:
-          cmakeVersion: 3.16.9
+          cmakeVersion: 3.25.3
 
       - name: Install compiler
         id: install_cc
