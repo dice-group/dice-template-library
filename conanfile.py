@@ -48,7 +48,7 @@ class DiceTemplateLibrary(ConanFile):
         if self._cmake:
             return self._cmake
         self._cmake = CMake(self)
-        self._cmake.configure(variables={"USE_CONAN": False})
+        self._cmake.configure(variables={"USE_CONAN": False, "WITH_BOOST": self.options.with_boost})
 
         return self._cmake
 

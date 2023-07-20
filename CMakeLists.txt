@@ -10,9 +10,16 @@ project(
 option(USE_CONAN "If available, use conan to retrieve dependencies." OFF)
 option(WITH_BOOST "Enables dice::template_library::offset_ptr_stl_allocator" OFF)
 
-if (PROJECT_IS_TOP_LEVEL AND USE_CONAN AND WITH_BOOST)
+if (PROJECT_IS_TOP_LEVEL AND USE_CONAN)
   include(cmake/conan_cmake.cmake)
-  set(CONAN_OPTIONS "with_boost=True")
+
+  if (WITH_BOOST)
+      set(DICE_TEMPLATE_LIB_CONAN_WITH_BOOST "True")
+  else ()
+      set(DICE_TEMPLATE_LIB_CONAN_WITH_BOOST "False")
+  endif ()
+
+  set(CONAN_OPTIONS "with_boost=${DICE_TEMPLATE_LIB_CONAN_WITH_BOOST}")
   install_packages_via_conan("${CMAKE_SOURCE_DIR}/conanfile.py" "${CONAN_OPTIONS}")
 endif ()
 
