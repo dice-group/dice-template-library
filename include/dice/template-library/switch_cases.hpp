@@ -124,6 +124,22 @@ namespace dice::template_library {
 	constexpr decltype(auto) switch_cases(decltype(last) condition, F &&cases_function) {
 		return switch_cases<decltype(last){}, last>(condition, std::forward<F>(cases_function), detail_switch_cases::unreachable<F, last>);
 	}
+
+	/**
+	 * Similar to switch-cases except for switching on booleans
+	 * @tparam F automatically deduced type of switch function
+	 * @param condition the switch condition
+	 * @param cases_function the switch function template or lambda
+	 * @return The value returned from the cases_function
+	 */
+	template<typename F>
+	constexpr decltype(auto) switch_bool(bool condition, F &&cases_function) {
+		if (condition) {
+			return std::invoke(std::forward<F>(cases_function), std::bool_constant<true>{});
+		}
+
+		return std::invoke(std::forward<F>(cases_function), std::bool_constant<false>{});
+	}
 }// namespace dice::template_library
 
 #endif//HYPERTRIE_SWITCHTEMPLATEFUNCTIONS_HPP
