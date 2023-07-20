@@ -1,5 +1,6 @@
 import os
 import re
+
 from conan import ConanFile
 from conan.tools.cmake import CMake, cmake_layout
 from conan.tools.files import load, rmdir, copy
@@ -13,7 +14,7 @@ class DiceTemplateLibrary(ConanFile):
     license = "MIT"
     topics = ("template", "template-library", "compile-time", "switch", "integral-tuple")
     settings = "build_type", "compiler", "os", "arch"
-    generators = ("CMakeDeps", "CMakeToolchain")
+    generators = "CMakeDeps", "CMakeToolchain", "cmake_find_package"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
     options = {"with_boost": [True, False]}
@@ -62,3 +63,9 @@ class DiceTemplateLibrary(ConanFile):
             rmdir(self, os.path.join(self.package_folder, dir))
 
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
+
+    def package_info(self):
+        self.cpp_info.set_property("cmake_target_name", self.name)
+        self.cpp_info.set_property("cmake_target_aliases", ["{0}::{0}".format(self.name)])
+        self.cpp_info.names["cmake_find_package"] = self.name
+        self.cpp_info.names["cmake_find_package_multi"] = self.name

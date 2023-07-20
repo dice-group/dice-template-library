@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 
 project(
   dice-template-library
@@ -9,6 +9,13 @@ project(
 
 option(USE_CONAN "If available, use conan to retrieve dependencies." OFF)
 option(WITH_BOOST "Enables dice::template_library::offset_ptr_stl_allocator" OFF)
+
+# conan requires cmake build type to be specified and it is generally a good idea
+if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
+  if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+  endif ()
+endif ()
 
 if (PROJECT_IS_TOP_LEVEL AND USE_CONAN)
   include(cmake/conan_cmake.cmake)
