@@ -73,6 +73,14 @@ namespace dice::template_library {
 					value, [](auto i) { return compiled_identity<i>; }, []() { return value + 1; });
 			REQUIRE_EQ(value + 1, res);
 		}
+
+		TEST_CASE("switch bool") {
+			auto res = switch_bool(false, [](auto b) { return compiled_identity<b>; });
+			REQUIRE_EQ(res, 0);
+
+			auto res2 = switch_bool(true, [](auto b) { return compiled_identity<b>; });
+			REQUIRE_EQ(res2, 1);
+		}
 	}
 
 	TEST_SUITE("references") {
