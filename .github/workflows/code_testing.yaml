@@ -37,7 +37,7 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           
           # clang-16
-          bash -c "sudo $(wget -O - https://apt.llvm.org/llvm.sh) 16"
+          sudo bash -c "sudo $(wget -O - https://apt.llvm.org/llvm.sh) 16"
           
           sudo apt-get update -y
 
