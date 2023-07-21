@@ -31,14 +31,13 @@ jobs:
 
     steps:
       - name: Add repos for for gcc-13 and clang-16
+        if: ${{ matrix.config.compiler == 'gcc-13' || matrix.config.compiler == 'clang-16
         run: |
           # gcc-13
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           
           # clang-16
-          source /etc/os-release
-          echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-16 main" | sudo tee /etc/apt/sources.list.d/llvm-16.list
-          curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-16.gpg > /dev/null
+          bash -c "$(wget -O - https://apt.llvm.org/llvm.sh) 16"
           
           sudo apt-get update -y
 
