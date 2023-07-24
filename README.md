@@ -8,6 +8,7 @@ It contains:
 - `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
 - `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
+- `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 
 ## Usage
 
@@ -45,6 +46,17 @@ found [here](examples/examples_integral_template_variant.cpp).
 
 Different flavors of compile time loops that allow to iterate types, values or ranges at compile time. Types and values are provided as template arguments and a lambda to be called for each of them is passed as function argument, e.g. `for_types<uint8_t, uint64_t>([]<typename T>() {})` and `for_values<1, 1.1, 'c'>([](auto x) {})`. Ranges are defined by template parameters for start and exclusive end and receive a function to be applied to each range element as function argument, e.g. `for_range<3, 5>([](auto x) {})`, including support for decreasing ranges and negative indices, e.g. `for_range<2, -4>([](auto x) {})`. Examples can
 be found [here](examples/examples_for.cpp).
+
+### `polymorphic_allocator`
+A `std::pmr::polymorphic_allocator`-like type that uses static dispatch instead of dynamic dispatch to choose the allocator.
+This allocator is primarily useful for situations where you have inhomogeneous memory and one of the memory
+types does not allow dynamic dispatch using vtables; but you still want to mix and match values from both memory types.
+
+For example, you might have some allocations in persistent or shared memory (or generally: memory-mapped allocations) and others on the heap.
+The problem with `mmap` allocations is that they will be placed at an arbitrary position in virtual memory each time they are loaded,
+therefore absolute pointers will cause segfaults if the segment is reloaded.
+Which means: vtables will not work (because they use absolute pointers) and therefore you cannot use `std::pmr::polymorphic_allocator`.
+
 
 ### Further Examples
 

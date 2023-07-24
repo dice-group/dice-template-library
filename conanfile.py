@@ -1,5 +1,6 @@
 import os
 import re
+
 from conan import ConanFile
 from conan.tools.cmake import CMake, cmake_layout
 from conan.tools.files import load, rmdir, copy
@@ -13,9 +14,15 @@ class DiceTemplateLibrary(ConanFile):
     license = "MIT"
     topics = ("template", "template-library", "compile-time", "switch", "integral-tuple")
     settings = "build_type", "compiler", "os", "arch"
-    generators = ("CMakeDeps", "CMakeToolchain")
+    generators = "CMakeDeps", "CMakeToolchain", "cmake_find_package"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
+    options = {"with_boost": [True, False]}
+    default_options = {"with_boost": False}
+
+    def requirements(self):
+        if self.options.with_boost:
+            self.requires("boost/1.81.0")
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:
@@ -36,14 +43,29 @@ class DiceTemplateLibrary(ConanFile):
     def package_id(self):
         self.info.header_only()
 
+    _cmake = None
+
+    def _configure_cmake(self):
+        if self._cmake:
+            return self._cmake
+        self._cmake = CMake(self)
+        self._cmake.configure(variables={"USE_CONAN": False, "WITH_BOOST": self.options.with_boost})
+
+        return self._cmake
+
+    def build(self):
+        self._configure_cmake().build()
+
     def package(self):
-        cmake = CMake(self)
-        cmake.configure()
-        cmake.install()
+        self._configure_cmake().install()
 
         for dir in ("lib", "res", "share"):
             rmdir(self, os.path.join(self.package_folder, dir))
 
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
 
-
+    def package_info(self):
+        self.cpp_info.set_property("cmake_target_name", self.name)
+        self.cpp_info.set_property("cmake_target_aliases", ["{0}::{0}".format(self.name)])
+        self.cpp_info.names["cmake_find_package"] = self.name
+        self.cpp_info.names["cmake_find_package_multi"] = self.name
