@@ -8,7 +8,7 @@
 
 TEST_SUITE("polymorphic_allocator") {
 	template<typename T>
-	using poly_alloc_t = dice::template_library::polymorphic_allocator<int, std::allocator, std::pmr::polymorphic_allocator>;
+	using poly_alloc_t = dice::template_library::polymorphic_allocator<T, std::allocator, std::pmr::polymorphic_allocator>;
 
 #ifdef DICE_TEMPLATE_LIBRARY_WITH_BOOST
 	TEST_CASE("offset_ptr_stl_allocator") {
