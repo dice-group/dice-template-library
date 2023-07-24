@@ -58,8 +58,29 @@ jobs:
 
       - uses: actions/checkout@v3
 
+      - name: install conan
+        shell: bash
+        env:
+          CC: ${{ steps.install_cc.outputs.cc }}
+          CXX: ${{ steps.install_cc.outputs.cxx }}
+        run: |
+          pip3 install "conan==1.60.1"
+          conan profile new --detect default
+          conan profile update settings.compiler.libcxx=libstdc++11 default
+          conan profile update env.CXXFLAGS="${CXXFLAGS}" default
+          conan profile update env.CMAKE_EXE_LINKER_FLAGS="${CMAKE_EXE_LINKER_FLAGS}" default
+          conan profile update env.CXX="${CXX}" default
+          conan profile update env.CC="${CC}" default
+
+      - name: Cache conan data
+        id: cache-conan
+        uses: actions/cache@v3
+        with:
+          path: ~/.conan/data
+          key: ${{ inputs.os }}-${{ inputs.compiler }}-conan
+
       - name: Configure CMake
-        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -G Ninja -B build .
+        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DUSE_CONAN=On -DWITH_BOOST=On -G Ninja -B build .
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
