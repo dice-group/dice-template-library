@@ -1,4 +1,5 @@
 #include <dice/template-library/polymorphic_allocator.hpp>
+#include <dice/template-library/offset_ptr_stl_allocator.hpp>
 
 #include <boost/interprocess/allocators/allocator.hpp>
 #include <boost/interprocess/containers/vector.hpp>
