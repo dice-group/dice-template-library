@@ -1,6 +1,7 @@
 #ifndef DICE_TEMPLATE_LIBRARY_OFFSETPTRSTLALLOCATOR_HPP
 #define DICE_TEMPLATE_LIBRARY_OFFSETPTRSTLALLOCATOR_HPP
 
+#include <memory>
 #include <boost/interprocess/offset_ptr.hpp>
 
 namespace dice::template_library {

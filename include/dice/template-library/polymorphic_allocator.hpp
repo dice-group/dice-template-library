@@ -2,6 +2,7 @@
 #define DICE_TEMPLATE_LIBRARY_POLYMORPHICALLOCATOR_HPP
 
 #include <cstddef>
+#include <memory>
 #include <utility>
 #include <variant>
 
