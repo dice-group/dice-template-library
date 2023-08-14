@@ -26,13 +26,8 @@ if (PROJECT_IS_TOP_LEVEL AND USE_CONAN)
       set(DICE_TEMPLATE_LIB_CONAN_WITH_BOOST "False")
   endif ()
 
-  set(CONAN_OPTIONS "with_boost=${DICE_TEMPLATE_LIB_CONAN_WITH_BOOST}")
+  set(CONAN_OPTIONS "with_boost=${DICE_TEMPLATE_LIB_CONAN_WITH_BOOST};boost:header_only=True")
   install_packages_via_conan("${CMAKE_SOURCE_DIR}/conanfile.py" "${CONAN_OPTIONS}")
-endif ()
-
-if (WITH_BOOST)
-  find_package(Boost REQUIRED COMPONENTS)
-  set(DICE_TEMPLATE_LIB_BOOST_DEP "Boost::headers")
 endif ()
 
 add_library(${PROJECT_NAME} INTERFACE)
@@ -42,19 +37,18 @@ target_include_directories(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
 
-target_link_libraries(${PROJECT_NAME} INTERFACE
-        ${DICE_TEMPLATE_LIB_BOOST_DEP}
-        )
+if (WITH_BOOST)
+    find_package(Boost REQUIRED COMPONENTS)
+    target_link_libraries(${PROJECT_NAME} INTERFACE
+            Boost::headers
+            )
+endif ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CXX_STANDARD 20
         CXX_EXTENSIONS OFF
         CXX_STANDARD_REQUIRED ON
         )
-
-if (WITH_BOOST)
-  target_compile_definitions(${PROJECT_NAME} INTERFACE DICE_TEMPLATE_LIBRARY_WITH_BOOST=1)
-endif ()
 
 include(cmake/install_interface_library.cmake)
 install_interface_library(${PROJECT_NAME} ${PROJECT_NAME} ${PROJECT_NAME} "include")
