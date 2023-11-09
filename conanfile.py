@@ -13,15 +13,16 @@ class DiceTemplateLibrary(ConanFile):
     url = "https://github.com/dice-group/dice-template-library.git"
     license = "MIT"
     topics = "template", "template-library", "compile-time", "switch", "integral-tuple"
-    settings = "build_type", "compiler", "os", "arch"
+    package_type = "header-library"
     generators = "CMakeDeps", "CMakeToolchain"
+    options = {"with_test_deps": [True, False]}
+    default_options = {"with_test_deps": False}
+    settings = "os", "compiler", "build_type", "arch"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
-    options = {"with_boost": [True, False]}
-    default_options = {"with_boost": False}
 
     def requirements(self):
-        if self.options.with_boost:
+        if self.options.with_test_deps:
             self.requires("boost/1.83.0")
 
     def set_name(self):
@@ -39,7 +40,7 @@ class DiceTemplateLibrary(ConanFile):
 
     def package(self):
         cmake = CMake(self)
-        cmake.configure(variables={"USE_CONAN": False, "WITH_BOOST": self.options.with_boost})
+        cmake.configure(variables={"USE_CONAN": False})
         cmake.install()
 
         for dir in ("lib", "res", "share"):
@@ -54,6 +55,3 @@ class DiceTemplateLibrary(ConanFile):
         self.cpp_info.set_property("cmake_find_mode", "both")
         self.cpp_info.set_property("cmake_target_name", f"{self.name}::{self.name}")
         self.cpp_info.set_property("cmake_file_name", self.name)
-
-        if self.options.with_boost:
-            self.cpp_info.requires = ["boost::headers"]
