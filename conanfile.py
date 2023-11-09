@@ -12,9 +12,9 @@ class DiceTemplateLibrary(ConanFile):
     homepage = "https://dice-research.org/"
     url = "https://github.com/dice-group/dice-template-library.git"
     license = "MIT"
-    topics = ("template", "template-library", "compile-time", "switch", "integral-tuple")
+    topics = "template", "template-library", "compile-time", "switch", "integral-tuple"
     settings = "build_type", "compiler", "os", "arch"
-    generators = "CMakeDeps", "CMakeToolchain", "cmake_find_package"
+    generators = "CMakeDeps", "CMakeToolchain"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
     options = {"with_boost": [True, False]}
@@ -22,7 +22,7 @@ class DiceTemplateLibrary(ConanFile):
 
     def requirements(self):
         if self.options.with_boost:
-            self.requires("boost/1.81.0")
+            self.requires("boost/1.83.0")
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:
@@ -37,27 +37,10 @@ class DiceTemplateLibrary(ConanFile):
             cmake_file = load(self, os.path.join(self.recipe_folder, "CMakeLists.txt"))
             self.description = re.search(r"project\([^)]*DESCRIPTION\s+\"([^\"]+)\"[^)]*\)", cmake_file).group(1)
 
-    def layout(self):
-        cmake_layout(self)
-
-    def package_id(self):
-        self.info.header_only()
-
-    _cmake = None
-
-    def _configure_cmake(self):
-        if self._cmake:
-            return self._cmake
-        self._cmake = CMake(self)
-        self._cmake.configure(variables={"USE_CONAN": False, "WITH_BOOST": self.options.with_boost})
-
-        return self._cmake
-
-    def build(self):
-        self._configure_cmake().build()
-
     def package(self):
-        self._configure_cmake().install()
+        cmake = CMake(self)
+        cmake.configure(variables={"USE_CONAN": False, "WITH_BOOST": self.options.with_boost})
+        cmake.install()
 
         for dir in ("lib", "res", "share"):
             rmdir(self, os.path.join(self.package_folder, dir))
@@ -65,7 +48,12 @@ class DiceTemplateLibrary(ConanFile):
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
 
     def package_info(self):
-        self.cpp_info.set_property("cmake_target_name", self.name)
-        self.cpp_info.set_property("cmake_target_aliases", ["{0}::{0}".format(self.name)])
-        self.cpp_info.names["cmake_find_package"] = self.name
-        self.cpp_info.names["cmake_find_package_multi"] = self.name
+        self.cpp_info.bindirs = []
+        self.cpp_info.libdirs = []
+
+        self.cpp_info.set_property("cmake_find_mode", "both")
+        self.cpp_info.set_property("cmake_target_name", f"{self.name}::{self.name}")
+        self.cpp_info.set_property("cmake_file_name", self.name)
+
+        if self.options.with_boost:
+            self.cpp_info.requires = ["boost::headers"]
