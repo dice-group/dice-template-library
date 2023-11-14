@@ -25,7 +25,7 @@ if (PROJECT_IS_TOP_LEVEL AND USE_CONAN)
     set(CONAN_OPTIONS "with_test_deps=True")
   endif ()
 
-  install_packages_via_conan("${CMAKE_SOURCE_DIR}/conanfile.py" "${CONAN_OPTIONS}")
+  install_packages_via_conan("${CMAKE_SOURCE_DIR}/conanfile.py" "${CONAN_OPTIONS};boost/*:header_only=True")
 endif ()
 
 add_library(${PROJECT_NAME} INTERFACE)

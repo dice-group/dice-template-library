@@ -80,7 +80,7 @@ jobs:
           key: ${{ inputs.os }}-${{ inputs.compiler }}-conan
 
       - name: Configure CMake
-        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DUSE_CONAN=On -DWITH_BOOST=On -G Ninja -B build .
+        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DUSE_CONAN=On -G Ninja -B build .
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
