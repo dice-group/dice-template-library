@@ -1,13 +1,14 @@
 #ifndef DICE_TEMPLATE_LIBRARY_POLYMORPHICALLOCATOR_HPP
 #define DICE_TEMPLATE_LIBRARY_POLYMORPHICALLOCATOR_HPP
 
+#include <memory>
 #include <cstddef>
 #include <utility>
 #include <variant>
 
-#ifdef DICE_TEMPLATE_LIBRARY_WITH_BOOST
+#if __has_include(<boost/interprocess/offset_ptr.hpp>)
 #include <boost/interprocess/offset_ptr.hpp>
-#endif//DICE_TEMPLATE_LIBRARY_WITH_BOOST
+#endif // __has_include(<boost/interprocess/offset_ptr.hpp>)
 
 namespace dice::template_library {
 	namespace detail_pmr {
@@ -196,7 +197,7 @@ namespace dice::template_library {
 		}
 	};
 
-#ifdef DICE_TEMPLATE_LIBRARY_WITH_BOOST
+#if __has_include(<boost/interprocess/offset_ptr.hpp>)
 	/**
 	 * @brief Basically std::allocator but returning boost::interprocess::offset_ptr
 	 * @tparam T type to allocate
@@ -226,7 +227,7 @@ namespace dice::template_library {
 			return std::allocator<T>::deallocate(std::to_address(ptr), n);
 		}
 	};
-#endif//DICE_TEMPLATE_LIBRARY_WITH_BOOST
+#endif // __has_include(<boost/interprocess/offset_ptr.hpp>)
 
 }// namespace dice::template_library
 

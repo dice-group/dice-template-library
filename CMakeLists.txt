@@ -7,8 +7,9 @@ project(
     "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains: `switch_cases` (Use runtime values in compile-time context), `integral_template_tuple` (Create a tuple-like structure that instantiates a template for a range of values), `integral_template_variant` (A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>` and `for_{types,values,range}` (Compile time for loops for types, values or ranges))."
   HOMEPAGE_URL "https://dice-research.org/")
 
-option(USE_CONAN "If available, use conan to retrieve dependencies." OFF)
-option(WITH_BOOST "Enables dice::template_library::offset_ptr_stl_allocator" OFF)
+option(USE_CONAN "If available, use conan to retrieve dependencies." ON)
+option(BUILD_TESTING "build tests" OFF)
+option(BUILD_EXAMPLES "build examples" OFF)
 
 # conan requires cmake build type to be specified and it is generally a good idea
 if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
@@ -20,19 +21,11 @@ endif ()
 if (PROJECT_IS_TOP_LEVEL AND USE_CONAN)
   include(cmake/conan_cmake.cmake)
 
-  if (WITH_BOOST)
-      set(DICE_TEMPLATE_LIB_CONAN_WITH_BOOST "True")
-  else ()
-      set(DICE_TEMPLATE_LIB_CONAN_WITH_BOOST "False")
+  if (BUILD_TESTING OR BUILD_EXAMPLES)
+    set(CONAN_OPTIONS "with_test_deps=True")
   endif ()
 
-  set(CONAN_OPTIONS "with_boost=${DICE_TEMPLATE_LIB_CONAN_WITH_BOOST}")
-  install_packages_via_conan("${CMAKE_SOURCE_DIR}/conanfile.py" "${CONAN_OPTIONS}")
-endif ()
-
-if (WITH_BOOST)
-  find_package(Boost REQUIRED COMPONENTS)
-  set(DICE_TEMPLATE_LIB_BOOST_DEP "Boost::headers")
+  install_packages_via_conan("${CMAKE_SOURCE_DIR}/conanfile.py" "${CONAN_OPTIONS};boost/*:header_only=True")
 endif ()
 
 add_library(${PROJECT_NAME} INTERFACE)
@@ -42,19 +35,11 @@ target_include_directories(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
 
-target_link_libraries(${PROJECT_NAME} INTERFACE
-        ${DICE_TEMPLATE_LIB_BOOST_DEP}
-        )
-
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CXX_STANDARD 20
         CXX_EXTENSIONS OFF
         CXX_STANDARD_REQUIRED ON
         )
-
-if (WITH_BOOST)
-  target_compile_definitions(${PROJECT_NAME} INTERFACE DICE_TEMPLATE_LIBRARY_WITH_BOOST=1)
-endif ()
 
 include(cmake/install_interface_library.cmake)
 install_interface_library(${PROJECT_NAME} ${PROJECT_NAME} ${PROJECT_NAME} "include")

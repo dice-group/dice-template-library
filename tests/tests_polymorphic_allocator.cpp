@@ -10,7 +10,6 @@ TEST_SUITE("polymorphic_allocator") {
 	template<typename T>
 	using poly_alloc_t = dice::template_library::polymorphic_allocator<T, std::allocator, std::pmr::polymorphic_allocator>;
 
-#ifdef DICE_TEMPLATE_LIBRARY_WITH_BOOST
 	TEST_CASE("offset_ptr_stl_allocator") {
 		using alloc_t = dice::template_library::offset_ptr_stl_allocator<int>;
 
@@ -20,7 +19,6 @@ TEST_SUITE("polymorphic_allocator") {
 		CHECK(*ptr == 5);
 		std::allocator_traits<alloc_t>::deallocate(alloc, ptr, 1);
 	}
-#endif//DICE_TEMPLATE_LIBRARY_WITH_BOOST
 
 	TEST_CASE("polymorphic alloc") {
 		SUBCASE("with default alloc") {
