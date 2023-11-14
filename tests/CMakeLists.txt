@@ -2,6 +2,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+find_package(Boost REQUIRED COMPONENTS)
+
 include(FetchContent)
 FetchContent_Declare(
   DocTest
@@ -41,9 +43,6 @@ add_executable(tests_for tests_for.cpp)
 custom_add_test(tests_for)
 
 add_executable(tests_polymorphic_allocator tests_polymorphic_allocator.cpp)
-
-if (WITH_BOOST)
-  target_compile_definitions(tests_polymorphic_allocator PRIVATE DICE_TEMPLATE_LIBRARY_WITH_BOOST=1)
-endif ()
+target_link_libraries(tests_polymorphic_allocator PRIVATE Boost::headers)
 
 custom_add_test(tests_polymorphic_allocator)
