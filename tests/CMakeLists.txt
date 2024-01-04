@@ -46,3 +46,6 @@ add_executable(tests_polymorphic_allocator tests_polymorphic_allocator.cpp)
 target_link_libraries(tests_polymorphic_allocator PRIVATE Boost::headers)
 
 custom_add_test(tests_polymorphic_allocator)
+
+add_executable(tests_overloaded tests_overloaded.cpp)
+custom_add_test(tests_overloaded)
