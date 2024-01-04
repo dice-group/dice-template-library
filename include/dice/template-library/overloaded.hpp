@@ -8,7 +8,7 @@ namespace dice::template_library {
 	 * This is primarily useful for things like std::visit where you may want to call a different
 	 * function for each type in the std::variant.
 	 *
-	 * See examples/examples_overloaded.cpp for a usecase example
+	 * See example on https://en.cppreference.com/w/cpp/utility/variant/visit
 	 */
 	template<typename ...Fs>
 	struct overloaded : Fs... {
