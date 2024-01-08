@@ -30,3 +30,10 @@ target_link_libraries(examples_polymorphic_allocator
         dice-template-library::dice-template-library
         Boost::headers
         )
+
+add_executable(examples_overloaded
+        examples_overloaded.cpp)
+target_link_libraries(examples_overloaded
+        PRIVATE
+        dice-template-library::dice-template-library
+)
