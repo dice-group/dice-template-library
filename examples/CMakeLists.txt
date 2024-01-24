@@ -37,3 +37,10 @@ target_link_libraries(examples_overloaded
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(examples_defer
+        examples_defer.cpp)
+target_link_libraries(examples_defer
+        PRIVATE
+        dice-template-library::dice-template-library
+)
