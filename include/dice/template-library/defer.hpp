@@ -29,10 +29,6 @@ namespace dice::template_library {
 		std::optional<F> func_;
 		int const uncaught_exceptions_ = std::uncaught_exceptions();
 
-		[[nodiscard]] bool scope_failed() const noexcept {
-			return uncaught_exceptions_ < std::uncaught_exceptions();
-		}
-
 	public:
 		ScopeExitGuard() noexcept = default;
 
@@ -49,6 +45,16 @@ namespace dice::template_library {
 			if (!func_.has_value()) {
 				return;
 			}
+
+			/**
+			 * Determines if the scope failed by examining the number of in-flight exceptions.
+			 * The baseline number is captured at construction time and is now compared to the current number.
+			 * If the number of in-flight exceptions increased, this means the scope must have failed.
+			 * Otherwise it must not have failed.
+			 */
+			auto const scope_failed = [this]() noexcept {
+				return uncaught_exceptions_ < std::uncaught_exceptions();
+			};
 
 			if constexpr (Pol == ScopeExitPolicy::OnSuccess) {
 				if (!scope_failed()) {
@@ -95,6 +101,12 @@ namespace dice::template_library {
 	}
 
 	namespace detail {
+		/**
+		 * Helper types and functions whose only purpose it to improve
+		 * the syntax of the provided `DEFER*` macros to make them seem more like actual language
+		 * constructs rather than macros (see macro definitions below).
+		 */
+
 		struct ScopeGuardOnExit {};
 		struct ScopeGuardOnFail {};
 		struct ScopeGuardOnSuccess {};
