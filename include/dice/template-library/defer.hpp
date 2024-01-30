@@ -100,13 +100,12 @@ namespace dice::template_library {
 		return ScopeExitGuard<ScopeExitPolicy::OnSuccess, std::remove_cvref_t<F>>{std::forward<F>(func)};
 	}
 
-	namespace detail {
-		/**
-		 * Helper types and functions whose only purpose it to improve
-		 * the syntax of the provided `DEFER*` macros to make them seem more like actual language
-		 * constructs rather than macros (see macro definitions below).
-		 */
-
+	/**
+	 * Helper types and functions whose only purpose it to improve
+	 * the syntax of the provided `DEFER*` macros to make them seem more like actual language
+	 * constructs rather than macros (see macro definitions below).
+	 */
+	namespace defer_detail {
 		struct ScopeGuardOnExit {};
 		struct ScopeGuardOnFail {};
 		struct ScopeGuardOnSuccess {};
@@ -125,7 +124,7 @@ namespace dice::template_library {
 		auto operator+(ScopeGuardOnSuccess, F &&func) {
 			return make_scope_success_guard(std::forward<F>(func));
 		}
-	} // namespace detail
+	} // namespace defer_detail
 
 } // namespace dice::template_library
 
@@ -148,20 +147,20 @@ namespace dice::template_library {
  * @endcode
  */
 #define DEFER \
-	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::detail::ScopeGuardOnExit{} + [&]() noexcept
+	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::defer_detail::ScopeGuardOnExit{} + [&]() noexcept
 
 /**
  * Similar to DEFER, but it only executes the expression if the scope failed (i.e. the scope threw an exception).
  * Note the evaluated expression is not allowed to throw.
  */
 #define DEFER_TO_FAIL \
-	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::detail::ScopeGuardOnFail{} + [&]() noexcept
+	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::defer_detail::ScopeGuardOnFail{} + [&]() noexcept
 
 /**
  * Similar to DEFER, but it only executes the expression if the scope succeeded (i.e. the scope did not throw an exception).
  * Note the evaluated expression is allowed to throw.
  */
 #define DEFER_TO_SUCCESS \
-	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::detail::ScopeGuardOnSuccess{} + [&]()
+	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::defer_detail::ScopeGuardOnSuccess{} + [&]()
 
 #endif // DICE_TEMPLATE_LIBRARY_DEFER_HPP
