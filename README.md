@@ -9,6 +9,7 @@ It contains:
 - `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
+- `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
 
 ## Usage
 
@@ -57,6 +58,11 @@ The problem with `mmap` allocations is that they will be placed at an arbitrary 
 therefore absolute pointers will cause segfaults if the segment is reloaded.
 Which means: vtables will not work (because they use absolute pointers) and therefore you cannot use `std::pmr::polymorphic_allocator`.
 
+### `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`
+A mechanism similar to go's `defer` keyword, which can be used to defer some action to scope exit.
+The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example C types).
+Usage examples can be found [here](examples/examples_defer.cpp).
+
 
 ### Further Examples
 
@@ -77,7 +83,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.2.0
+        GIT_TAG v1.3.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -96,7 +102,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.2.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.3.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
