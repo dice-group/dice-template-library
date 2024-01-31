@@ -49,3 +49,6 @@ custom_add_test(tests_polymorphic_allocator)
 
 add_executable(tests_overloaded tests_overloaded.cpp)
 custom_add_test(tests_overloaded)
+
+add_executable(tests_defer tests_defer.cpp)
+custom_add_test(tests_defer)
