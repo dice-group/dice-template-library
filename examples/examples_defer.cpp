@@ -15,7 +15,7 @@ void write_to_file(std::filesystem::path const &p) {
 		return;
 	}
 
-	DEFER {
+	DICE_DEFER {
 		fclose(f);
 	};
 
@@ -31,7 +31,7 @@ void write_to_file(std::filesystem::path const &p) {
  */
 void copy_file_transact(std::filesystem::path const &src, std::filesystem::path const &dst) {
 	std::filesystem::path const dst2 = dst.string() + ".deleteme";
-	DEFER_TO_FAIL {
+	DICE_DEFER_TO_FAIL {
 		std::error_code ec;
 		std::filesystem::remove(dst2, ec);
 	};
@@ -48,7 +48,7 @@ void copy_file_transact(std::filesystem::path const &src, std::filesystem::path 
 int string_to_int(std::string const &integer) {
 	int value = std::stoi(integer);
 
-	DEFER_TO_SUCCESS {
+	DICE_DEFER_TO_SUCCESS {
 		// check postcondition
 		assert(std::to_string(value) == integer);
 	};
@@ -60,7 +60,7 @@ int main() {
 	std::filesystem::path const p = "/tmp/dice-template-lib-defer-example1-" + std::to_string(std::random_device{}());
 	std::filesystem::path const p2 = "/tmp/dice-template-lib-defer-example2-" + std::to_string(std::random_device{}());
 
-	DEFER {
+	DICE_DEFER {
 		std::error_code ec;
 		std::filesystem::remove(p, ec);
 		std::filesystem::remove(p2, ec);

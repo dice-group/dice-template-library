@@ -9,7 +9,7 @@ It contains:
 - `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
-- `DEFER`/`DEFER_TO_SUCCES`/`DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's defer keyword)
+- `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
 
 ## Usage
 
@@ -58,7 +58,7 @@ The problem with `mmap` allocations is that they will be placed at an arbitrary 
 therefore absolute pointers will cause segfaults if the segment is reloaded.
 Which means: vtables will not work (because they use absolute pointers) and therefore you cannot use `std::pmr::polymorphic_allocator`.
 
-### `DEFER`/`DEFER_TO_SUCCES`/`DEFER_TO_FAIL`
+### `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`
 A mechanism similar to go's `defer` keyword, which can be used to defer some action to scope exit.
 The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example C types).
 Usage examples can be found [here](examples/examples_defer.cpp).

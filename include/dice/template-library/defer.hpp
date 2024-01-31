@@ -140,27 +140,27 @@ namespace dice::template_library {
  * Example:
  * @code
  * FILE *f = fopen("path", "r");
- * DEFER { fclose(f); };
+ * DICE_DEFER { fclose(f); };
  *
  * // do stuff with f
  * // f closed at end of scope
  * @endcode
  */
-#define DEFER \
+#define DICE_DEFER \
 	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::defer_detail::ScopeGuardOnExit{} + [&]() noexcept
 
 /**
- * Similar to DEFER, but it only executes the expression if the scope failed (i.e. the scope threw an exception).
+ * Similar to DICE_DEFER, but it only executes the expression if the scope failed (i.e. the scope threw an exception).
  * Note the evaluated expression is not allowed to throw.
  */
-#define DEFER_TO_FAIL \
+#define DICE_DEFER_TO_FAIL \
 	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::defer_detail::ScopeGuardOnFail{} + [&]() noexcept
 
 /**
- * Similar to DEFER, but it only executes the expression if the scope succeeded (i.e. the scope did not throw an exception).
+ * Similar to DICE_DEFER, but it only executes the expression if the scope succeeded (i.e. the scope did not throw an exception).
  * Note the evaluated expression is allowed to throw.
  */
-#define DEFER_TO_SUCCESS \
+#define DICE_DEFER_TO_SUCCESS \
 	auto DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR = ::dice::template_library::defer_detail::ScopeGuardOnSuccess{} + [&]()
 
 #endif // DICE_TEMPLATE_LIBRARY_DEFER_HPP

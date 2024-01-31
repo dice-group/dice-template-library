@@ -11,14 +11,14 @@ namespace dice::template_library {
 
 			SUBCASE("success") {
 				{
-					DEFER { executed = true; };
+					DICE_DEFER { executed = true; };
 				}
 				CHECK(executed);
 			}
 
 			SUBCASE("fail") {
 				try {
-					DEFER { executed = true; };
+					DICE_DEFER { executed = true; };
 					throw std::runtime_error{""};
 				} catch (...) {
 					// expecting excetpion
@@ -33,14 +33,14 @@ namespace dice::template_library {
 
 			SUBCASE("success") {
 				{
-					DEFER_TO_FAIL { executed = true; };
+					DICE_DEFER_TO_FAIL { executed = true; };
 				}
 				CHECK_FALSE(executed);
 			}
 
 			SUBCASE("fail") {
 				try {
-					DEFER_TO_FAIL { executed = true; };
+					DICE_DEFER_TO_FAIL { executed = true; };
 					throw std::runtime_error{""};
 				} catch (...) {
 					// expecting excetpion
@@ -55,14 +55,14 @@ namespace dice::template_library {
 
 			SUBCASE("success") {
 				{
-					DEFER_TO_SUCCESS { executed = true; };
+					DICE_DEFER_TO_SUCCESS { executed = true; };
 				}
 				CHECK(executed);
 			}
 
 			SUBCASE("fail") {
 				try {
-					DEFER_TO_SUCCESS { executed = true; };
+					DICE_DEFER_TO_SUCCESS { executed = true; };
 					throw std::runtime_error{""};
 				} catch (...) {
 					// expecting excetpion
@@ -74,12 +74,12 @@ namespace dice::template_library {
 
 		TEST_CASE("multiple in same scope") {
 			// only checking if it compiles
-			DEFER {};
-			DEFER {};
-			DEFER_TO_FAIL {};
-			DEFER_TO_FAIL {};
-			DEFER_TO_SUCCESS {};
-			DEFER_TO_SUCCESS {};
+			DICE_DEFER {};
+			DICE_DEFER {};
+			DICE_DEFER_TO_FAIL {};
+			DICE_DEFER_TO_FAIL {};
+			DICE_DEFER_TO_SUCCESS {};
+			DICE_DEFER_TO_SUCCESS {};
 		}
 	}
 } // namespace dice::template_library
