@@ -82,6 +82,9 @@ namespace dice::template_library {
 	 * This is mainly useful for scenarios where you cannot have dynamic polymorphism but still want
 	 * to be able to have multiple allocators, i.e. projects using persistent memory.
 	 *
+	 * @note for propagate_on_container_copy_assignment (and others) we follow what std::scoped_allocator_adaptor does
+	 * 			for composition of these values
+	 *
 	 * @tparam T the type of object this allocator allocates
 	 * @tparam Allocators a list of the different allocator templates
 	 */
