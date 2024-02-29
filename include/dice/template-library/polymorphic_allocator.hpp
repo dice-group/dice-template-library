@@ -661,9 +661,6 @@ namespace dice::template_library {
 			}
 		}
 
-		// TODO: for some reason variant requires less things to be noexcept https://en.cppreference.com/w/cpp/utility/variant/operator%3D
-		// TODO: how are they doing it?
-		// TODO: same for other operators
 		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<Allocator1<T>>
 																									 && std::is_nothrow_destructible_v<Allocator1<T>>
 																									 && std::is_nothrow_move_constructible_v<Allocator1<T>>
