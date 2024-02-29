@@ -73,7 +73,7 @@ namespace dice::template_library {
 	/**
 	 * Applies a function to all types of a tuple
 	 *
-	 * @param tuple tuple with elements to apply function to
+	 * @tparam Tuple type of tuple with types to apply function to
 	 * @param f template unop to apply to each type (as f.template operator()<tuple-element-type>())
 	 */
 	template<typename Tuple, typename F>
