@@ -302,29 +302,34 @@ namespace dice::template_library {
 		static_assert(!std::is_same_v<Allocator1<T>, Allocator2<T>>,
 					  "Allocator types must only occur exactly once in the parameter list");
 
-		using value_type = typename detail_pmr::same_type<typename std::allocator_traits<Allocator1<T>>::value_type,
-														  typename std::allocator_traits<Allocator2<T>>::value_type>::type;
+	private:
+		using alloc1_traits = std::allocator_traits<Allocator1<T>>;
+		using alloc2_traits = std::allocator_traits<Allocator2<T>>;
 
-		using pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocator1<T>>::pointer,
-													   typename std::allocator_traits<Allocator2<T>>::pointer>::type;
+	public:
+		using value_type = typename detail_pmr::same_type<typename alloc1_traits::value_type,
+														  typename alloc2_traits::value_type>::type;
 
-		using const_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocator1<T>>::const_pointer,
-															 typename std::allocator_traits<Allocator2<T>>::const_pointer>::type;
+		using pointer = typename detail_pmr::same_type<typename alloc1_traits::pointer,
+													   typename alloc2_traits::pointer>::type;
 
-		using void_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocator1<T>>::void_pointer,
-															typename std::allocator_traits<Allocator2<T>>::void_pointer>::type;
+		using const_pointer = typename detail_pmr::same_type<typename alloc1_traits::const_pointer,
+															 typename alloc2_traits::const_pointer>::type;
 
-		using const_void_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocator1<T>>::const_void_pointer,
-																  typename std::allocator_traits<Allocator2<T>>::const_void_pointer>::type;
+		using void_pointer = typename detail_pmr::same_type<typename alloc1_traits::void_pointer,
+															typename alloc2_traits::void_pointer>::type;
 
-		using propagate_on_container_copy_assignment = std::bool_constant<(std::allocator_traits<Allocator1<T>>::propagate_on_container_copy_assignment::value
-																			|| std::allocator_traits<Allocator2<T>>::propagate_on_container_copy_assignment::value)>;
+		using const_void_pointer = typename detail_pmr::same_type<typename alloc1_traits::const_void_pointer,
+																  typename alloc2_traits::const_void_pointer>::type;
 
-		using propagate_on_container_move_assignment = std::bool_constant<(std::allocator_traits<Allocator1<T>>::propagate_on_container_move_assignment::value
-																			|| std::allocator_traits<Allocator2<T>>::propagate_on_container_move_assignment::value)>;
+		using propagate_on_container_copy_assignment = std::bool_constant<(alloc1_traits::propagate_on_container_copy_assignment::value
+																			|| alloc2_traits::propagate_on_container_copy_assignment::value)>;
 
-		using propagate_on_container_swap = std::bool_constant<(std::allocator_traits<Allocator1<T>>::propagate_on_container_swap::value
-																 || std::allocator_traits<Allocator2<T>>::propagate_on_container_swap::value)>;
+		using propagate_on_container_move_assignment = std::bool_constant<(alloc1_traits::propagate_on_container_move_assignment::value
+																			|| alloc2_traits::propagate_on_container_move_assignment::value)>;
+
+		using propagate_on_container_swap = std::bool_constant<(alloc1_traits::propagate_on_container_swap::value
+																 || alloc2_traits::propagate_on_container_swap::value)>;
 
 		using is_always_equal = std::false_type;
 
@@ -656,24 +661,23 @@ namespace dice::template_library {
 		// TODO: for some reason variant requires less things to be noexcept https://en.cppreference.com/w/cpp/utility/variant/operator%3D
 		// TODO: how are they doing it?
 		// TODO: same for other operators
-		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_move_assignable_v<Allocator1<T>>
+		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<Allocator1<T>>
 																									 && std::is_nothrow_destructible_v<Allocator1<T>>
 																									 && std::is_nothrow_move_constructible_v<Allocator1<T>>
-																									 && std::is_nothrow_move_assignable_v<Allocator2<T>>
+																									 && std::is_nothrow_swappable_v<Allocator2<T>>
 																									 && std::is_nothrow_destructible_v<Allocator2<T>>
 																									 && std::is_nothrow_move_constructible_v<Allocator2<T>>) {
 
 			switch (lhs.discriminant_) {
 				case discriminant_type::First: {
-					Allocator1<T> tmp{std::move(lhs.alloc1_)};
-
 					switch (rhs.discriminant_) {
 						case discriminant_type::First: {
-							lhs.alloc1_ = std::move(rhs.alloc1_);
-							rhs.alloc1_ = std::move(tmp);
+							std::swap(lhs.alloc1_, rhs.alloc1_);
 							break;
 						}
 						case discriminant_type::Second: {
+							Allocator1<T> tmp{std::move(lhs.alloc1_)};
+
 							lhs.alloc1_.~Allocator1<T>();
 							new (&lhs.alloc2_) Allocator2<T>{std::move(rhs.alloc2_)};
 							rhs.alloc2_.~Allocator2<T>();
@@ -688,10 +692,10 @@ namespace dice::template_library {
 					break;
 				}
 				case discriminant_type::Second: {
-					Allocator2<T> tmp{std::move(lhs.alloc2_)};
-
 					switch (rhs.discriminant_) {
 						case discriminant_type::First: {
+							Allocator2<T> tmp{std::move(lhs.alloc2_)};
+
 							lhs.alloc2_.~Allocator2<T>();
 							new (&lhs.alloc1_) Allocator1<T>{std::move(rhs.alloc1_)};
 							rhs.alloc1_.~Allocator1<T>();
@@ -699,8 +703,7 @@ namespace dice::template_library {
 							break;
 						}
 						case discriminant_type::Second: {
-							lhs.alloc2_ = std::move(rhs.alloc2_);
-							rhs.alloc2_ = std::move(tmp);
+							std::swap(lhs.alloc2_, rhs.alloc2_);
 							break;
 						}
 						default: {
