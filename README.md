@@ -64,6 +64,9 @@ The primary use-case for this is on-the-fly RAII-like resource management for ty
 Usage examples can be found [here](examples/examples_defer.cpp).
 
 
+### `tuple algorthims`
+Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake

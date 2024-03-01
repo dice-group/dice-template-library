@@ -44,3 +44,10 @@ target_link_libraries(examples_defer
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(examples_tuple_algorithm
+        examples_tuple_algorithm.cpp)
+target_link_libraries(examples_tuple_algorithm
+        PRIVATE
+        dice-template-library::dice-template-library
+)
