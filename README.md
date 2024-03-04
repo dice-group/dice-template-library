@@ -64,6 +64,9 @@ The primary use-case for this is on-the-fly RAII-like resource management for ty
 Usage examples can be found [here](examples/examples_defer.cpp).
 
 
+### `tuple algorthims`
+Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -83,7 +86,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.3.0
+        GIT_TAG v1.4.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -102,7 +105,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.3.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.4.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

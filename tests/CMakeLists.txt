@@ -52,3 +52,6 @@ custom_add_test(tests_overloaded)
 
 add_executable(tests_defer tests_defer.cpp)
 custom_add_test(tests_defer)
+
+add_executable(tests_tuple_algorithm tests_tuple_algorithm.cpp)
+custom_add_test(tests_tuple_algorithm)
