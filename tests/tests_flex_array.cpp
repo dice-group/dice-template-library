@@ -1,10 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <algorithm>
 #include <dice/template-library/flex_array.hpp>
+#include <algorithm>
 #include <numeric>
-#include <ranges>
 
 TEST_SUITE("flex_array") {
 	using namespace dice::template_library;
@@ -23,7 +22,9 @@ TEST_SUITE("flex_array") {
 
 	template<size_t extent, size_t max_extent>
 	void check_contents(flex_array<int, extent, max_extent> const &f, size_t expected_size) {
-		auto const ref = std::ranges::views::iota(1ul, expected_size + 1);
+		std::vector<int> ref;
+		ref.resize(expected_size);
+		std::iota(ref.begin(), ref.end(), 1);
 
 		CHECK_EQ(std::accumulate(f.begin(), f.end(), 0), std::accumulate(ref.begin(), ref.end(), 0));
 
