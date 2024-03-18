@@ -191,6 +191,8 @@ TEST_SUITE("flex_array") {
 			CHECK_EQ(d.size(), 5);
 			CHECK_EQ(d.max_size(), 6);
 			CHECK(std::ranges::equal(s, d));
+
+			d = s; // checking if this compiles
 		}
 
 		SUBCASE("dynamic -> static") {
