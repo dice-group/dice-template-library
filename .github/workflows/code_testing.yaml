@@ -53,9 +53,6 @@ jobs:
         with:
           compiler: ${{ matrix.config.compiler }}
 
-      - name: Install linker
-        uses: rui314/setup-mold@v1
-
       - uses: actions/checkout@v3
 
       - name: install conan
