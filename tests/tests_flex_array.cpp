@@ -5,6 +5,15 @@
 #include <algorithm>
 #include <numeric>
 
+namespace dice::template_library {
+	// extern template sometimes make problems if internal types are too eagerly instantiated
+	extern template struct flex_array<int, 5>;
+	extern template struct flex_array<int, dynamic_extent, 5>;
+
+	template struct flex_array<int, 5>;
+	template struct flex_array<int, dynamic_extent, 5>;
+} // namespace dice::template_library
+
 TEST_SUITE("flex_array") {
 	using namespace dice::template_library;
 

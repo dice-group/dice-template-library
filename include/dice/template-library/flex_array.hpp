@@ -11,6 +11,24 @@
 namespace dice::template_library {
     using std::dynamic_extent;
 
+	namespace detail_flex_array {
+		template<typename T, size_t extent, size_t max_extent>
+		struct flex_array_inner {
+			static constexpr size_t size_ = extent;
+			std::array<T, extent> data_;
+
+			constexpr auto operator<=>(flex_array_inner const &) const noexcept = default;
+		};
+
+		template<typename T, size_t max_extent>
+		struct flex_array_inner<T, dynamic_extent, max_extent> {
+			size_t size_ = 0;
+			std::array<T, max_extent> data_;
+
+			constexpr auto operator<=>(flex_array_inner const &) const noexcept = default;
+		};
+	} // namespace detail_flex_array
+
 	/**
 	 * A combination of std::array and std::span.
 	 * If extent_ is set to some integer value (!= dynamic_extent), flex_array behaves like std::array, i.e. has a fixed, statically known size, max_size/capacity.
@@ -32,21 +50,7 @@ namespace dice::template_library {
 		static constexpr bool is_dynamic_extent = extent == dynamic_extent;
 
 	private:
-		struct inner_type_fixed {
-			static constexpr size_t size_ = extent;
-			std::array<T, extent_> data_;
-
-			constexpr auto operator<=>(inner_type_fixed const &) const noexcept = default;
-		};
-
-		struct inner_type_dynamic {
-			size_t size_ = 0;
-			std::array<T, max_extent> data_;
-
-			constexpr auto operator<=>(inner_type_dynamic const &) const noexcept = default;
-		};
-
-		using inner_type = std::conditional_t<is_dynamic_extent, inner_type_dynamic, inner_type_fixed>;
+		using inner_type = detail_flex_array::flex_array_inner<T, extent_, max_extent_>;
 
 	public:
 		using value_type = T;
