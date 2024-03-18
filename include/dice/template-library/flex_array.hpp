@@ -25,7 +25,12 @@ namespace dice::template_library {
 			size_t size_ = 0;
 			std::array<T, max_extent> data_;
 
-			constexpr auto operator<=>(flex_array_inner const &) const noexcept = default;
+			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires (std::three_way_comparable<T>) {
+				std::span<T const> const self_s{data_.data(), size_};
+				std::span<T const> const other_s{other.data_.data(), other.size_};
+
+				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
+			}
 		};
 	} // namespace detail_flex_array
 

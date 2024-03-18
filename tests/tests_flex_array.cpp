@@ -112,6 +112,20 @@ TEST_SUITE("flex_array") {
 			CHECK(std::ranges::equal(f, std::array{6, 7, 8, 9, 10}));
 			CHECK(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
 		}
+
+		SUBCASE("cmp") {
+			flex_array<int, 5> f{1, 2, 3, 4, 5};
+			flex_array<int, 5> f2{6, 7, 8, 9, 10};
+
+			CHECK_EQ(f <=> f2, std::strong_ordering::less);
+			CHECK_EQ(f <=> f, std::strong_ordering::equal);
+			CHECK_EQ(f2 <=> f, std::strong_ordering::greater);
+		}
+
+		SUBCASE("no-cmp") {
+			struct uncomparable {};
+			flex_array<uncomparable, 5> f; // checking if this compiles
+		}
 	}
 
 	TEST_CASE("dynamic size") {
@@ -151,6 +165,21 @@ TEST_SUITE("flex_array") {
 			swap(f, f2);
 			CHECK(std::ranges::equal(f, std::array{6, 7, 8}));
 			CHECK(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
+		}
+
+		SUBCASE("cmp") {
+			flex_array<int, dynamic_extent, 5> f{1, 2, 3, 4, 5};
+			flex_array<int, dynamic_extent, 5> f2{6, 7, 8};
+			flex_array<int, dynamic_extent, 5> f3{5, 6, 7, 8, 9};
+
+			CHECK_EQ(f <=> f2, std::strong_ordering::less);
+			CHECK_EQ(f <=> f, std::strong_ordering::equal);
+			CHECK_EQ(f3 <=> f, std::strong_ordering::greater);
+		}
+
+		SUBCASE("no-cmp") {
+			struct uncomparable {};
+			flex_array<uncomparable, dynamic_extent, 5> f; // checking if this compiles
 		}
 	}
 
