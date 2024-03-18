@@ -30,39 +30,48 @@ namespace dice::template_library {
 						std::span<T const>{other.data_.data(), other.size_}};
 			}
 
+			template<typename Cmp>
+			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
+				auto const [self_s, other_s] = to_spans(other);
+				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
+			}
+
+			template<typename Cmp>
+			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
+				auto const [self_s, other_s] = to_spans(other);
+				return std::ranges::equal(self_s, other_s, Cmp{});
+			}
+
+			// operator <=> is not defaulted
+			// so we need to provide all comparision operators manually
+
 			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
 				auto const [self_s, other_s] = to_spans(other);
 				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
 			}
 
 			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T x) { x == x; } {
-				auto const [self_s, other_s] = to_spans(other);
-				return std::equal(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
+				return eq_compare_impl<std::equal_to<T>>(other);
 			}
 
 			constexpr bool operator!=(flex_array_inner const &other) const noexcept requires requires (T x) { x != x; } {
-				auto const [self_s, other_s] = to_spans(other);
-				return std::equal(self_s.begin(), self_s.end(), other_s.begin(), other_s.end(), std::not_equal_to<T>{});
+				return eq_compare_impl<std::not_equal_to<T>>(other);
 			}
 
 			constexpr bool operator<(flex_array_inner const &other) const noexcept requires requires (T x) { x < x; } {
-				auto const [self_s, other_s] = to_spans(other);
-				return std::lexicographical_compare(self_s.begin(), self_s.end(), other_s.begin(), other_s.end(), std::less<T>{});
+				return lex_compare_impl<std::less<T>>(other);
 			}
 
 			constexpr bool operator<=(flex_array_inner const &other) const noexcept requires requires (T x) { x <= x; } {
-				auto const [self_s, other_s] = to_spans(other);
-				return std::lexicographical_compare(self_s.begin(), self_s.end(), other_s.begin(), other_s.end(), std::less_equal<T>{});
+				return lex_compare_impl<std::less_equal<T>>(other);
 			}
 
 			constexpr bool operator>(flex_array_inner const &other) const noexcept requires requires (T x) { x > x; } {
-				auto const [self_s, other_s] = to_spans(other);
-				return std::lexicographical_compare(self_s.begin(), self_s.end(), other_s.begin(), other_s.end(), std::greater<T>{});
+				return lex_compare_impl<std::greater<T>>(other);
 			}
 
 			constexpr bool operator>=(flex_array_inner const &other) const noexcept requires requires (T x) { x >= x; } {
-				auto const [self_s, other_s] = to_spans(other);
-				return std::lexicographical_compare(self_s.begin(), self_s.end(), other_s.begin(), other_s.end(), std::greater_equal<T>{});
+				return lex_compare_impl<std::greater_equal<T>>(other);
 			}
 		};
 	} // namespace detail_flex_array
