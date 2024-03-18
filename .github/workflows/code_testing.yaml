@@ -23,7 +23,7 @@ jobs:
             compiler: gcc-12
           - os: ubuntu-22.04
             compiler: gcc-13
-    runs-on: ${{ matrix.config.os }}
+    runs-on: arc-runner-set
     name: ${{ matrix.config.os }} (${{ matrix.config.compiler }})
     defaults:
       run:
@@ -80,7 +80,7 @@ jobs:
           key: tests-${{ matrix.config.os }}-${{ matrix.config.compiler }}-conan
 
       - name: Configure CMake
-        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DUSE_CONAN=On -G Ninja -B build .
+        run: cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined" -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DUSE_CONAN=On -G Ninja -B build .
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
