@@ -248,7 +248,7 @@ namespace dice::template_library {
 
 		template<typename U>
 		constexpr polymorphic_allocator(polymorphic_allocator<U, Allocator> const &other) noexcept(std::is_nothrow_constructible_v<Allocator<T>, Allocator<U> const &>)
-			: alloc_{other} {
+			: alloc_{other.alloc_} {
 		}
 
 		constexpr polymorphic_allocator(polymorphic_allocator const &other) noexcept(std::is_nothrow_copy_constructible_v<Allocator<T>>) = default;

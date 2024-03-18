@@ -42,8 +42,13 @@ namespace dice::template_library {
 	 */
 	template<typename T, size_t extent_, size_t max_extent_ = extent_>
 	struct flex_array {
+		// extent_ != dynamic_extent -> extent_ == max_extent_
+		static_assert(!(extent_ != dynamic_extent) || extent_ == max_extent_,
+					  "If extent is not dynamic_extent, extent must be equal to max_extent");
+
+		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
 		static_assert(extent_ != std::dynamic_extent || max_extent_ != std::dynamic_extent,
-					  "If extent is dynamic_extent, max_extent must be non-dynamic");
+					  "If extent is dynamic_extent, max_extent must not be dynamic_extent");
 
 		static constexpr size_t extent = extent_;
 		static constexpr size_t max_extent = max_extent_;
