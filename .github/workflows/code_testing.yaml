@@ -13,11 +13,11 @@ jobs:
       matrix:
         config:
           - os: ubuntu-22.04
-            compiler: clang-14
-          - os: ubuntu-22.04
             compiler: clang-15
           - os: ubuntu-22.04
             compiler: clang-16
+          - os: ubuntu-22.04
+            compiler: clang-17
 
           - os: ubuntu-22.04
             compiler: gcc-12
@@ -35,17 +35,22 @@ jobs:
           # gcc-13
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           
-          # clang-16
           source /etc/os-release
+          
+          # clang-16
           echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-16 main" | sudo tee /etc/apt/sources.list.d/llvm-16.list
           curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-16.gpg > /dev/null
+          
+          # clang-17
+          echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-17 main" | sudo tee /etc/apt/sources.list.d/llvm-17.list
+          curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-17.gpg > /dev/null
           
           sudo apt-get update -y
 
       - name: Install CMake
-        uses: lukka/get-cmake@v3.24.3
+        uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: 3.16.9
+          cmakeVersion: 3.27.7
 
       - name: Install compiler
         id: install_cc
@@ -53,15 +58,15 @@ jobs:
         with:
           compiler: ${{ matrix.config.compiler }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: install conan
+      - name: Install conan
         shell: bash
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
         run: |
-          pip3 install "conan==1.60.1"
+          pip3 install "conan==1.62.0"
           conan profile new --detect default
           conan profile update settings.compiler.libcxx=libstdc++11 default
           conan profile update env.CXXFLAGS="${CXXFLAGS}" default
@@ -71,7 +76,7 @@ jobs:
 
       - name: Cache conan data
         id: cache-conan
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.conan/data
           key: tests-${{ matrix.config.os }}-${{ matrix.config.compiler }}-conan
@@ -81,7 +86,7 @@ jobs:
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
-          CXXFLAGS: -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
+          CXXFLAGS: -fsanitize=undefined,address
 
       - name: Build tests and examples
         working-directory: build
