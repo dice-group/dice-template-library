@@ -55,3 +55,6 @@ custom_add_test(tests_defer)
 
 add_executable(tests_tuple_algorithm tests_tuple_algorithm.cpp)
 custom_add_test(tests_tuple_algorithm)
+
+add_executable(tests_flex_array tests_flex_array.cpp)
+custom_add_test(tests_flex_array)

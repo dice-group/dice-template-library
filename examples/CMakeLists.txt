@@ -51,3 +51,10 @@ target_link_libraries(examples_tuple_algorithm
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_flex_array
+        example_flex_array.cpp)
+target_link_libraries(example_flex_array
+        PRIVATE
+        dice-template-library::dice-template-library
+)
