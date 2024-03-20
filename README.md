@@ -67,6 +67,10 @@ Usage examples can be found [here](examples/examples_defer.cpp).
 ### `tuple algorthims`
 Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
 
+### `flex_array`
+A combination of `std::array` and `std::span` where the size is either statically known or a runtime variable
+depending on the `extent` template parameter
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
