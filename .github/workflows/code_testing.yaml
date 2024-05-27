@@ -50,7 +50,7 @@ jobs:
       - name: Install CMake
         uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: 3.27.7
+          cmakeVersion: 3.29.3
 
       - name: Install compiler
         id: install_cc
@@ -58,29 +58,43 @@ jobs:
         with:
           compiler: ${{ matrix.config.compiler }}
 
-      - uses: actions/checkout@v4
-
-      - name: Install conan
-        shell: bash
-        env:
-          CC: ${{ steps.install_cc.outputs.cc }}
-          CXX: ${{ steps.install_cc.outputs.cxx }}
+      - name: Configure conan
         run: |
-          pip3 install "conan==1.62.0"
-          conan profile new --detect default
-          conan profile update env.CXX="${CXX}" default
-          conan profile update env.CC="${CC}" default
-          conan profile update settings.compiler.libcxx=libstdc++11 default
+          pip3 install conan==2.3.0
+          
+          # conan profile update is deprecated (https://github.com/conan-io/conan/issues/13205)
+          # and they don't want you to use detect because it is unstable
+          
+          conan profile detect  # Force creation of conan directory structure, will be overwritten
+          
+          echo '{% set compiler, version, c_exe = detect_api.detect_default_compiler() %}'      > ~/.conan2/profiles/default
+          echo '[settings]'                                                                    >> ~/.conan2/profiles/default
+          echo 'os={{ detect_api.detect_os() }}'                                               >> ~/.conan2/profiles/default
+          echo 'arch={{ detect_api.detect_arch() }}'                                           >> ~/.conan2/profiles/default
+          echo 'build_type=Release'                                                            >> ~/.conan2/profiles/default
+          echo 'compiler={{ compiler }}'                                                       >> ~/.conan2/profiles/default
+          echo 'compiler.version={{ detect_api.default_compiler_version(compiler, version) }}' >> ~/.conan2/profiles/default
+          echo 'compiler.libcxx=libstdc++11'                                                   >> ~/.conan2/profiles/default
+          
+          conan remote add -f dice-group https://conan.dice-research.org/artifactory/api/conan/tentris
 
       - name: Cache conan data
         id: cache-conan
-        uses: actions/cache@v4
+        uses: actions/cache@v4.0.2
         with:
-          path: ~/.conan/data
-          key: tests-${{ matrix.config.os }}-${{ matrix.config.compiler }}-conan
+          path: ~/.conan2/p
+          key: ${{ matrix.config.os }}-${{ matrix.config.compiler }}
+
+      - uses: actions/checkout@v4.1.6
+
+      - name: Get dependency provider
+        run: |
+          sudo apt-get install -y wget
+          
+          wget https://github.com/conan-io/cmake-conan/raw/develop2/conan_provider.cmake -O conan_provider.cmake
 
       - name: Configure CMake
-        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DUSE_CONAN=On -G Ninja -B build .
+        run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On --DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -G Ninja -B build .
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
