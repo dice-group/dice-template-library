@@ -31,21 +31,7 @@ jobs:
 
     steps:
       - name: Add repos for for gcc-13 and clang-16
-        run: |
-          # gcc-13
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-          
-          source /etc/os-release
-          
-          # clang-16
-          echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-16 main" | sudo tee /etc/apt/sources.list.d/llvm-16.list
-          curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-16.gpg > /dev/null
-          
-          # clang-17
-          echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-17 main" | sudo tee /etc/apt/sources.list.d/llvm-17.list
-          curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-17.gpg > /dev/null
-          
-          sudo apt-get update -y
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@feature/conan2_utils
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
@@ -59,23 +45,12 @@ jobs:
           compiler: ${{ matrix.config.compiler }}
 
       - name: Configure conan
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@feature/conan2_utils
+        with:
+          conan-version: 2.3.1
+
+      - name: add conan user
         run: |
-          pip3 install conan==2.3.0
-          
-          # conan profile update is deprecated (https://github.com/conan-io/conan/issues/13205)
-          # and they don't want you to use detect because it is unstable
-          
-          conan profile detect  # Force creation of conan directory structure, will be overwritten
-          
-          echo '{% set compiler, version, c_exe = detect_api.detect_default_compiler() %}'      > ~/.conan2/profiles/default
-          echo '[settings]'                                                                    >> ~/.conan2/profiles/default
-          echo 'os={{ detect_api.detect_os() }}'                                               >> ~/.conan2/profiles/default
-          echo 'arch={{ detect_api.detect_arch() }}'                                           >> ~/.conan2/profiles/default
-          echo 'build_type=Release'                                                            >> ~/.conan2/profiles/default
-          echo 'compiler={{ compiler }}'                                                       >> ~/.conan2/profiles/default
-          echo 'compiler.version={{ detect_api.default_compiler_version(compiler, version) }}' >> ~/.conan2/profiles/default
-          echo 'compiler.libcxx=libstdc++11'                                                   >> ~/.conan2/profiles/default
-          
           conan remote add -f dice-group https://conan.dice-research.org/artifactory/api/conan/tentris
 
       - name: Cache conan data
@@ -88,10 +63,7 @@ jobs:
       - uses: actions/checkout@v4.1.6
 
       - name: Get dependency provider
-        run: |
-          sudo apt-get install -y wget
-          
-          wget https://github.com/conan-io/cmake-conan/raw/develop2/conan_provider.cmake -O conan_provider.cmake
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@feature/conan2_utils
 
       - name: Configure CMake
         run: cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -G Ninja -B build .
