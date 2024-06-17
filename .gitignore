@@ -105,3 +105,5 @@ fabric.properties
 .idea/
 test_package/build/
 test_package/CMakeUserPresets.json
+/CMakeUserPresets.json
+/conan_provider.cmake

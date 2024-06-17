@@ -15,15 +15,25 @@ class DiceTemplateLibrary(ConanFile):
     topics = "template", "template-library", "compile-time", "switch", "integral-tuple"
     package_type = "header-library"
     generators = "CMakeDeps", "CMakeToolchain"
-    options = {"with_test_deps": [True, False]}
-    default_options = {"with_test_deps": False}
     settings = "os", "compiler", "build_type", "arch"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
 
     def requirements(self):
-        if self.options.with_test_deps:
-            self.requires("boost/1.83.0")
+        self.test_requires("boost/1.83.0")
+        self.test_requires("doctest/2.4.11")
+
+    def layout(self):
+        cmake_layout(self)
+
+    def build(self):
+        if not self.conf.get("tools.build:skip_test", default=False):
+            cmake = CMake(self)
+            cmake.configure()
+            cmake.build()
+
+    def package_id(self):
+        self.info.clear()
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:
@@ -40,7 +50,6 @@ class DiceTemplateLibrary(ConanFile):
 
     def package(self):
         cmake = CMake(self)
-        cmake.configure(variables={"USE_CONAN": False})
         cmake.install()
 
         for dir in ("lib", "res", "share"):
