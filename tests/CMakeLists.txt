@@ -4,13 +4,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Boost REQUIRED COMPONENTS)
 
-include(FetchContent)
-FetchContent_Declare(
-  DocTest
-  GIT_REPOSITORY "https://github.com/doctest/doctest.git"
-  GIT_TAG "v2.4.8"
-  GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(DocTest)
+find_package(DocTest REQUIRED)
 
 add_custom_target(build_tests)
 add_custom_target(run_tests COMMAND ${CMAKE_CTEST_COMMAND})
@@ -24,7 +18,7 @@ macro(CUSTOM_ADD_TEST)
   endif()
   add_test(NAME ${ARGV0} COMMAND ${ARGV0})
   target_link_libraries(
-    ${ARGV0} PRIVATE doctest dice-template-library::dice-template-library)
+    ${ARGV0} PRIVATE doctest::doctest dice-template-library::dice-template-library)
   add_dependencies(build_tests ${ARGV0})
 endmacro()
 
