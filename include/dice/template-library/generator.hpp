@@ -501,16 +501,19 @@ namespace DICE_TEMPLATELIBRARY_GENERATOR_NAMESPACE {
             return *this;
         }
 
-        [[nodiscard]] _Gen_iter<_Value, _Ref> begin() {
+        using iterator = _Gen_iter<_Value, _Ref>;
+        using sentinel = ::std::default_sentinel_t;
+
+        [[nodiscard]] iterator begin() {
             // Pre: _Coro is suspended at its initial suspend point
             assert(_Coro && "Can't call begin on moved-from generator");
             _Coro.resume();
-            return _Gen_iter<_Value, _Ref>{_Gen_secret_tag{},
+            return iterator{_Gen_secret_tag{},
                 ::std::coroutine_handle<_Gen_promise_base<_Gen_yield_t<_Ref>>>::from_address(
                     _Coro.address())};
         }
 
-        [[nodiscard]] ::std::default_sentinel_t end() const noexcept {
+        [[nodiscard]] sentinel end() const noexcept {
             return ::std::default_sentinel;
         }
 
