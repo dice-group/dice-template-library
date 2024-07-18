@@ -35,6 +35,7 @@ jobs:
 
       - name: Add repo for clang-18
         run: |
+          source /etc/os-release
           echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
           curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-18.gpg > /dev/null
           sudo apt-get update
