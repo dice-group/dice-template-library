@@ -1,3 +1,7 @@
+////////////////////////////////////////////////////////////////
+// Tests adapted from reference implementation of std::generator proposal P2502R2
+// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
