@@ -30,15 +30,8 @@ jobs:
         shell: bash
 
     steps:
-      - name: Add repos for for gcc-13 and clang-16
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-
-      - name: Add repo for clang-18
-        run: |
-          source /etc/os-release
-          echo "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-          curl https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/llvm-18.gpg > /dev/null
-          sudo apt-get update
+      - name: Add repos for for gcc-13 and clang-16,..
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@add-clang-18
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
