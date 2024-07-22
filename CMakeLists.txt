@@ -10,6 +10,10 @@ project(
 option(BUILD_TESTING "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 
+if (PROJECT_IS_TOP_LEVEL)
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:header_only=True")
+endif ()
+
 # conan requires cmake build type to be specified and it is generally a good idea
 if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
   if (NOT CMAKE_BUILD_TYPE)

@@ -10,6 +10,10 @@ It contains:
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
+- `overloaded`: Composition for `std::variant` visitor lambdas
+- `flex_array`: A combination of `std::array` and `std::span`
+- `tuple_algorithms`: Some algorithms for iterating tuples
+- `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 
 ## Usage
 
@@ -70,6 +74,13 @@ Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce imp
 ### `flex_array`
 A combination of `std::array` and `std::span` where the size is either statically known or a runtime variable
 depending on the `extent` template parameter
+
+### `generator`
+The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf).
+By default, the generator and corresponding utilities are exported under the `dice::template_library::` namespace.
+If you want this generator to serve as a drop in replacement for `std::generator` until it arrives
+use `#define DICE_TEMPLATELIBRARY_GENERATOR_STD_COMPAT 1` before including the generator header. That will export
+all generator related things under namespace `std::`.
 
 ### Further Examples
 
