@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Add repos for for gcc-13 and clang-16,..
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@add-clang-18
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
