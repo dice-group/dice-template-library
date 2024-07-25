@@ -58,3 +58,10 @@ target_link_libraries(example_flex_array
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_generator
+        example_generator.cpp)
+target_link_libraries(example_generator
+        PRIVATE
+        dice-template-library::dice-template-library
+)
