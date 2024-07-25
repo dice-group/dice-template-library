@@ -18,10 +18,17 @@ class DiceTemplateLibrary(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
     no_copy_source = True
+    options = {
+        "with_test_deps": [True, False],
+    }
+    default_options = {
+        "with_test_deps": False,
+    }
 
     def requirements(self):
-        self.test_requires("boost/1.83.0")
-        self.test_requires("doctest/2.4.11")
+        if self.options.with_test_deps:
+            self.test_requires("boost/1.83.0")
+            self.test_requires("doctest/2.4.11")
 
     def layout(self):
         cmake_layout(self)

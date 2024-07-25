@@ -12,6 +12,10 @@ option(BUILD_EXAMPLES "build examples" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
     set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:header_only=True")
+
+    if (BUILD_TESTING)
+        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_test_deps=True")
+    endif ()
 endif ()
 
 # conan requires cmake build type to be specified and it is generally a good idea
