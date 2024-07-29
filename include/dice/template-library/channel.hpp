@@ -70,7 +70,14 @@ namespace dice::template_library {
         }
 
 		/**
-         * Emplace an element into the channel
+         * @return true if this channel is closed
+         */
+        [[nodiscard]] bool closed() const noexcept {
+            return closed_.test(std::memory_order_acquire);
+        }
+
+		/**
+         * Emplace an element into the channel, blocks if there is no capacity left in the channel.
          *
          * @param args constructor args
          * @return true if emplacing the element succeeded because the channel is not yet closed
@@ -91,8 +98,33 @@ namespace dice::template_library {
             return true;
         }
 
+        /**
+         * Emplace an element into the channel, returns immediately if there is no capacity in the channel.
+         *
+         * @param args constructor args
+         * @return true if emplacing the element succeeded
+         */
+        template<typename ...Args>
+        bool try_emplace(Args &&...args) noexcept(std::is_nothrow_constructible_v<value_type, decltype(std::forward<Args>(args))...>) {
+            if (closed_.test(std::memory_order_acquire)) [[unlikely]] {
+                return false;
+            }
+
+            {
+                std::unique_lock lock{queue_mutex_};
+                if (queue_.size() >= max_cap_) {
+                    return false;
+                }
+
+                queue_.emplace_back(std::forward<Args>(args)...);
+            }
+
+            queue_not_empty_.notify_one();
+            return true;
+        }
+
 		/**
-         * Push a single element into the channel
+         * Push a single element into the channel, blocks if there is no capacity left in the channel.
          *
          * @param value the element to push
          * @return true if pushing the element succeeded because the channel is not yet closed
@@ -102,7 +134,17 @@ namespace dice::template_library {
         }
 
         /**
-         * Push a single element into the channel
+         * Push a single element into the channel, returns immediately if there is no capacity in the channel.
+         *
+         * @param value the element to push
+         * @return true if pushing the element succeeded because the channel is not yet closed
+         */
+        bool try_push(value_type const &value) noexcept(std::is_nothrow_copy_constructible_v<value_type>) {
+            return try_emplace(value);
+        }
+
+        /**
+         * Push a single element into the channel, blocks if there is no capacity left in the channel.
          *
          * @param value the element to push
          * @return true if pushing the element succeeded because the channel is not yet closed
@@ -111,13 +153,23 @@ namespace dice::template_library {
             return emplace(std::move(value));
         }
 
+        /**
+         * Push a single element into the channel, returns immediately if there is no capacity in the channel.
+         *
+         * @param value the element to push
+         * @return true if pushing the element succeeded because the channel is not yet closed
+         */
+        bool try_push(value_type &&value) noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+            return try_emplace(std::move(value));
+        }
+
 		/**
          * Try to get a (previously pushed) element from the channel.
          * If there is no element available, blocks until there is one available or the channel is closed.
          *
          * @return std::nullopt if the channel was closed, an element otherwise
          */
-        [[nodiscard]] std::optional<value_type> try_pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+        [[nodiscard]] std::optional<value_type> pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             std::unique_lock lock{queue_mutex_};
             queue_not_empty_.wait(lock, [this]() noexcept { return !queue_.empty() || closed_.test(std::memory_order_acquire); });
 
@@ -130,6 +182,24 @@ namespace dice::template_library {
             queue_.pop_front();
 
 			lock.unlock();
+            queue_not_full_.notify_one();
+            return ret;
+        }
+
+        /**
+         * Try to get a (previously pushed) element from the channel.
+         * Unlike pop(), if there is no element available, returns std::nullopt immediatly.
+         */
+        [[nodiscard]] std::optional<value_type> try_pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+            std::unique_lock lock{queue_mutex_};
+            if (queue_.empty()) {
+                return std::nullopt;
+            }
+
+            auto ret = std::move(queue_.front());
+            queue_.pop_front();
+
+            lock.unlock();
             queue_not_full_.notify_one();
             return ret;
         }
@@ -149,7 +219,7 @@ namespace dice::template_library {
             mutable std::optional<value_type> buf_; ///< this has to be mutable for this iterator to fullfill std::input_iterator
 
             void advance() noexcept {
-                buf_ = chan_->try_pop();
+                buf_ = chan_->pop();
             }
 
         public:
