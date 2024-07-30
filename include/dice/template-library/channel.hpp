@@ -15,7 +15,7 @@ namespace dice::template_library {
      * A single producer, single consumer channel/queue
      * @note this can technically be used as a multi producer, single consumer queue, but care must be taken
      *      of when exactly close() is called
-     * @warning close() must be called once the producing thread is done, otherwise the reading thread will hang indefinitely or SEGFAULT
+     * @warning close() must be called once the producing thread is done, otherwise the reading thread will hang indefinitely
      *
      * @tparam T value type of the channel
      */
@@ -33,7 +33,7 @@ namespace dice::template_library {
         size_t max_cap_; ///< maximum allowed number of elements in queue_
         std::deque<T> queue_; ///< queue for elements
 
-        std::atomic_flag closed_; ///< true if this channel is closed
+        std::atomic_flag closed_ = ATOMIC_FLAG_INIT; ///< true if this channel is closed
         std::mutex queue_mutex_; ///< mutex for queue_
         std::condition_variable queue_not_empty_; ///< condvar for queue_.size() > 0
         std::condition_variable queue_not_full_;  ///< condvar for queue_.size() < max_cap_;
@@ -66,7 +66,7 @@ namespace dice::template_library {
                 std::lock_guard lock{queue_mutex_};
                 closed_.test_and_set(std::memory_order_release);
             }
-            queue_not_empty_.notify_one(); // notify try_pop so that it does not get stuck
+            queue_not_empty_.notify_one(); // notify pop() so that it does not get stuck
         }
 
 		/**
@@ -301,4 +301,4 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
-#endif // DICE_TEMPLATELIBRARY_MPSCCHANNEL_HPP
+#endif // DICE_TEMPLATELIBRARY_CHANNEL_HPP
