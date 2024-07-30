@@ -65,3 +65,10 @@ target_link_libraries(example_generator
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_channel
+        example_channel.cpp)
+target_link_libraries(example_channel
+        PRIVATE
+        dice-template-library::dice-template-library
+)

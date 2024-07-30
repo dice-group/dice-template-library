@@ -14,6 +14,7 @@ It contains:
 - `flex_array`: A combination of `std::array` and `std::span`
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
+- `channel`: A single producer, single consumer queue
 
 ## Usage
 
@@ -82,6 +83,10 @@ If you want this generator to serve as a drop in replacement for `std::generator
 use `#define DICE_TEMPLATELIBRARY_GENERATOR_STD_COMPAT 1` before including the generator header. That will export
 all generator related things under namespace `std::`.
 
+### `channel`
+A single producer, single consume queue. This can be used to communicate between threads in a more high level
+fashion than a mutex+container would allow.
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -101,7 +106,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.6.0
+        GIT_TAG v1.7.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -120,7 +125,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.6.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.7.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
