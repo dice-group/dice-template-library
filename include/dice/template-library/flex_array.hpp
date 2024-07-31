@@ -63,20 +63,17 @@ namespace dice::template_library {
 				return {data_.data(), size_};
 			}
 
-			constexpr std::pair<std::span<T const>, std::span<T const>> to_spans(flex_array_inner const &other) const noexcept {
-				return {std::span<T const>{data_.data(), size_},
-						std::span<T const>{other.data_.data(), other.size_}};
-			}
-
 			template<typename Cmp>
 			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
-				auto const [self_s, other_s] = to_spans(other);
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
 				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
 			}
 
 			template<typename Cmp>
 			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
-				auto const [self_s, other_s] = to_spans(other);
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
 				return std::ranges::equal(self_s, other_s, Cmp{});
 			}
 
@@ -84,7 +81,8 @@ namespace dice::template_library {
 			// so we need to provide all comparison operators manually
 
 			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
-				auto const [self_s, other_s] = to_spans(other);
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
 				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
 			}
 
@@ -135,7 +133,52 @@ namespace dice::template_library {
 				data_.resize(size);
 			}
 
-			constexpr auto operator<=>(flex_array_inner const &other) const noexcept = default;
+			template<typename Cmp>
+			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
+				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
+			}
+
+			template<typename Cmp>
+			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
+				return std::ranges::equal(self_s, other_s, Cmp{});
+			}
+
+			// operator <=> is not defaulted
+			// so we need to provide all comparison operators manually
+
+			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
+				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
+			}
+
+			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T x) { x == x; } {
+				return eq_compare_impl<std::equal_to<T>>(other);
+			}
+
+			constexpr bool operator!=(flex_array_inner const &other) const noexcept requires requires (T x) { x != x; } {
+				return eq_compare_impl<std::not_equal_to<T>>(other);
+			}
+
+			constexpr bool operator<(flex_array_inner const &other) const noexcept requires requires (T x) { x < x; } {
+				return lex_compare_impl<std::less<T>>(other);
+			}
+
+			constexpr bool operator<=(flex_array_inner const &other) const noexcept requires requires (T x) { x <= x; } {
+				return lex_compare_impl<std::less_equal<T>>(other);
+			}
+
+			constexpr bool operator>(flex_array_inner const &other) const noexcept requires requires (T x) { x > x; } {
+				return lex_compare_impl<std::greater<T>>(other);
+			}
+
+			constexpr bool operator>=(flex_array_inner const &other) const noexcept requires requires (T x) { x >= x; } {
+				return lex_compare_impl<std::greater_equal<T>>(other);
+			}
 		};
 
 	} // namespace detail_flex_array
@@ -153,17 +196,13 @@ namespace dice::template_library {
 	 */
 	template<typename T, size_t extent_, size_t max_extent_ = extent_>
 	struct flex_array {
-		// extent_ != dynamic_extent -> extent_ == max_extent_
-		static_assert(extent_ == dynamic_extent || extent_ == max_extent_,
+		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
+		static_assert(extent_ != dynamic_extent || max_extent_ != dynamic_extent,
 					  "If extent is not dynamic_extent, extent must be equal to max_extent");
 
 		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
 		static_assert(extent_ != dynamic_extent || max_extent_ != dynamic_extent,
 					  "If extent is dynamic_extent, max_extent must not be dynamic_extent");
-
-		// max_extent_ == dynamic_extent -> extend_ == dynamic_extent
-		static_assert(max_extent_ != dynamic_extent || extent_ == dynamic_extent,
-					  "If max_extent is dynamic_extent, extent must not be dynamic_extent");
 
 		static constexpr size_t extent = extent_;
 		static constexpr size_t max_extent = max_extent_;
@@ -254,8 +293,9 @@ namespace dice::template_library {
 		 *
 		 * @throws std::length_error if other.size() != extent
 		 */
-		template<size_t other_max_extent>
-		explicit constexpr flex_array(flex_array<value_type, dynamic_extent, other_max_extent> const &other) requires (!has_dynamic_extent) {
+		template<size_t other_extent, size_t other_max_extent>
+		explicit constexpr flex_array(flex_array<value_type, other_extent, other_max_extent> const &other)
+		requires (std::remove_cvref_t<decltype(other)>::has_dynamic_extent && !has_dynamic_extent) {
 			if (other.size() != extent) [[unlikely]] {
 				throw std::length_error{"flex_array::flex_array: size mismatch"};
 			}
@@ -270,7 +310,7 @@ namespace dice::template_library {
 		constexpr flex_array(flex_array<value_type, other_extent> const &other) noexcept requires (has_dynamic_extent && other_extent != dynamic_extent) {
 			static_assert(other_extent <= max_extent, "extent of other is too large for this flex_array");
 
-			inner_.size_ = other.size();
+			inner_.set_size(other.size());
 			std::ranges::copy(other, begin());
 		}
 
@@ -283,8 +323,7 @@ namespace dice::template_library {
 		}
 
 		[[nodiscard]] static constexpr size_type max_size() noexcept { return max_extent; }
-		[[nodiscard]] static constexpr size_type capacity() noexcept { return max_extent; }
-		[[nodiscard]] constexpr size_type size() const noexcept { return inner_.size_; }
+		[[nodiscard]] constexpr size_type size() const noexcept { return inner_.size(); }
 		[[nodiscard]] constexpr bool empty() const noexcept { return size() == 0; }
 
 		void resize(size_type new_size) requires (has_dynamic_extent) {
