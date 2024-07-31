@@ -26,6 +26,8 @@ class DiceTemplateLibrary(ConanFile):
     }
 
     def requirements(self):
+        self.requires("svector/1.0.3", transitive_headers=True)
+        
         if self.options.with_test_deps:
             self.test_requires("boost/1.83.0")
             self.test_requires("doctest/2.4.11")
@@ -67,6 +69,7 @@ class DiceTemplateLibrary(ConanFile):
     def package_info(self):
         self.cpp_info.bindirs = []
         self.cpp_info.libdirs = []
+        self.cpp_info.requires = ("svector::svector", )
 
         self.cpp_info.set_property("cmake_find_mode", "both")
         self.cpp_info.set_property("cmake_target_name", f"{self.name}::{self.name}")

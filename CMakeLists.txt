@@ -8,6 +8,8 @@ project(
   HOMEPAGE_URL "https://dice-research.org/")
 set(POBR_VERSION 1)  # Persisted Object Binary Representation
 
+find_package(svector REQUIRED)
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/include/dice/template-library/version.hpp)
 
 option(BUILD_TESTING "build tests" OFF)
@@ -33,6 +35,10 @@ add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        )
+
+target_link_libraries(${PROJECT_NAME} INTERFACE
+        svector::svector
         )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
