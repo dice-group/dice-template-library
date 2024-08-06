@@ -2,6 +2,8 @@
 #define DICE_TEMPLATELIBRARY_VARIANT2_HPP
 
 #include <cassert>
+#include <cstdint>
+#include <exception>
 #include <functional>
 #include <type_traits>
 #include <variant>
@@ -58,7 +60,7 @@ namespace dice::template_library {
             : discriminant_{other.discriminant_} {
             switch (discriminant_) {
                 case discriminant_type::First: {
-                    new (&a_) U{std::move(other.a_)};
+                    new (&a_) T{std::move(other.a_)};
                     break;
                 }
                 case discriminant_type::Second: {
@@ -84,12 +86,12 @@ namespace dice::template_library {
 
         constexpr variant2(U const &value) noexcept(std::is_nothrow_copy_constructible_v<U>)
             : discriminant_{discriminant_type::Second} {
-            new (&b_) T{value};
+            new (&b_) U{value};
         }
 
         constexpr variant2(U &&value) noexcept(std::is_nothrow_copy_constructible_v<U>)
             : discriminant_{discriminant_type::Second} {
-            new (&b_) T{std::move(value)};
+            new (&b_) U{std::move(value)};
         }
 
         template<typename ...Args>
@@ -101,7 +103,7 @@ namespace dice::template_library {
         template<typename ...Args>
         constexpr explicit variant2(std::in_place_type_t<U>, Args &&...args) noexcept(std::is_nothrow_constructible_v<U, decltype(std::forward<Args>(args))...>)
             : discriminant_{discriminant_type::Second} {
-            new (&b_) T{std::forward<Args>(args)...};
+            new (&b_) U{std::forward<Args>(args)...};
         }
 
         template<typename ...Args>
@@ -113,7 +115,7 @@ namespace dice::template_library {
         template<typename ...Args>
         constexpr explicit variant2(std::in_place_index_t<1>, Args &&...args) noexcept(std::is_nothrow_constructible_v<U, decltype(std::forward<Args>(args))...>)
             : discriminant_{discriminant_type::Second} {
-            new (&b_) T{std::forward<Args>(args)...};
+            new (&b_) U{std::forward<Args>(args)...};
         }
 
         constexpr ~variant2() noexcept(std::is_nothrow_destructible_v<T> && std::is_nothrow_destructible_v<U>) {
@@ -572,6 +574,11 @@ namespace dice::template_library {
             }
         }
     };
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr bool holds_alternative(variant2<T, U> const &var) noexcept {
+        return var.template holds_alternative<X>();
+    }
 
     // overloads for get<index>
     template<size_t ix, typename T, typename U>
