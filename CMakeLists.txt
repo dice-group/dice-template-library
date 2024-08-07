@@ -36,7 +36,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
         )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        CXX_STANDARD 23
+        CXX_STANDARD 20
         CXX_EXTENSIONS OFF
         CXX_STANDARD_REQUIRED ON
         )

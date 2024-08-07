@@ -32,6 +32,69 @@ namespace dice::template_library {
         };
         discriminant_type discriminant_;
 
+        template<typename Self, typename F>
+        static decltype(auto) visit_impl(Self &&self, F &&visitor) {
+            switch (self.discriminant_) {
+                case discriminant_type::First: {
+                    return std::invoke(std::forward<F>(visitor), std::forward<Self>(self).a_);
+                }
+                case discriminant_type::Second: {
+                    return std::invoke(std::forward<F>(visitor), std::forward<Self>(self).b_);
+                }
+                case discriminant_type::ValuelessByException: {
+                    throw std::bad_variant_access{};
+                }
+                default: {
+                    assert(false);
+                    __builtin_unreachable();
+                }
+            }
+        }
+
+        template<typename Self, size_t ix> requires (ix <= 1)
+        static decltype(auto) get_impl(Self &&self) {
+            if constexpr (ix == 0) {
+                if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
+                    throw std::bad_variant_access{};
+                }
+
+                return std::forward<Self>(self).a_;
+            } else { // ix == 1
+                if (self.discriminant_ != discriminant_type::Second) [[unlikely]] {
+                    throw std::bad_variant_access{};
+                }
+
+                return std::forward<Self>(self).b_;
+            }
+        }
+
+        template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
+        static decltype(auto) get_impl(Self &&self) {
+            return get_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
+        }
+
+        template<typename Self, size_t ix> requires (ix <= 1)
+        static auto *get_if_impl(Self &&self) noexcept {
+            if constexpr (ix == 0) {
+                if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
+                    return nullptr;
+                }
+
+                return &std::forward<Self>(self).a_;
+            } else { // ix == 1
+                if (self.discriminant_ != discriminant_type::Second) [[unlikely]] {
+                    return nullptr;
+                }
+
+                return &std::forward<Self>(self).b_;
+            }
+        }
+
+        template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
+        static auto *get_if_impl(Self &&self) noexcept {
+            return get_if_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
+        }
+
     public:
         constexpr variant2() noexcept(std::is_nothrow_default_constructible_v<T>)
             : discriminant_{discriminant_type::First} {
@@ -450,78 +513,6 @@ namespace dice::template_library {
             rhs = std::move(tmp);
         }
 
-        template<typename X>
-        constexpr bool holds_alternative() const noexcept {
-            if constexpr (std::is_same_v<X, T> || std::is_same_v<X, U>) {
-                return index() == (std::is_same_v<X, T> ? 0 : 1);
-            }
-
-            return false;
-        }
-
-        template<typename Self, typename F>
-        decltype(auto) visit(this Self &&self, F &&visitor) {
-            switch (self.discriminant_) {
-                case discriminant_type::First: {
-                    return std::invoke(std::forward<F>(visitor), std::forward<Self>(self).a_);
-                }
-                case discriminant_type::Second: {
-                    return std::invoke(std::forward<F>(visitor), std::forward<Self>(self).b_);
-                }
-                case discriminant_type::ValuelessByException: {
-                    throw std::bad_variant_access{};
-                }
-                default: {
-                    assert(false);
-                    __builtin_unreachable();
-                }
-            }
-        }
-
-        template<typename Self, size_t ix> requires (ix <= 1)
-        decltype(auto) get(this Self &&self) {
-            if constexpr (ix == 0) {
-                if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
-                    throw std::bad_variant_access{};
-                }
-
-                return std::forward<Self>(self).a_;
-            } else { // ix == 1
-                if (self.discriminant_ != discriminant_type::Second) [[unlikely]] {
-                    throw std::bad_variant_access{};
-                }
-
-                return std::forward<Self>(self).b_;
-            }
-        }
-
-        template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
-        decltype(auto) get(this Self &&self) {
-            return std::forward<Self>(self).template get<std::is_same_v<X, T> ? 0 : 1>();
-        }
-
-        template<typename Self, size_t ix> requires (ix <= 1)
-        auto *get_if(this Self &&self) noexcept {
-            if constexpr (ix == 0) {
-                if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
-                    return nullptr;
-                }
-
-                return &std::forward<Self>(self).a_;
-            } else { // ix == 1
-                if (self.discriminant_ != discriminant_type::Second) [[unlikely]] {
-                    return nullptr;
-                }
-
-                return &std::forward<Self>(self).b_;
-            }
-        }
-
-        template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
-        auto *get_if(this Self &&self) noexcept {
-            return std::forward<Self>(self).template get_if<std::is_same_v<X, T> ? 0 : 1>();
-        }
-
         bool operator==(variant2 const &other) const noexcept {
             if (discriminant_ != other.discriminant_) {
                 return false;
@@ -573,112 +564,116 @@ namespace dice::template_library {
                 }
             }
         }
+
+        template<typename X>
+        [[nodiscard]] friend constexpr bool holds_alternative(variant2 const &var) noexcept {
+            if constexpr (std::is_same_v<X, T> || std::is_same_v<X, U>) {
+                return var.index() == (std::is_same_v<X, T> ? 0 : 1);
+            }
+
+            return false;
+        }
+
+        // overloads for get<index>
+        template<size_t ix>
+        [[nodiscard]] friend decltype(auto) get(variant2 const &var) {
+            return get_impl<ix>(var);
+        }
+
+        template<size_t ix>
+        [[nodiscard]] friend decltype(auto) get(variant2 &var) {
+            return get_impl<ix>(var);
+        }
+
+        template<size_t ix>
+        [[nodiscard]] friend decltype(auto) get(variant2 const &&var) {
+            return get_impl<ix>(std::move(var));
+        }
+
+        template<size_t ix>
+        [[nodiscard]] friend decltype(auto) get(variant2 &&var) {
+            return get_impl<ix>(std::move(var));
+        }
+
+        template<size_t ix>
+        [[nodiscard]] friend auto const *get_if(variant2 const *var) noexcept {
+            if (var == nullptr) {
+                return nullptr;
+            }
+
+            return get_if_impl<ix>(*var);
+        }
+
+        template<size_t ix>
+        [[nodiscard]] friend auto *get_if(variant2 *var) noexcept {
+            if (var == nullptr) {
+                return nullptr;
+            }
+
+            return get_if_impl<ix>(*var);
+        }
+
+        // overloads of get<type>
+        template<typename X>
+        [[nodiscard]] friend decltype(auto) get(variant2 const &var) {
+            return get_impl<X>(var);
+        }
+
+        template<typename X>
+        [[nodiscard]] friend decltype(auto) get(variant2 &var) {
+            return get_impl<X>(var);
+        }
+
+        template<typename X>
+        [[nodiscard]] friend decltype(auto) get(variant2 const &&var) {
+            return get_impl<X>(std::move(var));
+        }
+
+        template<typename X>
+        [[nodiscard]] friend decltype(auto) get(variant2 &&var) {
+            return get_impl<X>(std::move(var));
+        }
+
+        template<typename X>
+        [[nodiscard]] friend auto const *get_if(variant2 const *var) noexcept {
+            if (var == nullptr) {
+                return nullptr;
+            }
+
+            return get_if_impl<X>(*var);
+        }
+
+        template<typename X>
+        [[nodiscard]] friend auto *get_if(variant2 *var) noexcept {
+            if (var == nullptr) {
+                return nullptr;
+            }
+
+            return get_if_impl<X>(*var);
+        }
+
+
+        // overloads for visit
+        template<typename F>
+        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 const &var) {
+            return visit_impl(var, std::forward<F>(visitor));
+        }
+
+        template<typename F>
+        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 &var) {
+            return visit_impl(var, std::forward<F>(visitor));
+        }
+
+        template<typename F>
+        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 const &&var) {
+            return visit_impl(std::move(var), std::forward<F>(visitor));
+        }
+
+        template<typename F>
+        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 &&var) {
+            return visit_impl(std::move(var), std::forward<F>(visitor));
+        }
     };
-
-    template<typename X, typename T, typename U>
-    [[nodiscard]] constexpr bool holds_alternative(variant2<T, U> const &var) noexcept {
-        return var.template holds_alternative<X>();
-    }
-
-    // overloads for get<index>
-    template<size_t ix, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> const &var) {
-        return var.template get<ix>();
-    }
-
-    template<size_t ix, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> &var) {
-        return var.template get<ix>();
-    }
-
-    template<size_t ix, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> const &&var) {
-        return std::move(var).template get<ix>();
-    }
-
-    template<size_t ix, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> &&var) {
-        return std::move(var).template get<ix>();
-    }
-
-    template<size_t ix, typename T, typename U>
-    [[nodiscard]] auto const *get_if(variant2<T, U> const *var) noexcept {
-        if (var == nullptr) {
-            return nullptr;
-        }
-
-        return var->template get<ix>();
-    }
-
-    template<size_t ix, typename T, typename U>
-    [[nodiscard]] auto *get_if(variant2<T, U> *var) noexcept {
-        if (var == nullptr) {
-            return nullptr;
-        }
-
-        return var->template get<ix>();
-    }
-
-    // overloads of get<type>
-    template<typename X, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> const &var) {
-        return var.template get<X>();
-    }
-
-    template<typename X, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> &var) {
-        return var.template get<X>();
-    }
-
-    template<typename X, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> const &&var) {
-        return std::move(var).template get<X>();
-    }
-
-    template<typename X, typename T, typename U>
-    [[nodiscard]] decltype(auto) get(variant2<T, U> &&var) {
-        return std::move(var).template get<X>();
-    }
-
-    template<typename X, typename T, typename U>
-    [[nodiscard]] auto const *get_if(variant2<T, U> const *var) noexcept {
-        if (var == nullptr) {
-            return nullptr;
-        }
-
-        return var->template get<X>();
-    }
-
-    template<typename X, typename T, typename U>
-    [[nodiscard]] auto *get_if(variant2<T, U> *var) noexcept {
-        if (var == nullptr) {
-            return nullptr;
-        }
-
-        return var->template get<X>();
-    }
-
-
-    // overloads for visit
-    template<typename F, typename T, typename U>
-    [[nodiscard]] decltype(auto) visit(F &&visitor, variant2<T, U> const &var) {
-        return var.visit(std::forward<F>(visitor));
-    }
-
-    template<typename F, typename T, typename U>
-    [[nodiscard]] decltype(auto) visit(F &&visitor, variant2<T, U> &var) {
-        return var.visit(std::forward<F>(visitor));
-    }
-
-    template<typename F, typename T, typename U>
-    [[nodiscard]] decltype(auto) visit(F &&visitor, variant2<T, U> const &&var) {
-        return std::move(var).visit(std::forward<F>(visitor));
-    }
-
-    template<typename F, typename T, typename U>
-    [[nodiscard]] decltype(auto) visit(F &&visitor, variant2<T, U> &&var) {
-        return std::move(var).visit(std::forward<F>(visitor));
-    }
 
 } // namespace dice::template_library
 
