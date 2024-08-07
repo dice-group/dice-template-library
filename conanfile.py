@@ -20,13 +20,16 @@ class DiceTemplateLibrary(ConanFile):
     no_copy_source = True
     options = {
         "with_test_deps": [True, False],
+        "with_svector": [True, False],
     }
     default_options = {
         "with_test_deps": False,
+        "with_svector": False,
     }
 
     def requirements(self):
-        self.requires("svector/1.0.3", transitive_headers=True)
+        if self.options.with_svector:
+            self.requires("svector/1.0.3", transitive_headers=True)
 
         if self.options.with_test_deps:
             self.test_requires("boost/1.83.0")

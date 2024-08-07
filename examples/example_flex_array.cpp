@@ -35,9 +35,11 @@ struct square {
 	}
 };
 
+#if __has_include(<ankerl/svector.h>)
 struct arbitrary_high_dimensional_thing {
 	flex_array<size_t, 2, dynamic_extent> extents;
 };
+#endif // __has_include
 
 struct shape {
 	std::variant<point, line, square> shape_;
@@ -72,8 +74,10 @@ int main() {
 	print_extents(line1);
 	print_extents(square1);
 
+#if __has_include(<ankerl/svector.h>)
 	arbitrary_high_dimensional_thing thing{.extents = {1, 2, 3, 4, 5, 6, 7, 8}};
 	for (auto const ext : thing.extents) {
 		std::cout << ext << " ";
 	}
+#endif // __has_include
 }

@@ -8,10 +8,21 @@
 #include <span>
 #include <stdexcept>
 
+#if __has_include(<ankerl/svector.h>)
 #include <ankerl/svector.h>
+#endif // __has_include
 
 namespace dice::template_library {
     using std::dynamic_extent;
+
+	/**
+	 * The underlying implementation of a flex array
+	 */
+	enum struct flex_array_implementation {
+		array, ///< max and current size determined statically
+		array_and_size, ///< max size determined statically, current size determined dynamically
+		sbo_vector, ///< small buffer optimized vector
+	};
 
 	namespace detail_flex_array {
 		template<typename T, size_t extent, size_t max_extent>
@@ -21,6 +32,7 @@ namespace dice::template_library {
 		template<typename T, size_t extent> requires (extent != dynamic_extent)
 		struct flex_array_inner<T, extent, extent> {
 			// fully fixed size
+			static constexpr flex_array_implementation implementation = flex_array_implementation::array;
 
 			static constexpr size_t size_ = extent;
 			std::array<T, extent> data_;
@@ -43,6 +55,7 @@ namespace dice::template_library {
 		template<typename T, size_t max_extent>
 		struct flex_array_inner<T, dynamic_extent, max_extent> {
 			// fixed max size, dynamic actual size
+			static constexpr flex_array_implementation implementation = flex_array_implementation::array_and_size;
 
 			size_t size_ = 0;
 			std::array<T, max_extent> data_;
@@ -52,6 +65,7 @@ namespace dice::template_library {
 			}
 
 			constexpr void set_size(size_t size) noexcept {
+				assert(size <= max_extent);
 				size_ = size;
 			}
 
@@ -111,9 +125,11 @@ namespace dice::template_library {
 			}
 		};
 
+#if __has_include(<ankerl/svector.h>)
 		template<typename T, size_t extent> requires (extent != dynamic_extent)
 		struct flex_array_inner<T, extent, dynamic_extent> {
 			// dynamic max size, fixed small buffer size
+			static constexpr flex_array_implementation implementation = flex_array_implementation::sbo_vector;
 
 			::ankerl::svector<T, extent> data_;
 
@@ -180,7 +196,18 @@ namespace dice::template_library {
 				return lex_compare_impl<std::greater_equal<T>>(other);
 			}
 		};
+#else // __has_include
+		template<typename T, size_t extent> requires (extent != dynamic_extent)
+		struct flex_array_inner<T, extent, dynamic_extent> {
+			template<typename X>
+			static constexpr bool always_false() {
+				// workaround for static_assert(false) always asserting
+				return false;
+			}
 
+			static_assert(always_false<flex_array_inner>(), "Could not find <ankerl/svector.h>, flex_array_implementation::sbo_vector mode is not available.");
+		};
+#endif // __has_include
 	} // namespace detail_flex_array
 
 	/**
@@ -196,12 +223,16 @@ namespace dice::template_library {
 	 */
 	template<typename T, size_t extent_, size_t max_extent_ = extent_>
 	struct flex_array {
+	private:
+		using inner_type = detail_flex_array::flex_array_inner<T, extent_, max_extent_>;
+
+	public:
 		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
 		static_assert(extent_ != dynamic_extent || max_extent_ != dynamic_extent,
 					  "If extent is not dynamic_extent, extent must be equal to max_extent");
 
-		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
-		static_assert(extent_ != dynamic_extent || max_extent_ != dynamic_extent,
+		// max_extent_ == dynamic_extent -> extent_ != dynamic_extent
+		static_assert(max_extent_ != dynamic_extent || extent_ != dynamic_extent,
 					  "If extent is dynamic_extent, max_extent must not be dynamic_extent");
 
 		static constexpr size_t extent = extent_;
@@ -209,11 +240,8 @@ namespace dice::template_library {
 
 		static constexpr bool has_max_extent = max_extent != dynamic_extent;
 		static constexpr bool has_dynamic_extent = extent == dynamic_extent || max_extent == dynamic_extent;
+		static constexpr flex_array_implementation implementation = inner_type::implementation;
 
-	private:
-		using inner_type = detail_flex_array::flex_array_inner<T, extent, max_extent>;
-
-	public:
 		using value_type = T;
 		using reference = value_type &;
 		using const_reference = value_type const &;

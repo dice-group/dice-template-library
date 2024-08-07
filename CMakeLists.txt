@@ -12,6 +12,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_
 
 option(BUILD_TESTING "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
+option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_implementation::sbo_vector" OFF)
+
+if (WITH_SVECTOR)
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_svector=True")
+endif ()
 
 if (PROJECT_IS_TOP_LEVEL)
     set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:header_only=True")
@@ -28,7 +33,7 @@ if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
   endif ()
 endif ()
 
-find_package(svector REQUIRED)
+find_package(svector QUIET)
 
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -37,9 +42,11 @@ target_include_directories(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
 
-target_link_libraries(${PROJECT_NAME} INTERFACE
-        svector::svector
-        )
+if (svector_FOUND)
+    target_link_libraries(${PROJECT_NAME} INTERFACE
+            svector::svector
+            )
+endif ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CXX_STANDARD 20

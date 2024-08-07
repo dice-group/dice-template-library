@@ -75,6 +75,7 @@ TEST_SUITE("flex_array") {
 	TEST_CASE("static size") {
 		static_assert(sizeof(flex_array<int, 1>) == sizeof(int));
 		static_assert(alignof(flex_array<int, 1>) == alignof(int));
+		static_assert(flex_array<int, 1>::implementation == flex_array_implementation::array);
 
 		SUBCASE("default ctor") {
 			flex_array<int, 5> f;
@@ -128,6 +129,7 @@ TEST_SUITE("flex_array") {
 	TEST_CASE("dynamic size but bounded") {
 		static_assert(sizeof(flex_array<int, dynamic_extent, 2>) == 2*sizeof(int) + sizeof(size_t));
 		static_assert(alignof(flex_array<int, dynamic_extent, 2>) == alignof(size_t));
+		static_assert(flex_array<int, dynamic_extent, 1>::implementation == flex_array_implementation::array_and_size);
 
 		SUBCASE("default ctor") {
 			flex_array<int, dynamic_extent, 5> f;
@@ -180,9 +182,11 @@ TEST_SUITE("flex_array") {
 		}
 	}
 
+#if __has_include(<ankerl/svector.h>)
 	TEST_CASE("dynamic size not bounded") {
 		static_assert(sizeof(flex_array<int, 2, dynamic_extent>) == 2*sizeof(int) + sizeof(size_t));
 		static_assert(alignof(flex_array<int, 2, dynamic_extent>) == alignof(size_t));
+		static_assert(flex_array<int, 1, dynamic_extent>::implementation == flex_array_implementation::sbo_vector);
 
 		using farray = flex_array<int, 4, dynamic_extent>;
 
@@ -267,4 +271,5 @@ TEST_SUITE("flex_array") {
 			CHECK_THROWS_AS((flex_array<int, 4>{d2}), std::length_error);
 		}
 	}
+#endif // __has_include
 }
