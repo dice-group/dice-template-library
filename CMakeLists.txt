@@ -8,8 +8,6 @@ project(
   HOMEPAGE_URL "https://dice-research.org/")
 set(POBR_VERSION 1)  # Persisted Object Binary Representation
 
-find_package(svector REQUIRED)
-
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/include/dice/template-library/version.hpp)
 
 option(BUILD_TESTING "build tests" OFF)
@@ -29,6 +27,8 @@ if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
   endif ()
 endif ()
+
+find_package(svector REQUIRED)
 
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -50,12 +50,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 include(cmake/install_interface_library.cmake)
 install_interface_library(${PROJECT_NAME} ${PROJECT_NAME} ${PROJECT_NAME} "include")
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
   include(CTest)
   enable_testing()
   add_subdirectory(tests)
 endif()
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_EXAMPLES)
+if(PROJECT_IS_TOP_LEVEL AND BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
