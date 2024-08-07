@@ -9,6 +9,35 @@
 #include <variant>
 
 namespace dice::template_library {
+    template<typename T, typename U>
+    struct variant2;
+} // namespace dice::template_library
+
+namespace std {
+    template<typename T, typename U>
+    struct variant_size<::dice::template_library::variant2<T, U>> : std::integral_constant<size_t, 2> {
+    };
+
+    template<size_t ix, typename T, typename U> requires (ix <= 1)
+    struct variant_alternative<ix, ::dice::template_library::variant2<T, U>> : std::conditional<ix == 0, T, U> {
+    };
+
+    template<typename T, typename U>
+    struct hash<::dice::template_library::variant2<T, U>> {
+        [[nodiscard]] size_t operator()(::dice::template_library::variant2<T, U> const &var) const noexcept {
+            return visit([]<typename X>(X const &x) noexcept {
+                // this is as far as I can tell what std::variant does
+                if constexpr (std::is_same_v<X, T>) {
+                    return hash<size_t>{}(0) + hash<T>{}(x);
+                } else {
+                    return hash<size_t>{}(1) + hash<U>{}(x);
+                }
+            }, var);
+        }
+    };
+} // namespace std
+
+namespace dice::template_library {
 
 	/**
      * An optimized version of std::variant for 2 types
@@ -33,7 +62,7 @@ namespace dice::template_library {
         discriminant_type discriminant_;
 
         template<typename Self, typename F>
-        static decltype(auto) visit_impl(Self &&self, F &&visitor) {
+        static constexpr decltype(auto) visit_impl(Self &&self, F &&visitor) {
             switch (self.discriminant_) {
                 case discriminant_type::First: {
                     return std::invoke(std::forward<F>(visitor), std::forward<Self>(self).a_);
@@ -52,7 +81,7 @@ namespace dice::template_library {
         }
 
         template<typename Self, size_t ix> requires (ix <= 1)
-        static decltype(auto) get_impl(Self &&self) {
+        static constexpr decltype(auto) get_impl(Self &&self) {
             if constexpr (ix == 0) {
                 if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
                     throw std::bad_variant_access{};
@@ -69,12 +98,12 @@ namespace dice::template_library {
         }
 
         template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
-        static decltype(auto) get_impl(Self &&self) {
+        static constexpr decltype(auto) get_impl(Self &&self) {
             return get_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
         }
 
         template<typename Self, size_t ix> requires (ix <= 1)
-        static auto *get_if_impl(Self &&self) noexcept {
+        static constexpr auto *get_if_impl(Self &&self) noexcept {
             if constexpr (ix == 0) {
                 if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
                     return nullptr;
@@ -91,7 +120,7 @@ namespace dice::template_library {
         }
 
         template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
-        static auto *get_if_impl(Self &&self) noexcept {
+        static constexpr auto *get_if_impl(Self &&self) noexcept {
             return get_if_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
         }
 
@@ -432,11 +461,11 @@ namespace dice::template_library {
             return *this;
         }
 
-        [[nodiscard]] bool valueless_by_exception() const noexcept {
+        [[nodiscard]] constexpr bool valueless_by_exception() const noexcept {
             return discriminant_ == discriminant_type::ValuelessByException;
         }
 
-        [[nodiscard]] size_t index() const noexcept {
+        [[nodiscard]] constexpr size_t index() const noexcept {
             switch (discriminant_) {
                 case discriminant_type::First: return 0;
                 case discriminant_type::Second: return 1;
@@ -449,7 +478,7 @@ namespace dice::template_library {
         }
 
         template<typename X, typename ...Args> requires (std::is_same_v<X, T> || std::is_same_v<U, T>)
-        X &emplace(Args &&...args) {
+        constexpr X &emplace(Args &&...args) {
             try {
                 if constexpr (std::is_same_v<X, T>) {
                     switch (discriminant_) {
@@ -499,7 +528,7 @@ namespace dice::template_library {
         }
 
         template<size_t ix, typename ...Args> requires (ix <= 1)
-        std::conditional_t<ix == 0, T, U> &emplace(Args &&...args) {
+        constexpr std::variant_alternative_t<ix, variant2> &emplace(Args &&...args) {
             if constexpr (ix == 0) {
                 return emplace<T>(std::forward<Args>(args)...);
             } else {
@@ -507,13 +536,13 @@ namespace dice::template_library {
             }
         }
 
-        friend void swap(variant2 &lhs, variant2 &rhs) noexcept(std::is_nothrow_move_assignable_v<variant2>) {
+        friend constexpr void swap(variant2 &lhs, variant2 &rhs) noexcept(std::is_nothrow_move_assignable_v<variant2>) {
             variant2 tmp = std::move(lhs);
             lhs = std::move(rhs);
             rhs = std::move(tmp);
         }
 
-        bool operator==(variant2 const &other) const noexcept {
+        constexpr bool operator==(variant2 const &other) const noexcept {
             if (discriminant_ != other.discriminant_) {
                 return false;
             }
@@ -535,7 +564,7 @@ namespace dice::template_library {
             }
         }
 
-        auto operator<=>(variant2 const &other) const noexcept {
+        constexpr auto operator<=>(variant2 const &other) const noexcept {
             if (discriminant_ != other.discriminant_) {
                 if (discriminant_ == discriminant_type::ValuelessByException) {
                     return std::strong_ordering::less;
@@ -576,27 +605,27 @@ namespace dice::template_library {
 
         // overloads for get<index>
         template<size_t ix>
-        [[nodiscard]] friend decltype(auto) get(variant2 const &var) {
+        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> const &get(variant2 const &var) {
             return get_impl<ix>(var);
         }
 
         template<size_t ix>
-        [[nodiscard]] friend decltype(auto) get(variant2 &var) {
+        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> &get(variant2 &var) {
             return get_impl<ix>(var);
         }
 
         template<size_t ix>
-        [[nodiscard]] friend decltype(auto) get(variant2 const &&var) {
+        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> const &&get(variant2 const &&var) {
             return get_impl<ix>(std::move(var));
         }
 
         template<size_t ix>
-        [[nodiscard]] friend decltype(auto) get(variant2 &&var) {
+        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> &&get(variant2 &&var) {
             return get_impl<ix>(std::move(var));
         }
 
         template<size_t ix>
-        [[nodiscard]] friend auto const *get_if(variant2 const *var) noexcept {
+        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> const *get_if(variant2 const *var) noexcept {
             if (var == nullptr) {
                 return nullptr;
             }
@@ -605,7 +634,7 @@ namespace dice::template_library {
         }
 
         template<size_t ix>
-        [[nodiscard]] friend auto *get_if(variant2 *var) noexcept {
+        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> *get_if(variant2 *var) noexcept {
             if (var == nullptr) {
                 return nullptr;
             }
@@ -615,27 +644,27 @@ namespace dice::template_library {
 
         // overloads of get<type>
         template<typename X>
-        [[nodiscard]] friend decltype(auto) get(variant2 const &var) {
+        [[nodiscard]] friend constexpr X const &get(variant2 const &var) {
             return get_impl<X>(var);
         }
 
         template<typename X>
-        [[nodiscard]] friend decltype(auto) get(variant2 &var) {
+        [[nodiscard]] friend constexpr X &get(variant2 &var) {
             return get_impl<X>(var);
         }
 
         template<typename X>
-        [[nodiscard]] friend decltype(auto) get(variant2 const &&var) {
+        [[nodiscard]] friend constexpr X const &&get(variant2 const &&var) {
             return get_impl<X>(std::move(var));
         }
 
         template<typename X>
-        [[nodiscard]] friend decltype(auto) get(variant2 &&var) {
+        [[nodiscard]] friend constexpr X &&get(variant2 &&var) {
             return get_impl<X>(std::move(var));
         }
 
         template<typename X>
-        [[nodiscard]] friend auto const *get_if(variant2 const *var) noexcept {
+        [[nodiscard]] friend constexpr X const *get_if(variant2 const *var) noexcept {
             if (var == nullptr) {
                 return nullptr;
             }
@@ -644,7 +673,7 @@ namespace dice::template_library {
         }
 
         template<typename X>
-        [[nodiscard]] friend auto *get_if(variant2 *var) noexcept {
+        [[nodiscard]] friend constexpr X *get_if(variant2 *var) noexcept {
             if (var == nullptr) {
                 return nullptr;
             }
@@ -655,50 +684,26 @@ namespace dice::template_library {
 
         // overloads for visit
         template<typename F>
-        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 const &var) {
+        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 const &var) {
             return visit_impl(var, std::forward<F>(visitor));
         }
 
         template<typename F>
-        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 &var) {
+        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 &var) {
             return visit_impl(var, std::forward<F>(visitor));
         }
 
         template<typename F>
-        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 const &&var) {
+        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 const &&var) {
             return visit_impl(std::move(var), std::forward<F>(visitor));
         }
 
         template<typename F>
-        [[nodiscard]] friend decltype(auto) visit(F &&visitor, variant2 &&var) {
+        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 &&var) {
             return visit_impl(std::move(var), std::forward<F>(visitor));
         }
     };
 
 } // namespace dice::template_library
-
-namespace std {
-    template<typename T, typename U>
-    struct variant_size<::dice::template_library::variant2<T, U>> : std::integral_constant<size_t, 2> {
-    };
-
-    template<size_t ix, typename T, typename U> requires (ix <= 1)
-    struct variant_alternative<ix, ::dice::template_library::variant2<T, U>> : std::conditional<ix == 0, T, U> {
-    };
-
-    template<typename T, typename U>
-    struct hash<::dice::template_library::variant2<T, U>> {
-        [[nodiscard]] size_t operator()(::dice::template_library::variant2<T, U> const &var) const noexcept {
-            return var.visit([]<typename X>(X const &x) {
-                // this is as far as I can tell what std::variant does
-                if constexpr (std::is_same_v<X, T>) {
-                    return std::hash<size_t>{}(0) + std::hash<T>{}(x);
-                } else {
-                    return std::hash<size_t>{}(1) + std::hash<U>{}(x);
-                }
-            });
-        }
-    };
-} // namespace std
 
 #endif // DICE_TEMPLATELIBRARY_VARIANT2_HPP
