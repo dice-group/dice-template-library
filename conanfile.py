@@ -72,7 +72,9 @@ class DiceTemplateLibrary(ConanFile):
     def package_info(self):
         self.cpp_info.bindirs = []
         self.cpp_info.libdirs = []
-        self.cpp_info.requires = ("svector::svector", )
+
+        if self.options.with_svector:
+            self.cpp_info.requires = ("svector::svector", )
 
         self.cpp_info.set_property("cmake_find_mode", "both")
         self.cpp_info.set_property("cmake_target_name", f"{self.name}::{self.name}")
