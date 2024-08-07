@@ -298,11 +298,20 @@ namespace dice::template_library {
 		 */
 		template<std::input_iterator Iter, std::sentinel_for<Iter> Sent>
 		constexpr flex_array(Iter first, Sent last) {
+			if constexpr (has_max_extent && std::random_access_iterator<Iter>) {
+				auto const range_size = std::distance(first, last);
+				if (static_cast<size_t>(range_size) > max_size()) [[unlikely]] {
+					throw std::length_error{"flex_array::flex_array: maximum size exceeded"};
+				}
+			}
+
 			size_t ix = 0;
 			while (first != last) {
 				if constexpr (has_max_extent) {
-					if (ix >= max_size()) [[unlikely]] {
-						throw std::length_error{"flex_array::flex_array: maximum size exceeded"};
+					if constexpr (!std::random_access_iterator<Iter>) {
+						if (ix >= max_size()) [[unlikely]] {
+							throw std::length_error{"flex_array::flex_array: maximum size exceeded"};
+						}
 					}
 
 					inner_.data_[ix++] = *first++;
