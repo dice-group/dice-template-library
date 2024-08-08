@@ -18,10 +18,10 @@ namespace dice::template_library {
 	/**
 	 * The underlying implementation of a flex array
 	 */
-	enum struct flex_array_implementation {
-		array, ///< max and current size determined statically
-		array_and_size, ///< max size determined statically, current size determined dynamically
-		sbo_vector, ///< small buffer optimized vector
+	enum struct flex_array_mode {
+		direct_static_sized, ///< size is static and flex array is stack allocated
+		direct_dynamic_limited_sized, ///< size is dynamic but limited by max_size, flex array is stack allocated and has at most max_size elements
+		sbo_dynamic_sized, ///< small buffer optimized vector
 	};
 
 	namespace detail_flex_array {
@@ -32,7 +32,7 @@ namespace dice::template_library {
 		template<typename T, size_t extent> requires (extent != dynamic_extent)
 		struct flex_array_inner<T, extent, extent> {
 			// fully fixed size
-			static constexpr flex_array_implementation implementation = flex_array_implementation::array;
+			static constexpr flex_array_mode mode = flex_array_mode::direct_static_sized;
 
 			static constexpr size_t size_ = extent;
 			std::array<T, extent> data_;
@@ -55,7 +55,7 @@ namespace dice::template_library {
 		template<typename T, size_t max_extent>
 		struct flex_array_inner<T, dynamic_extent, max_extent> {
 			// fixed max size, dynamic actual size
-			static constexpr flex_array_implementation implementation = flex_array_implementation::array_and_size;
+			static constexpr flex_array_mode mode = flex_array_mode::direct_dynamic_limited_sized;
 
 			size_t size_ = 0;
 			std::array<T, max_extent> data_;
@@ -129,7 +129,7 @@ namespace dice::template_library {
 		template<typename T, size_t extent> requires (extent != dynamic_extent)
 		struct flex_array_inner<T, extent, dynamic_extent> {
 			// dynamic max size, fixed small buffer size
-			static constexpr flex_array_implementation implementation = flex_array_implementation::sbo_vector;
+			static constexpr flex_array_mode mode = flex_array_mode::sbo_dynamic_sized;
 
 			::ankerl::svector<T, extent> data_;
 
@@ -240,7 +240,7 @@ namespace dice::template_library {
 
 		static constexpr bool has_max_extent = max_extent != dynamic_extent;
 		static constexpr bool has_dynamic_extent = extent == dynamic_extent || max_extent == dynamic_extent;
-		static constexpr flex_array_implementation implementation = inner_type::implementation;
+		static constexpr flex_array_mode mode = inner_type::mode;
 
 		using value_type = T;
 		using reference = value_type &;
