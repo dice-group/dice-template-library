@@ -8,45 +8,95 @@
 #include <span>
 #include <stdexcept>
 
+#if __has_include(<ankerl/svector.h>)
+#include <ankerl/svector.h>
+#endif // __has_include
+
 namespace dice::template_library {
     using std::dynamic_extent;
 
+	/**
+	 * The underlying implementation of a flex array
+	 */
+	enum struct flex_array_mode {
+		direct_static_size, ///< size is static and flex array is stack allocated
+		direct_dynamic_limited_size, ///< size is dynamic but limited by max_size, flex array is stack allocated and has at most max_size elements
+		sbo_dynamic_size, ///< small buffer optimized vector
+	};
+
 	namespace detail_flex_array {
 		template<typename T, size_t extent, size_t max_extent>
-		struct flex_array_inner {
+		struct flex_array_inner;
+
+
+		template<typename T, size_t extent> requires (extent != dynamic_extent)
+		struct flex_array_inner<T, extent, extent> {
+			// fully fixed size
+			static constexpr flex_array_mode mode = flex_array_mode::direct_static_size;
+
 			static constexpr size_t size_ = extent;
 			std::array<T, extent> data_;
+
+			static constexpr size_t size() noexcept {
+				return size_;
+			}
+
+			operator std::span<T, extent>() noexcept {
+				return data_;
+			}
+
+			operator std::span<T const, extent>() const noexcept {
+				return data_;
+			}
 
 			constexpr auto operator<=>(flex_array_inner const &) const noexcept = default;
 		};
 
 		template<typename T, size_t max_extent>
 		struct flex_array_inner<T, dynamic_extent, max_extent> {
+			// fixed max size, dynamic actual size
+			static constexpr flex_array_mode mode = flex_array_mode::direct_dynamic_limited_size;
+
 			size_t size_ = 0;
 			std::array<T, max_extent> data_;
 
-			constexpr std::pair<std::span<T const>, std::span<T const>> to_spans(flex_array_inner const &other) const noexcept {
-				return {std::span<T const>{data_.data(), size_},
-						std::span<T const>{other.data_.data(), other.size_}};
+			[[nodiscard]] constexpr size_t size() const noexcept {
+				return size_;
+			}
+
+			constexpr void set_size(size_t size) noexcept {
+				assert(size <= max_extent);
+				size_ = size;
+			}
+
+			operator std::span<T>() noexcept {
+				return {data_.data(), size_};
+			}
+
+			operator std::span<T const>() const noexcept {
+				return {data_.data(), size_};
 			}
 
 			template<typename Cmp>
 			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
-				auto const [self_s, other_s] = to_spans(other);
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
 				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
 			}
 
 			template<typename Cmp>
 			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
-				auto const [self_s, other_s] = to_spans(other);
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
 				return std::ranges::equal(self_s, other_s, Cmp{});
 			}
 
 			// operator <=> is not defaulted
-			// so we need to provide all comparision operators manually
+			// so we need to provide all comparison operators manually
 
 			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
-				auto const [self_s, other_s] = to_spans(other);
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
 				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
 			}
 
@@ -74,6 +124,90 @@ namespace dice::template_library {
 				return lex_compare_impl<std::greater_equal<T>>(other);
 			}
 		};
+
+#if __has_include(<ankerl/svector.h>)
+		template<typename T, size_t extent> requires (extent != dynamic_extent)
+		struct flex_array_inner<T, extent, dynamic_extent> {
+			// dynamic max size, fixed small buffer size
+			static constexpr flex_array_mode mode = flex_array_mode::sbo_dynamic_size;
+
+			::ankerl::svector<T, extent> data_;
+
+			[[nodiscard]] size_t size() const noexcept {
+				return data_.size();
+			}
+
+			operator std::span<T>() noexcept {
+				return data_;
+			}
+
+			operator std::span<T const>() const noexcept {
+				return data_;
+			}
+
+			void set_size(size_t size) {
+				data_.resize(size);
+			}
+
+			template<typename Cmp>
+			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
+				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
+			}
+
+			template<typename Cmp>
+			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
+				return std::ranges::equal(self_s, other_s, Cmp{});
+			}
+
+			// operator <=> is not defaulted
+			// so we need to provide all comparison operators manually
+
+			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
+				std::span<T const> const self_s{*this};
+				std::span<T const> const other_s{other};
+				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
+			}
+
+			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T x) { x == x; } {
+				return eq_compare_impl<std::equal_to<T>>(other);
+			}
+
+			constexpr bool operator!=(flex_array_inner const &other) const noexcept requires requires (T x) { x != x; } {
+				return eq_compare_impl<std::not_equal_to<T>>(other);
+			}
+
+			constexpr bool operator<(flex_array_inner const &other) const noexcept requires requires (T x) { x < x; } {
+				return lex_compare_impl<std::less<T>>(other);
+			}
+
+			constexpr bool operator<=(flex_array_inner const &other) const noexcept requires requires (T x) { x <= x; } {
+				return lex_compare_impl<std::less_equal<T>>(other);
+			}
+
+			constexpr bool operator>(flex_array_inner const &other) const noexcept requires requires (T x) { x > x; } {
+				return lex_compare_impl<std::greater<T>>(other);
+			}
+
+			constexpr bool operator>=(flex_array_inner const &other) const noexcept requires requires (T x) { x >= x; } {
+				return lex_compare_impl<std::greater_equal<T>>(other);
+			}
+		};
+#else // __has_include
+		template<typename T, size_t extent> requires (extent != dynamic_extent)
+		struct flex_array_inner<T, extent, dynamic_extent> {
+			template<typename X>
+			static constexpr bool always_false() {
+				// workaround for static_assert(false) always asserting
+				return false;
+			}
+
+			static_assert(always_false<flex_array_inner>(), "Could not find <ankerl/svector.h>, flex_array_implementation::sbo_vector mode is not available.");
+		};
+#endif // __has_include
 	} // namespace detail_flex_array
 
 	/**
@@ -89,22 +223,25 @@ namespace dice::template_library {
 	 */
 	template<typename T, size_t extent_, size_t max_extent_ = extent_>
 	struct flex_array {
-		// extent_ != dynamic_extent -> extent_ == max_extent_
-		static_assert(extent_ == dynamic_extent || extent_ == max_extent_,
-					  "If extent is not dynamic_extent, extent must be equal to max_extent");
-
-		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
-		static_assert(extent_ != std::dynamic_extent || max_extent_ != std::dynamic_extent,
-					  "If extent is dynamic_extent, max_extent must not be dynamic_extent");
-
-		static constexpr size_t extent = extent_;
-		static constexpr size_t max_extent = max_extent_;
-		static constexpr bool is_dynamic_extent = extent == dynamic_extent;
-
 	private:
 		using inner_type = detail_flex_array::flex_array_inner<T, extent_, max_extent_>;
 
 	public:
+		// extent_ == dynamic_extent -> max_extent_ != dynamic_extent
+		static_assert(extent_ != dynamic_extent || max_extent_ != dynamic_extent,
+					  "If extent is not dynamic_extent, extent must be equal to max_extent");
+
+		// max_extent_ == dynamic_extent -> extent_ != dynamic_extent
+		static_assert(max_extent_ != dynamic_extent || extent_ != dynamic_extent,
+					  "If extent is dynamic_extent, max_extent must not be dynamic_extent");
+
+		static constexpr size_t extent = extent_;
+		static constexpr size_t max_extent = max_extent_;
+
+		static constexpr bool has_max_extent = max_extent != dynamic_extent;
+		static constexpr bool has_dynamic_extent = extent == dynamic_extent || max_extent == dynamic_extent;
+		static constexpr flex_array_mode mode = inner_type::mode;
+
 		using value_type = T;
 		using reference = value_type &;
 		using const_reference = value_type const &;
@@ -135,14 +272,18 @@ namespace dice::template_library {
 		 *			or extent != dynamic_extent and init.size() != extent
 		 */
 		constexpr flex_array(std::initializer_list<value_type> const init) {
-			if constexpr (is_dynamic_extent) {
+			if constexpr (has_max_extent) {
 				if (init.size() > max_size()) [[unlikely]] {
 					throw std::length_error{"flex_array::flex_array: maximum size exceeded"};
 				}
+			}
 
-				inner_.size_ = init.size();
-			} else if (init.size() != extent) [[unlikely]] {
-				throw std::length_error{"flex_array::flex_array: size mismatch"};
+			if constexpr (has_dynamic_extent) {
+				inner_.set_size(init.size());
+			} else {
+				if (init.size() != extent) [[unlikely]] {
+					throw std::length_error{"flex_array::flex_array: size mismatch"};
+				}
 			}
 
 			std::ranges::copy(init, begin());
@@ -157,17 +298,30 @@ namespace dice::template_library {
 		 */
 		template<std::input_iterator Iter, std::sentinel_for<Iter> Sent>
 		constexpr flex_array(Iter first, Sent last) {
-			size_t ix = 0;
-			while (first != last) {
-				if (ix >= max_size()) [[unlikely]] {
+			if constexpr (has_max_extent && std::random_access_iterator<Iter>) {
+				auto const range_size = std::distance(first, last);
+				if (static_cast<size_t>(range_size) > max_size()) [[unlikely]] {
 					throw std::length_error{"flex_array::flex_array: maximum size exceeded"};
 				}
-
-				inner_.data_[ix++] = *first++;
 			}
 
-			if constexpr (is_dynamic_extent) {
-				inner_.size_ = ix;
+			size_t ix = 0;
+			while (first != last) {
+				if constexpr (has_max_extent) {
+					if constexpr (!std::random_access_iterator<Iter>) {
+						if (ix >= max_size()) [[unlikely]] {
+							throw std::length_error{"flex_array::flex_array: maximum size exceeded"};
+						}
+					}
+
+					inner_.data_[ix++] = *first++;
+				} else {
+					inner_.data_.push_back(*first++);
+				}
+			}
+
+			if constexpr (extent == dynamic_extent && max_extent != dynamic_extent) {
+				inner_.set_size(ix);
 			}
 		}
 
@@ -176,8 +330,9 @@ namespace dice::template_library {
 		 *
 		 * @throws std::length_error if other.size() != extent
 		 */
-		template<size_t other_max_extent>
-		explicit constexpr flex_array(flex_array<value_type, dynamic_extent, other_max_extent> const &other) requires (!is_dynamic_extent) {
+		template<size_t other_extent, size_t other_max_extent>
+		explicit constexpr flex_array(flex_array<value_type, other_extent, other_max_extent> const &other)
+		requires (std::remove_cvref_t<decltype(other)>::has_dynamic_extent && !has_dynamic_extent) {
 			if (other.size() != extent) [[unlikely]] {
 				throw std::length_error{"flex_array::flex_array: size mismatch"};
 			}
@@ -189,37 +344,33 @@ namespace dice::template_library {
 		 * Converts from a flex_array of static extent to a flex_array of dynamic extent
 		 */
 		template<size_t other_extent>
-		constexpr flex_array(flex_array<value_type, other_extent> const &other) noexcept requires (is_dynamic_extent && other_extent != dynamic_extent) {
+		constexpr flex_array(flex_array<value_type, other_extent> const &other) noexcept requires (has_dynamic_extent && other_extent != dynamic_extent) {
 			static_assert(other_extent <= max_extent, "extent of other is too large for this flex_array");
 
-			inner_.size_ = other.size();
+			inner_.set_size(other.size());
 			std::ranges::copy(other, begin());
 		}
 
-		constexpr operator std::span<value_type, extent>() noexcept {
-			if constexpr (is_dynamic_extent) {
-				return std::span<value_type>{data(), size()};
-			} else {
-				return std::span<value_type, extent>{inner_.data_};
-			}
+		constexpr operator std::span<value_type, has_dynamic_extent ? dynamic_extent : extent>() noexcept {
+			return inner_;
 		}
 
-		constexpr operator std::span<value_type const, extent>() const noexcept {
-			if constexpr (is_dynamic_extent) {
-				return std::span<value_type const>{data(), size()};
-			} else {
-				return std::span<value_type const, extent>{inner_.data_};
-			}
+		constexpr operator std::span<value_type const, has_dynamic_extent ? dynamic_extent : extent>() const noexcept {
+			return inner_;
 		}
 
 		[[nodiscard]] static constexpr size_type max_size() noexcept { return max_extent; }
-		[[nodiscard]] static constexpr size_type capacity() noexcept { return max_extent; }
-		[[nodiscard]] constexpr size_type size() const noexcept { return inner_.size_; }
+		[[nodiscard]] constexpr size_type size() const noexcept { return inner_.size(); }
 		[[nodiscard]] constexpr bool empty() const noexcept { return size() == 0; }
 
-		constexpr void resize(size_type new_size) noexcept requires (is_dynamic_extent) {
-			assert(new_size <= max_extent);
-			inner_.size_ = new_size;
+		void resize(size_type new_size) requires (has_dynamic_extent) {
+			if constexpr (has_max_extent) {
+				if (new_size > max_extent) [[unlikely]] {
+					throw std::invalid_argument{"flex_array::resize: new_size exceeds max_extent"};
+				}
+			}
+
+			inner_.set_size(new_size);
 		}
 
 		[[nodiscard]] constexpr pointer data() noexcept { return inner_.data_.data(); }
