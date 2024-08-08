@@ -19,9 +19,9 @@ namespace dice::template_library {
 	 * The underlying implementation of a flex array
 	 */
 	enum struct flex_array_mode {
-		direct_static_sized, ///< size is static and flex array is stack allocated
-		direct_dynamic_limited_sized, ///< size is dynamic but limited by max_size, flex array is stack allocated and has at most max_size elements
-		sbo_dynamic_sized, ///< small buffer optimized vector
+		direct_static_size, ///< size is static and flex array is stack allocated
+		direct_dynamic_limited_size, ///< size is dynamic but limited by max_size, flex array is stack allocated and has at most max_size elements
+		sbo_dynamic_size, ///< small buffer optimized vector
 	};
 
 	namespace detail_flex_array {
@@ -32,7 +32,7 @@ namespace dice::template_library {
 		template<typename T, size_t extent> requires (extent != dynamic_extent)
 		struct flex_array_inner<T, extent, extent> {
 			// fully fixed size
-			static constexpr flex_array_mode mode = flex_array_mode::direct_static_sized;
+			static constexpr flex_array_mode mode = flex_array_mode::direct_static_size;
 
 			static constexpr size_t size_ = extent;
 			std::array<T, extent> data_;
@@ -55,7 +55,7 @@ namespace dice::template_library {
 		template<typename T, size_t max_extent>
 		struct flex_array_inner<T, dynamic_extent, max_extent> {
 			// fixed max size, dynamic actual size
-			static constexpr flex_array_mode mode = flex_array_mode::direct_dynamic_limited_sized;
+			static constexpr flex_array_mode mode = flex_array_mode::direct_dynamic_limited_size;
 
 			size_t size_ = 0;
 			std::array<T, max_extent> data_;
@@ -129,7 +129,7 @@ namespace dice::template_library {
 		template<typename T, size_t extent> requires (extent != dynamic_extent)
 		struct flex_array_inner<T, extent, dynamic_extent> {
 			// dynamic max size, fixed small buffer size
-			static constexpr flex_array_mode mode = flex_array_mode::sbo_dynamic_sized;
+			static constexpr flex_array_mode mode = flex_array_mode::sbo_dynamic_size;
 
 			::ankerl::svector<T, extent> data_;
 

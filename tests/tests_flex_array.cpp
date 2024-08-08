@@ -75,7 +75,7 @@ TEST_SUITE("flex_array") {
 	TEST_CASE("static size") {
 		static_assert(sizeof(flex_array<int, 1>) == sizeof(int));
 		static_assert(alignof(flex_array<int, 1>) == alignof(int));
-		static_assert(flex_array<int, 1>::mode == flex_array_mode::direct_static_sized);
+		static_assert(flex_array<int, 1>::mode == flex_array_mode::direct_static_size);
 
 		SUBCASE("default ctor") {
 			flex_array<int, 5> f;
@@ -129,7 +129,7 @@ TEST_SUITE("flex_array") {
 	TEST_CASE("dynamic size but bounded") {
 		static_assert(sizeof(flex_array<int, dynamic_extent, 2>) == 2*sizeof(int) + sizeof(size_t));
 		static_assert(alignof(flex_array<int, dynamic_extent, 2>) == alignof(size_t));
-		static_assert(flex_array<int, dynamic_extent, 1>::mode == flex_array_mode::direct_dynamic_limited_sized);
+		static_assert(flex_array<int, dynamic_extent, 1>::mode == flex_array_mode::direct_dynamic_limited_size);
 
 		SUBCASE("default ctor") {
 			flex_array<int, dynamic_extent, 5> f;
@@ -186,7 +186,7 @@ TEST_SUITE("flex_array") {
 	TEST_CASE("dynamic size not bounded") {
 		static_assert(sizeof(flex_array<int, 2, dynamic_extent>) == 2*sizeof(int) + sizeof(size_t));
 		static_assert(alignof(flex_array<int, 2, dynamic_extent>) == alignof(size_t));
-		static_assert(flex_array<int, 1, dynamic_extent>::mode == flex_array_mode::sbo_dynamic_sized);
+		static_assert(flex_array<int, 1, dynamic_extent>::mode == flex_array_mode::sbo_dynamic_size);
 
 		using farray = flex_array<int, 4, dynamic_extent>;
 
