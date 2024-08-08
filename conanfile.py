@@ -25,8 +25,8 @@ class DiceTemplateLibrary(ConanFile):
     }
     default_options = {
         "with_test_deps": False,
-        "with_svector": True,
-        "with_boost": True,
+        "with_svector": False,
+        "with_boost": False,
     }
 
     def requirements(self):

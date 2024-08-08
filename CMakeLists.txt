@@ -12,8 +12,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_
 
 option(BUILD_TESTING "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
-option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_implementation::sbo_vector" ON)
-option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" ON)
+option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_implementation::sbo_vector" OFF)
+option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
     if (BUILD_TESTING OR BUILD_EXAMPLES)
@@ -25,7 +25,7 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
 
     if (WITH_BOOST)
-        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True;o=boost/*:header_only=True")
+        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True;-o=boost/*:header_only=True")
     endif ()
 endif ()
 
