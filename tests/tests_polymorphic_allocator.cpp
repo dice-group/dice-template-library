@@ -72,6 +72,8 @@ struct mallocator2 {
 };
 
 TEST_SUITE("polymorphic_allocator") {
+
+#if __has_include(<boost/interprocess/offset_ptr.hpp>)
 	TEST_CASE("offset_ptr_stl_allocator") {
 		using alloc_t = dice::template_library::offset_ptr_stl_allocator<int>;
 
@@ -81,6 +83,7 @@ TEST_SUITE("polymorphic_allocator") {
 		CHECK(*ptr == 5);
 		std::allocator_traits<alloc_t>::deallocate(alloc, ptr, 1);
 	}
+#endif // __has_include
 
 	template<typename T>
 	using poly_alloc2_t = dice::template_library::polymorphic_allocator<T, std::allocator, mallocator>;
