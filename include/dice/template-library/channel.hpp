@@ -67,6 +67,7 @@ namespace dice::template_library {
                 closed_.test_and_set(std::memory_order_release);
             }
             queue_not_empty_.notify_one(); // notify pop() so that it does not get stuck
+            queue_not_full_.notify_all(); // notify emplace()
         }
 
 		/**
@@ -90,7 +91,13 @@ namespace dice::template_library {
 
             {
                 std::unique_lock lock{queue_mutex_};
-                queue_not_full_.wait(lock, [this]() noexcept { return queue_.size() < max_cap_; });
+                queue_not_full_.wait(lock, [this]() noexcept { return queue_.size() < max_cap_ || closed_.test(std::memory_order_acquire); });
+
+                if (queue_.size() >= max_cap_) [[unlikely]] {
+                    // wait was exited because closed_ was true (channel closed)
+                    return false;
+                }
+
                 queue_.emplace_back(std::forward<Args>(args)...);
             }
 
@@ -112,7 +119,7 @@ namespace dice::template_library {
 
             {
                 std::unique_lock lock{queue_mutex_};
-                if (queue_.size() >= max_cap_) {
+                if (queue_.size() >= max_cap_ || closed_.test(std::memory_order_acquire)) {
                     return false;
                 }
 
