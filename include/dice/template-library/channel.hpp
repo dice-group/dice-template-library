@@ -91,9 +91,10 @@ namespace dice::template_library {
 
             {
                 std::unique_lock lock{queue_mutex_};
-                queue_not_full_.wait(lock, [this]() noexcept { return queue_.size() < max_cap_ || closed_.test(std::memory_order_acquire); });
+                queue_not_full_.wait(lock, [this]() noexcept { return queue_.size() < max_cap_ || closed_.test(std::memory_order_relaxed); });
 
-                if (queue_.size() >= max_cap_) [[unlikely]] {
+                if (closed_.test(std::memory_order_relaxed)) [[unlikely]] {
+                    // relaxed is enough because we hold the lock
                     // wait was exited because closed_ was true (channel closed)
                     return false;
                 }
@@ -119,7 +120,8 @@ namespace dice::template_library {
 
             {
                 std::unique_lock lock{queue_mutex_};
-                if (queue_.size() >= max_cap_ || closed_.test(std::memory_order_acquire)) {
+                if (queue_.size() >= max_cap_ || closed_.test(std::memory_order_relaxed)) {
+                    // relaxed is enough because we hold the lock
                     return false;
                 }
 
@@ -178,7 +180,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] std::optional<value_type> pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             std::unique_lock lock{queue_mutex_};
-            queue_not_empty_.wait(lock, [this]() noexcept { return !queue_.empty() || closed_.test(std::memory_order_acquire); });
+            queue_not_empty_.wait(lock, [this]() noexcept { return !queue_.empty() || closed_.test(std::memory_order_relaxed); });
 
             if (queue_.empty()) [[unlikely]] {
                 // implies closed_ == true
