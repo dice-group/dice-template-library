@@ -106,7 +106,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.7.0
+        GIT_TAG v1.8.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -125,7 +125,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.7.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.8.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
