@@ -2,10 +2,12 @@
 #define DICE_TEMPLATELIBRARY_VARIANT2_HPP
 
 #include <cassert>
+#include <compare>
 #include <cstdint>
 #include <exception>
 #include <functional>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 namespace dice::template_library {
@@ -38,6 +40,45 @@ namespace std {
 } // namespace std
 
 namespace dice::template_library {
+    namespace detail_variant2 {
+        template<typename From, typename To>
+        struct copy_const {
+            using type = To;
+        };
+
+        template<typename From, typename To>
+        struct copy_const<From const, To> {
+            using type = std::add_const_t<To>;
+        };
+
+        template<typename From, typename To>
+        struct copy_reference {
+            using type = To;
+        };
+
+        template<typename From, typename To>
+        struct copy_reference<From &, To> {
+            using type = std::add_lvalue_reference_t<To>;
+        };
+
+        template<typename From, typename To>
+        struct copy_reference<From &&, To> {
+            using type = std::add_rvalue_reference_t<To>;
+        };
+
+        template<typename From, typename To>
+        using copy_cvref_t = typename copy_reference<From, typename copy_const<std::remove_reference_t<From>, To>::type>::type;
+
+        template<typename ...Ts>
+        struct select_variant {
+            using type = std::variant<Ts...>;
+        };
+
+        template<typename T, typename U>
+        struct select_variant<T, U> {
+            using type = ::dice::template_library::variant2<T, U>;
+        };
+    } // namespace detail_variant2
 
 	/**
      * An optimized version of std::variant for 2 types
@@ -80,8 +121,8 @@ namespace dice::template_library {
             }
         }
 
-        template<typename Self, size_t ix> requires (ix <= 1)
-        static constexpr decltype(auto) get_impl(Self &&self) {
+        template<size_t ix, typename Self> requires (ix <= 1)
+        static constexpr auto get_impl(Self &&self) -> detail_variant2::copy_cvref_t<decltype(std::forward<Self>(self)), std::conditional_t<ix == 0, T, U>> {
             if constexpr (ix == 0) {
                 if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
                     throw std::bad_variant_access{};
@@ -97,29 +138,29 @@ namespace dice::template_library {
             }
         }
 
-        template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
+        template<typename X, typename Self> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
         static constexpr decltype(auto) get_impl(Self &&self) {
             return get_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
         }
 
-        template<typename Self, size_t ix> requires (ix <= 1)
+        template<size_t ix, typename Self> requires (ix <= 1)
         static constexpr auto *get_if_impl(Self &&self) noexcept {
             if constexpr (ix == 0) {
                 if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
-                    return nullptr;
+                    return static_cast<decltype(&std::forward<Self>(self).a_)>(nullptr);
                 }
 
                 return &std::forward<Self>(self).a_;
             } else { // ix == 1
                 if (self.discriminant_ != discriminant_type::Second) [[unlikely]] {
-                    return nullptr;
+                    return static_cast<decltype(&std::forward<Self>(self).b_)>(nullptr);
                 }
 
                 return &std::forward<Self>(self).b_;
             }
         }
 
-        template<typename Self, typename X> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
+        template<typename X, typename Self> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
         static constexpr auto *get_if_impl(Self &&self) noexcept {
             return get_if_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
         }
@@ -249,13 +290,17 @@ namespace dice::template_library {
                             break;
                         }
                         case discriminant_type::Second: {
-                            a_.~T();
                             try {
+                                a_.~T();
                                 new (&b_) U{other.b_};
                             } catch (...) {
                                 discriminant_ = discriminant_type::ValuelessByException;
                                 std::rethrow_exception(std::current_exception());
                             }
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
+                            a_.~T();
                             break;
                         }
                         default: {
@@ -268,8 +313,8 @@ namespace dice::template_library {
                 case discriminant_type::Second: {
                     switch (other.discriminant_) {
                         case discriminant_type::First: {
-                            b_.~U();
                             try {
+                                b_.~U();
                                 new (&a_) T{other.a_};
                             } catch (...) {
                                 discriminant_ = discriminant_type::ValuelessByException;
@@ -279,6 +324,30 @@ namespace dice::template_library {
                         }
                         case discriminant_type::Second: {
                             b_ = other.b_;
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
+                            b_.~U();
+                            break;
+                        }
+                        default: {
+                            assert(false);
+                            __builtin_unreachable();
+                        }
+                    }
+                    break;
+                }
+                case discriminant_type::ValuelessByException: {
+                    switch (other.discriminant_) {
+                        case discriminant_type::First: {
+                            new (&a_) T{other.a_};
+                            break;
+                        }
+                        case discriminant_type::Second: {
+                            new (&b_) U{other.b_};
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
                             break;
                         }
                         default: {
@@ -354,6 +423,23 @@ namespace dice::template_library {
                     }
                     break;
                 }
+                case discriminant_type::ValuelessByException: {
+                    switch (other.discriminant_) {
+                        case discriminant_type::First: {
+                            new (&a_) T{std::move(other.a_)};
+                            break;
+                        }
+                        case discriminant_type::Second: {
+                            new (&b_) U{std::move(other.b_)};
+                            break;
+                        }
+                        default: {
+                            assert(false);
+                            __builtin_unreachable();
+                        }
+                    }
+                    break;
+                }
                 default: {
                     assert(false);
                     __builtin_unreachable();
@@ -385,6 +471,15 @@ namespace dice::template_library {
                     discriminant_ = discriminant_type::First;
                     break;
                 }
+                case discriminant_type::ValuelessByException: {
+                    new (&a_) T{value};
+                    discriminant_ = discriminant_type::First;
+                    break;
+                }
+                default: {
+                    assert(false);
+                    __builtin_unreachable();
+                }
             }
 
             return *this;
@@ -410,6 +505,15 @@ namespace dice::template_library {
                     discriminant_ = discriminant_type::First;
                     break;
                 }
+                case discriminant_type::ValuelessByException: {
+                    new (&a_) T{std::move(value)};
+                    discriminant_ = discriminant_type::First;
+                    break;
+                }
+                default: {
+                    assert(false);
+                    __builtin_unreachable();
+                }
             }
 
             return *this;
@@ -434,6 +538,15 @@ namespace dice::template_library {
                     b_ = value;
                     break;
                 }
+                case discriminant_type::ValuelessByException: {
+                    new (&b_) U{value};
+                    discriminant_ = discriminant_type::Second;
+                    break;
+                }
+                default: {
+                    assert(false);
+                    __builtin_unreachable();
+                }
             }
             return *this;
         }
@@ -457,6 +570,15 @@ namespace dice::template_library {
                     b_ = std::move(value);
                     break;
                 }
+                case discriminant_type::ValuelessByException: {
+                    new (&b_) U{std::move(value)};
+                    discriminant_ = discriminant_type::Second;
+                    break;
+                }
+                default: {
+                    assert(false);
+                    __builtin_unreachable();
+                }
             }
             return *this;
         }
@@ -477,7 +599,7 @@ namespace dice::template_library {
             }
         }
 
-        template<typename X, typename ...Args> requires (std::is_same_v<X, T> || std::is_same_v<U, T>)
+        template<typename X, typename ...Args> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
         constexpr X &emplace(Args &&...args) {
             try {
                 if constexpr (std::is_same_v<X, T>) {
@@ -489,6 +611,11 @@ namespace dice::template_library {
                         }
                         case discriminant_type::Second: {
                             b_.~U();
+                            new (&a_) T{std::forward<Args>(args)...};
+                            discriminant_ = discriminant_type::First;
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
                             new (&a_) T{std::forward<Args>(args)...};
                             discriminant_ = discriminant_type::First;
                             break;
@@ -511,6 +638,11 @@ namespace dice::template_library {
                         case discriminant_type::Second: {
                             b_.~U();
                             new (&b_) U{std::forward<Args>(args)...};
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
+                            new (&b_) U{std::forward<Args>(args)...};
+                            discriminant_ = discriminant_type::Second;
                             break;
                         }
                         default: {
@@ -565,27 +697,29 @@ namespace dice::template_library {
         }
 
         constexpr auto operator<=>(variant2 const &other) const noexcept {
+            using ret_type = std::common_comparison_category_t<std::compare_three_way_result_t<T>, std::compare_three_way_result_t<U>>;
+
             if (discriminant_ != other.discriminant_) {
                 if (discriminant_ == discriminant_type::ValuelessByException) {
-                    return std::strong_ordering::less;
+                    return ret_type::less;
                 }
 
                 if (other.discriminant_ == discriminant_type::ValuelessByException) {
-                    return std::strong_ordering::greater;
+                    return ret_type::greater;
                 }
 
-                return discriminant_ <=> other.discriminant_;
+                return static_cast<ret_type>(discriminant_ <=> other.discriminant_);
             }
 
             switch (discriminant_) {
                 case discriminant_type::First: {
-                    return a_ <=> other.a_;
+                    return static_cast<ret_type>(a_ <=> other.a_);
                 }
                 case discriminant_type::Second: {
-                    return b_ <=> other.b_;
+                    return static_cast<ret_type>(b_ <=> other.b_);
                 }
                 case discriminant_type::ValuelessByException: {
-                    return std::strong_ordering::equal;
+                    return ret_type::equivalent;
                 }
                 default: {
                     assert(false);
@@ -703,6 +837,14 @@ namespace dice::template_library {
             return visit_impl(std::move(var), std::forward<F>(visitor));
         }
     };
+
+    /**
+     * Automatically select the fastest variant for the given types
+     * if sizeof...(Ts) == 2 selects dice::template_library::variant2<Ts...>
+     * otherwise selects std::variant<Ts...>
+     */
+    template<typename ...Ts>
+    using variant = typename detail_variant2::select_variant<Ts...>::type;
 
 } // namespace dice::template_library
 
