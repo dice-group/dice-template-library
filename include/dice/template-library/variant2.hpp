@@ -78,32 +78,11 @@ namespace dice::template_library {
         struct select_variant<T, U> {
             using type = ::dice::template_library::variant2<T, U>;
         };
-    } // namespace detail_variant2
-
-	/**
-     * An optimized version of std::variant for 2 types
-     * @tparam T first type
-     * @tparam U second type
-     */
-    template<typename T, typename U>
-    struct variant2 {
-        static_assert(!std::is_same_v<T, U>, "Multiple occurrences of the same type are not supported");
-
-    private:
-        enum struct discriminant_type : uint8_t {
-            First = 0,
-            Second = 1,
-            ValuelessByException = 2,
-        };
-
-        union {
-            T a_; ///< active if discriminant == false
-            U b_; ///< active if discriminamt == true
-        };
-        discriminant_type discriminant_;
 
         template<typename Self, typename F>
-        static constexpr decltype(auto) visit_impl(Self &&self, F &&visitor) {
+        constexpr decltype(auto) visit_impl(Self &&self, F &&visitor) {
+            using discriminant_type = typename std::remove_cvref_t<Self>::discriminant_type;
+
             switch (self.discriminant_) {
                 case discriminant_type::First: {
                     return std::invoke(std::forward<F>(visitor), std::forward<Self>(self).a_);
@@ -122,7 +101,9 @@ namespace dice::template_library {
         }
 
         template<size_t ix, typename Self> requires (ix <= 1)
-        static constexpr auto get_impl(Self &&self) -> detail_variant2::copy_cvref_t<decltype(std::forward<Self>(self)), std::conditional_t<ix == 0, T, U>> {
+        constexpr auto get_impl(Self &&self) -> copy_cvref_t<decltype(std::forward<Self>(self)), std::variant_alternative_t<ix, std::remove_cvref_t<Self>>> {
+            using discriminant_type = typename std::remove_cvref_t<Self>::discriminant_type;
+
             if constexpr (ix == 0) {
                 if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
                     throw std::bad_variant_access{};
@@ -138,32 +119,67 @@ namespace dice::template_library {
             }
         }
 
-        template<typename X, typename Self> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
-        static constexpr decltype(auto) get_impl(Self &&self) {
-            return get_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
+        template<typename X, typename Self> requires (std::is_same_v<X, typename std::remove_cvref_t<Self>::first_type> || std::is_same_v<X, typename std::remove_cvref_t<Self>::second_type>)
+        constexpr decltype(auto) get_impl(Self &&self) {
+            return get_impl<std::is_same_v<X, typename std::remove_cvref_t<Self>::first_type> ? 0 : 1>(std::forward<Self>(self));
         }
 
         template<size_t ix, typename Self> requires (ix <= 1)
-        static constexpr auto *get_if_impl(Self &&self) noexcept {
+        constexpr auto get_if_impl(Self &&self) noexcept -> typename copy_const<std::remove_reference_t<Self>, std::variant_alternative_t<ix, std::remove_cvref_t<Self>>>::type * {
+            using discriminant_type = typename std::remove_cvref_t<Self>::discriminant_type;
+
             if constexpr (ix == 0) {
                 if (self.discriminant_ != discriminant_type::First) [[unlikely]] {
-                    return static_cast<decltype(&std::forward<Self>(self).a_)>(nullptr);
+                    return nullptr;
                 }
 
                 return &std::forward<Self>(self).a_;
             } else { // ix == 1
                 if (self.discriminant_ != discriminant_type::Second) [[unlikely]] {
-                    return static_cast<decltype(&std::forward<Self>(self).b_)>(nullptr);
+                    return nullptr;
                 }
 
                 return &std::forward<Self>(self).b_;
             }
         }
 
-        template<typename X, typename Self> requires (std::is_same_v<X, T> || std::is_same_v<X, U>)
-        static constexpr auto *get_if_impl(Self &&self) noexcept {
-            return get_if_impl<std::is_same_v<X, T> ? 0 : 1>(std::forward<Self>(self));
+        template<typename X, typename Self> requires (std::is_same_v<X, typename std::remove_cvref_t<Self>::first_type> || std::is_same_v<X, typename std::remove_cvref_t<Self>::second_type>)
+        constexpr auto *get_if_impl(Self &&self) noexcept {
+            return get_if_impl<std::is_same_v<X, typename std::remove_cvref_t<Self>::first_type> ? 0 : 1>(std::forward<Self>(self));
         }
+    } // namespace detail_variant2
+
+    using std::variant_npos;
+    using std::variant_alternative;
+    using std::variant_alternative_t;
+    using std::variant_size;
+    using std::variant_size_v;
+    using std::bad_variant_access;
+
+	/**
+     * An optimized version of std::variant for 2 types
+     * @tparam T first type
+     * @tparam U second type
+     */
+    template<typename T, typename U>
+    struct variant2 {
+        static_assert(!std::is_same_v<T, U>, "Multiple occurrences of the same type are not supported");
+
+        using first_type = T;
+        using second_type = U;
+
+    private:
+        enum struct discriminant_type : uint8_t {
+            First = 0,
+            Second = 1,
+            ValuelessByException = 2,
+        };
+
+        union {
+            T a_; ///< active if discriminant == false
+            U b_; ///< active if discriminamt == true
+        };
+        discriminant_type discriminant_;
 
     public:
         constexpr variant2() noexcept(std::is_nothrow_default_constructible_v<T>)
@@ -728,115 +744,124 @@ namespace dice::template_library {
             }
         }
 
-        template<typename X>
-        [[nodiscard]] friend constexpr bool holds_alternative(variant2 const &var) noexcept {
-            if constexpr (std::is_same_v<X, T> || std::is_same_v<X, U>) {
-                return var.index() == (std::is_same_v<X, T> ? 0 : 1);
-            }
+        template<typename Self, typename F>
+        friend constexpr decltype(auto) detail_variant2::visit_impl(Self &&self, F &&visitor);
 
-            return false;
-        }
+        template<size_t ix, typename Self> requires (ix <= 1)
+        friend constexpr auto detail_variant2::get_impl(Self &&self) -> detail_variant2::copy_cvref_t<decltype(std::forward<Self>(self)), std::variant_alternative_t<ix, std::remove_cvref_t<Self>>>;
 
-        // overloads for get<index>
-        template<size_t ix>
-        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> const &get(variant2 const &var) {
-            return get_impl<ix>(var);
-        }
-
-        template<size_t ix>
-        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> &get(variant2 &var) {
-            return get_impl<ix>(var);
-        }
-
-        template<size_t ix>
-        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> const &&get(variant2 const &&var) {
-            return get_impl<ix>(std::move(var));
-        }
-
-        template<size_t ix>
-        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> &&get(variant2 &&var) {
-            return get_impl<ix>(std::move(var));
-        }
-
-        template<size_t ix>
-        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> const *get_if(variant2 const *var) noexcept {
-            if (var == nullptr) {
-                return nullptr;
-            }
-
-            return get_if_impl<ix>(*var);
-        }
-
-        template<size_t ix>
-        [[nodiscard]] friend constexpr std::variant_alternative_t<ix, variant2> *get_if(variant2 *var) noexcept {
-            if (var == nullptr) {
-                return nullptr;
-            }
-
-            return get_if_impl<ix>(*var);
-        }
-
-        // overloads of get<type>
-        template<typename X>
-        [[nodiscard]] friend constexpr X const &get(variant2 const &var) {
-            return get_impl<X>(var);
-        }
-
-        template<typename X>
-        [[nodiscard]] friend constexpr X &get(variant2 &var) {
-            return get_impl<X>(var);
-        }
-
-        template<typename X>
-        [[nodiscard]] friend constexpr X const &&get(variant2 const &&var) {
-            return get_impl<X>(std::move(var));
-        }
-
-        template<typename X>
-        [[nodiscard]] friend constexpr X &&get(variant2 &&var) {
-            return get_impl<X>(std::move(var));
-        }
-
-        template<typename X>
-        [[nodiscard]] friend constexpr X const *get_if(variant2 const *var) noexcept {
-            if (var == nullptr) {
-                return nullptr;
-            }
-
-            return get_if_impl<X>(*var);
-        }
-
-        template<typename X>
-        [[nodiscard]] friend constexpr X *get_if(variant2 *var) noexcept {
-            if (var == nullptr) {
-                return nullptr;
-            }
-
-            return get_if_impl<X>(*var);
-        }
-
-
-        // overloads for visit
-        template<typename F>
-        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 const &var) {
-            return visit_impl(var, std::forward<F>(visitor));
-        }
-
-        template<typename F>
-        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 &var) {
-            return visit_impl(var, std::forward<F>(visitor));
-        }
-
-        template<typename F>
-        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 const &&var) {
-            return visit_impl(std::move(var), std::forward<F>(visitor));
-        }
-
-        template<typename F>
-        [[nodiscard]] friend constexpr decltype(auto) visit(F &&visitor, variant2 &&var) {
-            return visit_impl(std::move(var), std::forward<F>(visitor));
-        }
+        template<size_t ix, typename Self> requires (ix <= 1)
+        friend constexpr auto detail_variant2::get_if_impl(Self &&self) noexcept -> typename detail_variant2::copy_const<std::remove_reference_t<Self>, std::variant_alternative_t<ix, std::remove_cvref_t<Self>>>::type *;
     };
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr bool holds_alternative(variant2<T, U> const &var) noexcept {
+        if constexpr (std::is_same_v<X, T> || std::is_same_v<X, U>) {
+            return var.index() == (std::is_same_v<X, T> ? 0 : 1);
+        }
+
+        return false;
+    }
+
+    // overloads for get<index>
+    template<size_t ix, typename T, typename U>
+    [[nodiscard]] constexpr std::variant_alternative_t<ix, variant2<T, U>> const &get(variant2<T, U> const &var) {
+        return detail_variant2::get_impl<ix>(var);
+    }
+
+    template<size_t ix, typename T, typename U>
+    [[nodiscard]] constexpr std::variant_alternative_t<ix, variant2<T, U>> &get(variant2<T, U> &var) {
+        return detail_variant2::get_impl<ix>(var);
+    }
+
+    template<size_t ix, typename T, typename U>
+    [[nodiscard]] constexpr std::variant_alternative_t<ix, variant2<T, U>> const &&get(variant2<T, U> const &&var) {
+        return detail_variant2::get_impl<ix>(std::move(var));
+    }
+
+    template<size_t ix, typename T, typename U>
+    [[nodiscard]] constexpr std::variant_alternative_t<ix, variant2<T, U>> &&get(variant2<T, U> &&var) {
+        return detail_variant2::get_impl<ix>(std::move(var));
+    }
+
+    template<size_t ix, typename T, typename U>
+    [[nodiscard]] constexpr std::variant_alternative_t<ix, variant2<T, U>> const *get_if(variant2<T, U> const *var) noexcept {
+        if (var == nullptr) {
+            return nullptr;
+        }
+
+        return detail_variant2::get_if_impl<ix>(*var);
+    }
+
+    template<size_t ix, typename T, typename U>
+    [[nodiscard]] constexpr std::variant_alternative_t<ix, variant2<T, U>> *get_if(variant2<T, U> *var) noexcept {
+        if (var == nullptr) {
+            return nullptr;
+        }
+
+        return detail_variant2::get_if_impl<ix>(*var);
+    }
+
+    // overloads of get<type>
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr X const &get(variant2<T, U> const &var) {
+        return detail_variant2::get_impl<X>(var);
+    }
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr X &get(variant2<T, U> &var) {
+        return detail_variant2::get_impl<X>(var);
+    }
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr X const &&get(variant2<T, U> const &&var) {
+        return detail_variant2::get_impl<X>(std::move(var));
+    }
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr X &&get(variant2<T, U> &&var) {
+        return detail_variant2::get_impl<X>(std::move(var));
+    }
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr X const *get_if(variant2<T, U> const *var) noexcept {
+        if (var == nullptr) {
+            return nullptr;
+        }
+
+        return detail_variant2::get_if_impl<X>(*var);
+    }
+
+    template<typename X, typename T, typename U>
+    [[nodiscard]] constexpr X *get_if(variant2<T, U> *var) noexcept {
+        if (var == nullptr) {
+            return nullptr;
+        }
+
+        return detail_variant2::get_if_impl<X>(*var);
+    }
+
+
+    // overloads for visit
+    template<typename F, typename T, typename U>
+    constexpr decltype(auto) visit(F &&visitor, variant2<T, U> const &var) {
+        return detail_variant2::visit_impl(var, std::forward<F>(visitor));
+    }
+
+    template<typename F, typename T, typename U>
+    constexpr decltype(auto) visit(F &&visitor, variant2<T, U> &var) {
+        return detail_variant2::visit_impl(var, std::forward<F>(visitor));
+    }
+
+    template<typename F, typename T, typename U>
+    constexpr decltype(auto) visit(F &&visitor, variant2<T, U> const &&var) {
+        return detail_variant2::visit_impl(std::move(var), std::forward<F>(visitor));
+    }
+
+    template<typename F, typename T, typename U>
+    constexpr decltype(auto) visit(F &&visitor, variant2<T, U> &&var) {
+        return detail_variant2::visit_impl(std::move(var), std::forward<F>(visitor));
+    }
 
     /**
      * Automatically select the fastest variant for the given types
