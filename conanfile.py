@@ -43,10 +43,9 @@ class DiceTemplateLibrary(ConanFile):
         cmake_layout(self)
 
     def build(self):
-        if not self.conf.get("tools.build:skip_test", default=False):
-            cmake = CMake(self)
-            cmake.configure(variables={"WITH_SVECTOR": self.options.with_svector, "WITH_BOOST": self.options.with_boost})
-            cmake.build()
+        cmake = CMake(self)
+        cmake.configure(variables={"WITH_SVECTOR": self.options.with_svector, "WITH_BOOST": self.options.with_boost})
+        cmake.build()
 
     def package_id(self):
         self.info.clear()
