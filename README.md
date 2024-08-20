@@ -11,7 +11,7 @@ It contains:
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
 - `overloaded`: Composition for `std::variant` visitor lambdas
-- `flex_array`: A combination of `std::array` and `std::span`
+- `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
@@ -73,8 +73,8 @@ Usage examples can be found [here](examples/examples_defer.cpp).
 Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
 
 ### `flex_array`
-A combination of `std::array` and `std::span` where the size is either statically known or a runtime variable
-depending on the `extent` template parameter
+A combination of `std::array`, `std::span` and a `vector` with small buffer optimization where the size is either
+statically known or a runtime variable depending on the `extent`/`max_extent` template parameters
 
 ### `generator`
 The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf).
@@ -106,7 +106,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.7.0
+        GIT_TAG v1.8.1
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -125,7 +125,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.7.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.8.1` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

@@ -3,7 +3,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Boost REQUIRED COMPONENTS)
-
 find_package(DocTest REQUIRED)
 
 add_custom_target(build_tests)
