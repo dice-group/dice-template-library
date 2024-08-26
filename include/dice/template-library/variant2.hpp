@@ -176,8 +176,8 @@ namespace dice::template_library {
         };
 
         union {
-            T a_; ///< active if discriminant == false
-            U b_; ///< active if discriminamt == true
+            T a_; ///< active if discriminant_ == discriminant_type::First
+            U b_; ///< active if discriminant_ == discriminant_type::Second
         };
         discriminant_type discriminant_;
 
@@ -198,6 +198,10 @@ namespace dice::template_library {
                     new (&b_) U{other.b_};
                     break;
                 }
+                case discriminant_type::ValuelessByException: {
+                    // noop
+                    break;
+                }
                 default: {
                     assert(false);
                     __builtin_unreachable();
@@ -214,6 +218,10 @@ namespace dice::template_library {
                 }
                 case discriminant_type::Second: {
                     new (&b_) U{std::move(other.b_)};
+                    break;
+                }
+                case discriminant_type::ValuelessByException: {
+                    // noop
                     break;
                 }
                 default: {
@@ -311,7 +319,7 @@ namespace dice::template_library {
                                 new (&b_) U{other.b_};
                             } catch (...) {
                                 discriminant_ = discriminant_type::ValuelessByException;
-                                std::rethrow_exception(std::current_exception());
+                                throw;
                             }
                             break;
                         }
@@ -334,7 +342,7 @@ namespace dice::template_library {
                                 new (&a_) T{other.a_};
                             } catch (...) {
                                 discriminant_ = discriminant_type::ValuelessByException;
-                                std::rethrow_exception(std::current_exception());
+                                throw;
                             }
                             break;
                         }
@@ -364,6 +372,7 @@ namespace dice::template_library {
                             break;
                         }
                         case discriminant_type::ValuelessByException: {
+                            // noop
                             break;
                         }
                         default: {
@@ -405,8 +414,12 @@ namespace dice::template_library {
                                 new (&b_) U{std::move(other.b_)};
                             } catch (...) {
                                 discriminant_ = discriminant_type::ValuelessByException;
-                                std::rethrow_exception(std::current_exception());
+                                throw;
                             }
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
+                            a_.~T();
                             break;
                         }
                         default: {
@@ -424,12 +437,16 @@ namespace dice::template_library {
                                 new (&a_) T{std::move(other.a_)};
                             } catch (...) {
                                 discriminant_ = discriminant_type::ValuelessByException;
-                                std::rethrow_exception(std::current_exception());
+                                throw;
                             }
                             break;
                         }
                         case discriminant_type::Second: {
                             b_ = std::move(other.b_);
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
+                            b_.~U();
                             break;
                         }
                         default: {
@@ -447,6 +464,10 @@ namespace dice::template_library {
                         }
                         case discriminant_type::Second: {
                             new (&b_) U{std::move(other.b_)};
+                            break;
+                        }
+                        case discriminant_type::ValuelessByException: {
+                            // noop
                             break;
                         }
                         default: {
@@ -482,7 +503,7 @@ namespace dice::template_library {
                         new (&a_) T{value};
                     } catch (...) {
                         discriminant_ = discriminant_type::ValuelessByException;
-                        std::rethrow_exception(std::current_exception());
+                        throw;
                     }
                     discriminant_ = discriminant_type::First;
                     break;
@@ -516,7 +537,7 @@ namespace dice::template_library {
                         new (&a_) T{std::move(value)};
                     } catch (...) {
                         discriminant_ = discriminant_type::ValuelessByException;
-                        std::rethrow_exception(std::current_exception());
+                        throw;
                     }
                     discriminant_ = discriminant_type::First;
                     break;
@@ -545,7 +566,7 @@ namespace dice::template_library {
                         new (&b_) U{value};
                     } catch (...) {
                         discriminant_ = discriminant_type::ValuelessByException;
-                        std::rethrow_exception(std::current_exception());
+                        throw;
                     }
                     discriminant_ = discriminant_type::Second;
                     break;
@@ -577,7 +598,7 @@ namespace dice::template_library {
                         new (&b_) U{std::move(value)};
                     } catch (...) {
                         discriminant_ = discriminant_type::ValuelessByException;
-                        std::rethrow_exception(std::current_exception());
+                        throw;
                     }
                     discriminant_ = discriminant_type::Second;
                     break;
@@ -671,7 +692,7 @@ namespace dice::template_library {
                 }
             } catch (...) {
                 discriminant_ = discriminant_type::ValuelessByException;
-                std::rethrow_exception(std::current_exception());
+                throw;
             }
         }
 
