@@ -13,8 +13,6 @@ jobs:
       matrix:
         config:
           - os: ubuntu-22.04
-            compiler: clang-16
-          - os: ubuntu-22.04
             compiler: clang-17
           - os: ubuntu-22.04
             compiler: clang-18

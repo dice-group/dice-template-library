@@ -1,5 +1,5 @@
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(examples_for examples_for.cpp)
@@ -72,3 +72,11 @@ target_link_libraries(example_channel
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_variant2
+        example_variant2.cpp)
+target_link_libraries(example_variant2
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
