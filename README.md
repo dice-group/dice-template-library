@@ -15,6 +15,7 @@ It contains:
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
+- `variant2`: Like `std::variant` but optimized for exactly two types
 
 ## Usage
 
@@ -87,6 +88,11 @@ all generator related things under namespace `std::`.
 A single producer, single consume queue. This can be used to communicate between threads in a more high level
 fashion than a mutex+container would allow.
 
+### `variant2`
+Like `std::variant` but specifically optimized for usage with two types/variants. 
+The internal representation is a `union` of the two types plus a 1 byte (3 state) discriminant.
+Additionally, `visit` does not involve any virtual function calls.
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -106,7 +112,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.8.1
+        GIT_TAG v1.9.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -125,7 +131,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.8.1` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.9.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

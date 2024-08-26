@@ -1,5 +1,5 @@
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Boost REQUIRED COMPONENTS)
@@ -57,3 +57,6 @@ custom_add_test(tests_generator)
 
 add_executable(tests_channel tests_channel.cpp)
 custom_add_test(tests_channel)
+
+add_executable(tests_variant2 tests_variant2.cpp)
+custom_add_test(tests_variant2)

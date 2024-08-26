@@ -1,8 +1,11 @@
 #ifndef DICE_TEMPLATE_LIBRARY_POLYMORPHICALLOCATOR_HPP
 #define DICE_TEMPLATE_LIBRARY_POLYMORPHICALLOCATOR_HPP
 
-#include <memory>
+#include <dice/template-library/variant2.hpp>
+
+
 #include <cstddef>
+#include <memory>
 #include <utility>
 #include <variant>
 
@@ -75,6 +78,20 @@ namespace dice::template_library {
 		struct first_type<T, Ts...> {
 			using type = T;
 		};
+
+		/**
+		 * Selects the optimal variant implementation based on the number of type args
+		 * Uses dice::template_library::variant2 if number of args is 2, otherwise uses std::variant
+		 */
+		template<typename ...Ts>
+		struct select_variant {
+			using type = std::variant<Ts...>;
+		};
+
+		template<typename T, typename U>
+		struct select_variant<T, U> {
+			using type = variant2<T, U>;
+		};
 	}// namespace detail_pmr
 
 	/**
@@ -115,7 +132,7 @@ namespace dice::template_library {
 		template<typename U, template<typename> typename ...UAllocators>
 		friend struct polymorphic_allocator;
 
-		using inner_variant_t = std::variant<Allocators<T>...>;
+		using inner_variant_t = typename detail_pmr::select_variant<Allocators<T>...>::type;
 		inner_variant_t alloc_;
 
 		explicit constexpr polymorphic_allocator(inner_variant_t &&inner)
@@ -142,10 +159,10 @@ namespace dice::template_library {
 
 		template<typename U>
 		constexpr polymorphic_allocator(polymorphic_allocator<U, Allocators...> const &other) noexcept((std::is_nothrow_constructible_v<Allocators<T>, Allocators<U> const &> && ...))
-			: alloc_{std::visit(
-					  []<typename A>(A const &alloc) -> std::variant<Allocators<T>...> {
+			: alloc_{visit(
+					  []<typename A>(A const &alloc) -> inner_variant_t {
 						  static constexpr size_t ix = detail_pmr::variant_index<A, std::variant<Allocators<U>...>>::value;
-						  return std::variant<Allocators<T>...>{std::in_place_index<ix>, alloc};
+						  return inner_variant_t{std::in_place_index<ix>, alloc};
 					  },
 					  other.alloc_)} {
 		}
@@ -157,13 +174,13 @@ namespace dice::template_library {
 		constexpr polymorphic_allocator &operator=(polymorphic_allocator &&other) noexcept((std::is_nothrow_move_assignable_v<Allocators<T>> && ...)) = default;
 
 		[[nodiscard]] constexpr pointer allocate(size_t n) noexcept((noexcept(std::allocator_traits<Allocators<T>>::allocate(std::declval<Allocators<T> &>(), n)) && ...)) {
-			return std::visit([n]<typename A>(A &alloc) {
+			return visit([n]<typename A>(A &alloc) {
 				return std::allocator_traits<A>::allocate(alloc, n);
 			}, alloc_);
 		}
 
 		constexpr void deallocate(pointer ptr, size_t n) noexcept((noexcept(std::allocator_traits<Allocators<T>>::deallocate(std::declval<Allocators<T> &>(), ptr, n)) && ...)) {
-			std::visit([ptr, n]<typename A>(A &alloc) {
+			visit([ptr, n]<typename A>(A &alloc) {
 				std::allocator_traits<A>::deallocate(alloc, ptr, n);
 			}, alloc_);
 		}
@@ -176,8 +193,8 @@ namespace dice::template_library {
 		}
 
 		constexpr polymorphic_allocator select_on_container_copy_construction() const {
-			return polymorphic_allocator{std::visit(
-					[]<typename A>(A const &alloc) -> std::variant<Allocators<T>...> {
+			return polymorphic_allocator{visit(
+					[]<typename A>(A const &alloc) -> inner_variant_t {
 						return std::allocator_traits<A>::select_on_container_copy_construction(alloc);
 					},
 					alloc_)};
@@ -188,7 +205,8 @@ namespace dice::template_library {
 		 */
 		template<typename UAllocator>
 		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
-			return std::holds_alternative<UAllocator>(alloc_);
+			using namespace std;
+			return holds_alternative<UAllocator>(alloc_);
 		}
 
 		/**
@@ -196,7 +214,8 @@ namespace dice::template_library {
 		 */
 		template<template<typename> typename UAllocator>
 		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
-			return std::holds_alternative<UAllocator<T>>(alloc_);
+			using namespace std;
+			return holds_alternative<UAllocator<T>>(alloc_);
 		}
 	};
 
@@ -290,490 +309,6 @@ namespace dice::template_library {
 		template<template<typename> typename UAllocator>
 		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
 			return std::is_same_v<UAllocator<T>, Allocator<T>>;
-		}
-	};
-
-	namespace discriminant2_detail {
-		enum struct Discriminant : bool {
-			First,
-			Second,
-		};
-	} // namespace discriminant2_detail
-
-	template<typename T, template<typename> typename Allocator1, template<typename> typename Allocator2>
-	struct polymorphic_allocator<T, Allocator1, Allocator2> {
-		static_assert(!std::is_same_v<Allocator1<T>, Allocator2<T>>,
-					  "Allocator types must only occur exactly once in the parameter list");
-
-	private:
-		using alloc1_traits = std::allocator_traits<Allocator1<T>>;
-		using alloc2_traits = std::allocator_traits<Allocator2<T>>;
-
-	public:
-		using value_type = typename detail_pmr::same_type<typename alloc1_traits::value_type,
-														  typename alloc2_traits::value_type>::type;
-
-		using pointer = typename detail_pmr::same_type<typename alloc1_traits::pointer,
-													   typename alloc2_traits::pointer>::type;
-
-		using const_pointer = typename detail_pmr::same_type<typename alloc1_traits::const_pointer,
-															 typename alloc2_traits::const_pointer>::type;
-
-		using void_pointer = typename detail_pmr::same_type<typename alloc1_traits::void_pointer,
-															typename alloc2_traits::void_pointer>::type;
-
-		using const_void_pointer = typename detail_pmr::same_type<typename alloc1_traits::const_void_pointer,
-																  typename alloc2_traits::const_void_pointer>::type;
-
-		using propagate_on_container_copy_assignment = std::bool_constant<(alloc1_traits::propagate_on_container_copy_assignment::value
-																			|| alloc2_traits::propagate_on_container_copy_assignment::value)>;
-
-		using propagate_on_container_move_assignment = std::bool_constant<(alloc1_traits::propagate_on_container_move_assignment::value
-																			|| alloc2_traits::propagate_on_container_move_assignment::value)>;
-
-		using propagate_on_container_swap = std::bool_constant<(alloc1_traits::propagate_on_container_swap::value
-																 || alloc2_traits::propagate_on_container_swap::value)>;
-
-		using is_always_equal = std::false_type;
-
-		template<typename U>
-		struct rebind {
-			using other = polymorphic_allocator<U, Allocator1, Allocator2>;
-		};
-
-	private:
-		template<typename U, template<typename> typename ...UAllocators>
-		friend struct polymorphic_allocator;
-
-		using discriminant_type = discriminant2_detail::Discriminant;
-
-		union {
-			Allocator1<T> alloc1_;
-			Allocator2<T> alloc2_;
-		};
-
-		discriminant_type discriminant_;
-
-	public:
-		constexpr polymorphic_allocator() noexcept(std::is_nothrow_default_constructible_v<Allocator1<T>>) : discriminant_{discriminant_type::First} {
-			new (&alloc1_) Allocator1<T>{};
-		}
-
-		template<typename ...Args>
-		constexpr polymorphic_allocator(std::in_place_type_t<Allocator1<T>>, Args &&...args) noexcept(std::is_nothrow_constructible_v<Allocator1<T>, decltype(std::forward<Args>(args))...>)
-			: discriminant_{discriminant_type::First} {
-			new (&alloc1_) Allocator1<T>{std::forward<Args>(args)...};
-		}
-
-		template<typename ...Args>
-		constexpr polymorphic_allocator(std::in_place_type_t<Allocator2<T>>, Args &&...args) noexcept(std::is_nothrow_constructible_v<Allocator2<T>, decltype(std::forward<Args>(args))...>)
-			: discriminant_{discriminant_type::Second} {
-			new (&alloc2_) Allocator2<T>{std::forward<Args>(args)...};
-		}
-
-		template<typename ...Args>
-		constexpr polymorphic_allocator(std::in_place_index_t<0>, Args &&...args) noexcept(std::is_nothrow_constructible_v<Allocator1<T>, decltype(std::forward<Args>(args))...>)
-			: discriminant_{discriminant_type::First} {
-			new (&alloc1_) Allocator1<T>{std::forward<Args>(args)...};
-		}
-
-		template<typename ...Args>
-		constexpr polymorphic_allocator(std::in_place_index_t<1>, Args &&...args) noexcept(std::is_nothrow_constructible_v<Allocator2<T>, decltype(std::forward<Args>(args))...>)
-			: discriminant_{discriminant_type::Second} {
-			new (&alloc2_) Allocator2<T>{std::forward<Args>(args)...};
-		}
-
-		constexpr polymorphic_allocator(Allocator1<T> const &alloc) noexcept(std::is_nothrow_copy_constructible_v<Allocator1<T>>)
-			: discriminant_{discriminant_type::First} {
-			new (&alloc1_) Allocator1<T>{alloc};
-		}
-
-		constexpr polymorphic_allocator(Allocator1<T> &&alloc) noexcept(std::is_nothrow_move_constructible_v<Allocator1<T>>)
-			: discriminant_{discriminant_type::First} {
-			new (&alloc1_) Allocator1<T>{std::move(alloc)};
-		}
-
-		constexpr polymorphic_allocator(Allocator2<T> const &alloc) noexcept(std::is_nothrow_copy_constructible_v<Allocator2<T>>)
-			: discriminant_{discriminant_type::First} {
-			new (&alloc2_) Allocator2<T>{alloc};
-		}
-
-		constexpr polymorphic_allocator(Allocator2<T> &&alloc) noexcept(std::is_nothrow_move_constructible_v<Allocator2<T>>)
-			: discriminant_{discriminant_type::Second} {
-			new (&alloc2_) Allocator2<T>{std::move(alloc)};
-		}
-
-		template<typename U>
-		constexpr polymorphic_allocator(polymorphic_allocator<U, Allocator1, Allocator2> const &other) noexcept(std::is_nothrow_constructible_v<Allocator1<T>, Allocator1<U> const &>
-																												&& std::is_nothrow_constructible_v<Allocator2<T>, Allocator2<U> const &>)
-			: discriminant_{other.discriminant_} {
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					new (&alloc1_) Allocator1<T>{other.alloc1_};
-					break;
-				}
-				case discriminant_type::Second: {
-					new (&alloc2_) Allocator2<T>{other.alloc2_};
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		constexpr polymorphic_allocator(polymorphic_allocator const &other) noexcept(std::is_nothrow_copy_constructible_v<Allocator1<T>> && std::is_nothrow_copy_constructible_v<Allocator2<T>>)
-			: discriminant_{other.discriminant_} {
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					new (&alloc1_) Allocator1<T>{other.alloc1_};
-					break;
-				}
-				case discriminant_type::Second: {
-					new (&alloc2_) Allocator2<T>{other.alloc2_};
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		constexpr polymorphic_allocator &operator=(polymorphic_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<Allocator1<T>>
-																								 && std::is_nothrow_destructible_v<Allocator1<T>>
-																								 && std::is_nothrow_copy_constructible_v<Allocator1<T>>
-																								 && std::is_nothrow_copy_assignable_v<Allocator2<T>>
-																								 && std::is_nothrow_destructible_v<Allocator2<T>>
-																								 && std::is_nothrow_copy_constructible_v<Allocator2<T>>) {
-			if (this == &other) [[unlikely]] {
-				return *this;
-			}
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					switch (other.discriminant_) {
-						case discriminant_type::First: {
-							alloc1_ = other.alloc1_;
-							break;
-						}
-						case discriminant_type::Second: {
-							alloc1_.~Allocator1<T>();
-							new (&alloc2_) Allocator2<T>{other.alloc2_};
-							break;
-						}
-						default: {
-							assert(false);
-							__builtin_unreachable();
-						}
-					}
-					break;
-				}
-				case discriminant_type::Second: {
-					switch (other.discriminant_) {
-						case discriminant_type::First: {
-							alloc2_.~Allocator2<T>();
-							new (&alloc1_) Allocator1<T>{other.alloc1_};
-							break;
-						}
-						case discriminant_type::Second: {
-							alloc2_ = other.alloc2_;
-							break;
-						}
-						default: {
-							assert(false);
-							__builtin_unreachable();
-						}
-					}
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-
-			discriminant_ = other.discriminant_;
-			return *this;
-		}
-
-		constexpr polymorphic_allocator(polymorphic_allocator &&other) noexcept(std::is_nothrow_move_constructible_v<Allocator1<T>>
-																				 && std::is_nothrow_move_constructible_v<Allocator2<T>>)
-			: discriminant_{other.discriminant_} {
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					new (&alloc1_) Allocator1<T>{std::move(other.alloc1_)};
-					break;
-				}
-				case discriminant_type::Second: {
-					new (&alloc2_) Allocator2<T>{std::move(other.alloc2_)};
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		constexpr polymorphic_allocator &operator=(polymorphic_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<Allocator1<T>>
-																							&& std::is_nothrow_destructible_v<Allocator1<T>>
-																							&& std::is_nothrow_move_constructible_v<Allocator1<T>>
-																							&& std::is_nothrow_move_assignable_v<Allocator2<T>>
-																							&& std::is_nothrow_destructible_v<Allocator2<T>>
-																							&& std::is_nothrow_move_constructible_v<Allocator2<T>>) {
-			assert(this != &other);
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					switch (other.discriminant_) {
-						case discriminant_type::First: {
-							alloc1_ = std::move(other.alloc1_);
-							break;
-						}
-						case discriminant_type::Second: {
-							alloc1_.~Allocator1<T>();
-							new (&alloc2_) Allocator2<T>{std::move(other.alloc2_)};
-							break;
-						}
-						default: {
-							assert(false);
-							__builtin_unreachable();
-						}
-					}
-					break;
-				}
-				case discriminant_type::Second: {
-					switch (other.discriminant_) {
-						case discriminant_type::First: {
-							alloc2_.~Allocator2<T>();
-							new (&alloc1_) Allocator1<T>{std::move(other.alloc1_)};
-							break;
-						}
-						case discriminant_type::Second: {
-							alloc2_ = std::move(other.alloc2_);
-							break;
-						}
-						default: {
-							assert(false);
-							__builtin_unreachable();
-						}
-					}
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-
-			discriminant_ = other.discriminant_;
-			return *this;
-		}
-
-		constexpr ~polymorphic_allocator() noexcept(std::is_nothrow_destructible_v<Allocator1<T>> && std::is_nothrow_destructible_v<Allocator2<T>>) {
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					alloc1_.~Allocator1<T>();
-					break;
-				}
-				case discriminant_type::Second: {
-					alloc2_.~Allocator2<T>();
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		[[nodiscard]] constexpr pointer allocate(size_t n) noexcept(noexcept(std::allocator_traits<Allocator1<T>>::allocate(std::declval<Allocator1<T> &>(), n))
-																	 && noexcept(std::allocator_traits<Allocator2<T>>::allocate(std::declval<Allocator2<T> &>(), n))) {
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return std::allocator_traits<Allocator1<T>>::allocate(alloc1_, n);
-				}
-				case discriminant_type::Second: {
-					return std::allocator_traits<Allocator2<T>>::allocate(alloc2_, n);
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		constexpr void deallocate(pointer ptr, size_t n) noexcept(noexcept(std::allocator_traits<Allocator1<T>>::deallocate(std::declval<Allocator1<T> &>(), ptr, n))
-																   && noexcept(std::allocator_traits<Allocator2<T>>::deallocate(std::declval<Allocator2<T> &>(), ptr, n))) {
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return std::allocator_traits<Allocator1<T>>::deallocate(alloc1_, ptr, n);
-				}
-				case discriminant_type::Second: {
-					return std::allocator_traits<Allocator2<T>>::deallocate(alloc2_, ptr, n);
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		constexpr bool operator==(polymorphic_allocator const &other) const noexcept {
-			if (discriminant_ != other.discriminant_) {
-				return false;
-			}
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return alloc1_ == other.alloc1_;
-				}
-				case discriminant_type::Second: {
-					return alloc2_ == other.alloc2_;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-		constexpr bool operator!=(polymorphic_allocator const &other) const noexcept {
-			if (discriminant_ != other.discriminant_) {
-				return true;
-			}
-
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return alloc1_ != other.alloc1_;
-				}
-				case discriminant_type::Second: {
-					return alloc2_ != other.alloc2_;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<Allocator1<T>>
-																									 && std::is_nothrow_destructible_v<Allocator1<T>>
-																									 && std::is_nothrow_move_constructible_v<Allocator1<T>>
-																									 && std::is_nothrow_swappable_v<Allocator2<T>>
-																									 && std::is_nothrow_destructible_v<Allocator2<T>>
-																									 && std::is_nothrow_move_constructible_v<Allocator2<T>>) {
-
-			switch (lhs.discriminant_) {
-				case discriminant_type::First: {
-					switch (rhs.discriminant_) {
-						case discriminant_type::First: {
-							std::swap(lhs.alloc1_, rhs.alloc1_);
-							break;
-						}
-						case discriminant_type::Second: {
-							Allocator1<T> tmp{std::move(lhs.alloc1_)};
-
-							lhs.alloc1_.~Allocator1<T>();
-							new (&lhs.alloc2_) Allocator2<T>{std::move(rhs.alloc2_)};
-							rhs.alloc2_.~Allocator2<T>();
-							new (&rhs.alloc1_) Allocator1<T>{std::move(tmp)};
-							break;
-						}
-						default: {
-							assert(false);
-							__builtin_unreachable();
-						}
-					}
-					break;
-				}
-				case discriminant_type::Second: {
-					switch (rhs.discriminant_) {
-						case discriminant_type::First: {
-							Allocator2<T> tmp{std::move(lhs.alloc2_)};
-
-							lhs.alloc2_.~Allocator2<T>();
-							new (&lhs.alloc1_) Allocator1<T>{std::move(rhs.alloc1_)};
-							rhs.alloc1_.~Allocator1<T>();
-							new (&rhs.alloc2_) Allocator2<T>{std::move(tmp)};
-							break;
-						}
-						case discriminant_type::Second: {
-							std::swap(lhs.alloc2_, rhs.alloc2_);
-							break;
-						}
-						default: {
-							assert(false);
-							__builtin_unreachable();
-						}
-					}
-
-					break;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-
-			std::swap(lhs.discriminant_, rhs.discriminant_);
-		}
-
-		constexpr polymorphic_allocator select_on_container_copy_construction() const {
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return polymorphic_allocator{std::allocator_traits<Allocator1<T>>::select_on_container_copy_construction(alloc1_)};
-				}
-				case discriminant_type::Second: {
-					return polymorphic_allocator{std::allocator_traits<Allocator2<T>>::select_on_container_copy_construction(alloc2_)};
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		/**
-		 * Checks if *this currently holds an instance of UAllocator
-		 */
-		template<typename UAllocator>
-		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return std::is_same_v<UAllocator, Allocator1<T>>;
-				}
-				case discriminant_type::Second: {
-					return std::is_same_v<UAllocator, Allocator2<T>>;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
-		}
-
-		/**
-		 * Checks if *this currently holds an instance of UAllocator<T>
-		 */
-		template<template<typename> typename UAllocator>
-		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
-			switch (discriminant_) {
-				case discriminant_type::First: {
-					return std::is_same_v<UAllocator<T>, Allocator1<T>>;
-				}
-				case discriminant_type::Second: {
-					return std::is_same_v<UAllocator<T>, Allocator2<T>>;
-				}
-				default: {
-					assert(false);
-					__builtin_unreachable();
-				}
-			}
 		}
 	};
 
