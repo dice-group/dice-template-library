@@ -13,11 +13,9 @@ class DiceTemplateLibrary(ConanFile):
     url = "https://github.com/dice-group/dice-template-library.git"
     license = "MIT"
     topics = "template", "template-library", "compile-time", "switch", "integral-tuple"
-    package_type = "header-library"
+    settings = "os", "arch", "compiler", "build_type"
     generators = "CMakeDeps", "CMakeToolchain"
-    settings = "os", "compiler", "build_type", "arch"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
-    no_copy_source = True
     options = {
         "with_test_deps": [True, False],
         "with_svector": [True, False],
