@@ -14,9 +14,7 @@ class DiceTemplateLibrary(ConanFile):
     license = "MIT"
     topics = "template", "template-library", "compile-time", "switch", "integral-tuple"
     generators = "CMakeDeps", "CMakeToolchain"
-    settings = "os", "compiler", "build_type", "arch"
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
-    no_copy_source = True
     options = {
         "with_test_deps": [True, False],
         "with_svector": [True, False],
