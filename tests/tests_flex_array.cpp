@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <numeric>
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+
 namespace dice::template_library {
 	// extern template sometimes make problems if internal types are too eagerly instantiated
 	extern template struct flex_array<int, 5>;
@@ -72,6 +75,24 @@ TEST_SUITE("flex_array") {
 		CHECK_EQ(*(f.data() + f.size() - 1), 5);
 	}
 
+	template<size_t extent, size_t max_extent>
+	void check_boost_serialization() {
+		using farray = flex_array<int, extent, max_extent>;
+		farray x{1, 2, 3, 4, 5};
+
+		std::ostringstream oss;
+		boost::archive::text_oarchive oa{oss};
+		oa << x;
+
+		std::istringstream iss{oss.str()};
+		boost::archive::text_iarchive ia{iss};
+
+		farray y;
+		ia >> y;
+
+		CHECK_EQ(x, y);
+	}
+
 	TEST_CASE("static size") {
 		static_assert(sizeof(flex_array<int, 1>) == sizeof(int));
 		static_assert(alignof(flex_array<int, 1>) == alignof(int));
@@ -123,6 +144,10 @@ TEST_SUITE("flex_array") {
 		SUBCASE("no-cmp") {
 			struct uncomparable {};
 			flex_array<uncomparable, 5> f; // checking if this compiles
+		}
+
+		SUBCASE("boost serialization") {
+			check_boost_serialization<5, 5>();
 		}
 	}
 
@@ -179,6 +204,10 @@ TEST_SUITE("flex_array") {
 		SUBCASE("no-cmp") {
 			struct uncomparable {};
 			flex_array<uncomparable, dynamic_extent, 5> f; // checking if this compiles
+		}
+
+		SUBCASE("boost serialization") {
+			check_boost_serialization<dynamic_extent, 5>();
 		}
 	}
 
@@ -237,6 +266,10 @@ TEST_SUITE("flex_array") {
 		SUBCASE("no-cmp") {
 			struct uncomparable {};
 			flex_array<uncomparable, 5, dynamic_extent> f; // checking if this compiles
+		}
+
+		SUBCASE("boost serialization") {
+			check_boost_serialization<5, dynamic_extent>();
 		}
 	}
 

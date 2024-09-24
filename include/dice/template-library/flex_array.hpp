@@ -12,6 +12,14 @@
 #include <ankerl/svector.h>
 #endif // __has_include
 
+#define DICE_TEMPLATELIBRARY_DETAIL_HAS_BOOST_SER \
+	__has_include(<boost/serialization/array.hpp>) && __has_include(<boost/serialization/split_member.hpp>)
+
+#if DICE_TEMPLATELIBRARY_DETAIL_HAS_BOOST_SER
+#include <boost/serialization/array.hpp>
+#include <boost/serialization/split_member.hpp>
+#endif
+
 namespace dice::template_library {
     using std::dynamic_extent;
 
@@ -49,6 +57,11 @@ namespace dice::template_library {
 				return data_;
 			}
 
+			template<typename Archive>
+			void serialize(Archive &ar, [[maybe_unused]] unsigned int version) {
+				ar & data_;
+			}
+
 			constexpr auto operator<=>(flex_array_inner const &) const noexcept = default;
 		};
 
@@ -76,6 +89,27 @@ namespace dice::template_library {
 			operator std::span<T const>() const noexcept {
 				return {data_.data(), size_};
 			}
+
+#if DICE_TEMPLATELIBRARY_DETAIL_HAS_BOOST_SER
+			friend class boost::serialization::access;
+
+			template<typename Archive>
+			void save(Archive &ar, [[maybe_unused]] unsigned int version) const {
+				boost::serialization::collection_size_type count{size_};
+				ar & count;
+				ar & boost::serialization::make_array(data_.data(), size_);
+			}
+
+			template<typename Archive>
+			void load(Archive &ar, [[maybe_unused]] unsigned int version) {
+				boost::serialization::collection_size_type count;
+				ar & count;
+				size_ = count;
+				ar & boost::serialization::make_array(data_.data(), size_);
+			}
+
+			BOOST_SERIALIZATION_SPLIT_MEMBER()
+#endif // DICE_TEMPLATELIBRARY_DETAIL_HAS_BOOST_SER
 
 			template<typename Cmp>
 			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
@@ -148,6 +182,27 @@ namespace dice::template_library {
 			void set_size(size_t size) {
 				data_.resize(size);
 			}
+
+#if DICE_TEMPLATELIBRARY_DETAIL_HAS_BOOST_SER
+			friend class boost::serialization::access;
+
+			template<typename Archive>
+			void save(Archive &ar, [[maybe_unused]] unsigned int version) const {
+				boost::serialization::collection_size_type count{data_.size()};
+				ar & count;
+				ar & boost::serialization::make_array(data_.data(), data_.size());
+			}
+
+			template<typename Archive>
+			void load(Archive &ar, [[maybe_unused]] unsigned int version) {
+				boost::serialization::collection_size_type count{};
+				ar & count;
+				data_.resize(count);
+				ar & boost::serialization::make_array(data_.data(), data_.size());
+			}
+
+			BOOST_SERIALIZATION_SPLIT_MEMBER()
+#endif // DICE_TEMPLATELIBRARY_DETAIL_HAS_BOOST_SER
 
 			template<typename Cmp>
 			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
@@ -255,6 +310,13 @@ namespace dice::template_library {
 
 	private:
 		inner_type inner_;
+
+		friend class boost::serialization::access;
+
+		template<typename Archive>
+		void serialize(Archive &ar, [[maybe_unused]] unsigned int version) {
+			ar & inner_;
+		}
 
 	public:
 		constexpr flex_array() noexcept = default;
