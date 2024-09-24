@@ -25,7 +25,7 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
 
     if (WITH_BOOST)
-        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True;-o=boost/*:header_only=True")
+        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True")
     endif ()
 endif ()
 
