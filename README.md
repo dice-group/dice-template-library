@@ -93,6 +93,9 @@ Like `std::variant` but specifically optimized for usage with two types/variants
 The internal representation is a `union` of the two types plus a 1 byte (3 state) discriminant.
 Additionally, `visit` does not involve any virtual function calls.
 
+### `type_traits.hpp`
+Things that are missing in the standard library `<type_traits>` header.
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
