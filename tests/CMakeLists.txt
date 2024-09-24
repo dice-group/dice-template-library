@@ -60,3 +60,6 @@ custom_add_test(tests_channel)
 
 add_executable(tests_variant2 tests_variant2.cpp)
 custom_add_test(tests_variant2)
+
+add_executable(tests_type_traits tests_type_traits.cpp)
+custom_add_test(tests_type_traits)
