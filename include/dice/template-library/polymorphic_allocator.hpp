@@ -350,11 +350,11 @@ namespace dice::template_library {
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<upstream_allocator_type>) = default;
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<upstream_allocator_type>) = default;
 
-		constexpr offset_ptr_stl_allocator(upstream_allocator_type const &upstream) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>)
+		explicit constexpr offset_ptr_stl_allocator(upstream_allocator_type const &upstream) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>)
 			: inner_{upstream} {
 		}
 
-		constexpr offset_ptr_stl_allocator(upstream_allocator_type &&upstream) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>)
+		explicit constexpr offset_ptr_stl_allocator(upstream_allocator_type &&upstream) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>)
 			: inner_{std::move(upstream)} {
 		}
 
