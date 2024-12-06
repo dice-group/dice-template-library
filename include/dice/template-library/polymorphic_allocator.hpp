@@ -323,6 +323,7 @@ namespace dice::template_library {
 		using pointer = boost::interprocess::offset_ptr<T>;
 		using size_type = size_t;
 		using difference_type = std::ptrdiff_t;
+		using upstream_allocator_type = Allocator<T>;
 
 		using propagate_on_container_copy_assignment = typename std::allocator_traits<Allocator<T>>::propagate_on_container_copy_assignment;
 		using propagate_on_container_move_assignment = typename std::allocator_traits<Allocator<T>>::propagate_on_container_move_assignment;
@@ -330,20 +331,36 @@ namespace dice::template_library {
 		using is_always_equal = typename std::allocator_traits<Allocator<T>>::is_always_equal;
 
 	private:
+		template<typename, template<typename> typename>
+		friend struct offset_ptr_stl_allocator;
+
 		[[no_unique_address]] Allocator<T> inner_;
 
 	public:
+		constexpr offset_ptr_stl_allocator() noexcept(std::is_nothrow_default_constructible_v<upstream_allocator_type>) = default;
+
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>)
+			: inner_{other.inner_} {
+		}
+
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>)
+			: inner_{other.inner_} {
+		}
+
+		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<upstream_allocator_type>) = default;
+		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<upstream_allocator_type>) = default;
+
+		constexpr offset_ptr_stl_allocator(upstream_allocator_type const &upstream) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>)
+			: inner_{upstream} {
+		}
+
+		constexpr offset_ptr_stl_allocator(upstream_allocator_type &&upstream) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>)
+			: inner_{std::move(upstream)} {
+		}
+
 		template<typename ...Args>
-		constexpr offset_ptr_stl_allocator(Args &&...args) noexcept(std::is_nothrow_constructible_v<Allocator<T>, decltype(std::forward<Args>(args))...>)
+		constexpr offset_ptr_stl_allocator(std::in_place_t, Args &&...args) noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, decltype(std::forward<Args>(args))...>)
 			: inner_{std::forward<Args>(args)...} {
-		}
-
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_constructible_v<Allocator<T>>)
-			: inner_{other.inner_} {
-		}
-
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_constructible_v<Allocator<T>>)
-			: inner_{other.inner_} {
 		}
 
 		template<typename U>
@@ -352,15 +369,23 @@ namespace dice::template_library {
 		}
 
 		constexpr pointer allocate(size_t n) {
-			return pointer{std::allocator_traits<Allocator<T>>::allocate(inner_, n)};
+			return pointer{std::allocator_traits<upstream_allocator_type>::allocate(inner_, n)};
 		}
 
 		constexpr void deallocate(pointer ptr, size_t n) {
-			std::allocator_traits<Allocator<T>>::deallocate(inner_, std::to_address(ptr), n);
+			std::allocator_traits<upstream_allocator_type>::deallocate(inner_, std::to_address(ptr), n);
 		}
 
 		constexpr offset_ptr_stl_allocator select_on_container_copy_construction() const {
 			return offset_ptr_stl_allocator{std::allocator_traits<Allocator<T>>::select_on_container_copy_construction(inner_)};
+		}
+
+		[[nodiscard]] upstream_allocator_type const &upstream_allocator() const noexcept {
+			return inner_;
+		}
+
+		[[nodiscard]] upstream_allocator_type &upstream_allocator() noexcept {
+			return inner_;
 		}
 	};
 #endif // __has_include(<boost/interprocess/offset_ptr.hpp>)
