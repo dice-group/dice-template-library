@@ -387,6 +387,9 @@ namespace dice::template_library {
 		[[nodiscard]] upstream_allocator_type &upstream_allocator() noexcept {
 			return inner_;
 		}
+
+		constexpr bool operator==(offset_ptr_stl_allocator const &other) const noexcept = default;
+		constexpr bool operator!=(offset_ptr_stl_allocator const &other) const noexcept = default;
 	};
 #endif // __has_include(<boost/interprocess/offset_ptr.hpp>)
 
