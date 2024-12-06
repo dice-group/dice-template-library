@@ -347,6 +347,11 @@ namespace dice::template_library {
 			: inner_{other.inner_} {
 		}
 
+		template<typename U>
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U, Allocator> const &other) noexcept
+			: inner_{other.inner_} {
+		}
+
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<upstream_allocator_type>) = default;
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<upstream_allocator_type>) = default;
 
@@ -361,11 +366,6 @@ namespace dice::template_library {
 		template<typename ...Args>
 		explicit constexpr offset_ptr_stl_allocator(std::in_place_t, Args &&...args) noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, decltype(std::forward<Args>(args))...>)
 			: inner_{std::forward<Args>(args)...} {
-		}
-
-		template<typename U>
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U> const &other) noexcept
-			: inner_{other.inner_} {
 		}
 
 		constexpr pointer allocate(size_t n) {
