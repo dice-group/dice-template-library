@@ -118,9 +118,9 @@ namespace dice::template_library {
 		using void_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocators<T>>::void_pointer...>::type;
 		using const_void_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocators<T>>::const_void_pointer...>::type;
 
-		using propagate_on_container_copy_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_copy_assignment::value || ...)>;
-		using propagate_on_container_move_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_move_assignment::value || ...)>;
-		using propagate_on_container_swap = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_swap::value || ...)>;
+		using propagate_on_container_copy_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_copy_assignment::value && ...)>;
+		using propagate_on_container_move_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_move_assignment::value && ...)>;
+		using propagate_on_container_swap = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_swap::value && ...)>;
 		using is_always_equal = std::bool_constant<sizeof...(Allocators) == 1 && std::allocator_traits<typename detail_pmr::first_type<Allocators<T>...>::type>::is_always_equal::value>;
 
 		template<typename U>
