@@ -188,8 +188,10 @@ namespace dice::template_library {
 		constexpr bool operator==(polymorphic_allocator const &other) const noexcept = default;
 		constexpr bool operator!=(polymorphic_allocator const &other) const noexcept = default;
 
-		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(noexcept(std::swap(lhs.alloc_, rhs.alloc_))) {
-			std::swap(lhs.alloc_, rhs.alloc_);
+		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<inner_variant_t>)
+		requires (std::is_swappable_v<inner_variant_t>) {
+			using std::swap;
+			swap(lhs.alloc_, rhs.alloc_);
 		}
 
 		constexpr polymorphic_allocator select_on_container_copy_construction() const {
@@ -287,8 +289,10 @@ namespace dice::template_library {
 		constexpr bool operator==(polymorphic_allocator const &other) const noexcept = default;
 		constexpr bool operator!=(polymorphic_allocator const &other) const noexcept = default;
 
-		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(noexcept(std::swap(lhs.alloc_, rhs.alloc_))) {
-			std::swap(lhs.alloc_, rhs.alloc_);
+		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<inner_type>)
+		requires (std::is_swappable_v<inner_type>) {
+			using std::swap;
+			swap(lhs.alloc_, rhs.alloc_);
 		}
 
 		constexpr polymorphic_allocator select_on_container_copy_construction() const {
