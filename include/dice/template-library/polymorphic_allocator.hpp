@@ -359,7 +359,7 @@ namespace dice::template_library {
 		}
 
 		template<typename ...Args>
-		constexpr offset_ptr_stl_allocator(std::in_place_t, Args &&...args) noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, decltype(std::forward<Args>(args))...>)
+		explicit constexpr offset_ptr_stl_allocator(std::in_place_t, Args &&...args) noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, decltype(std::forward<Args>(args))...>)
 			: inner_{std::forward<Args>(args)...} {
 		}
 
