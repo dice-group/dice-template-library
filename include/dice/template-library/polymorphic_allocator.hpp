@@ -325,20 +325,23 @@ namespace dice::template_library {
 	struct offset_ptr_stl_allocator {
 		using value_type = T;
 		using pointer = boost::interprocess::offset_ptr<T>;
+		using const_pointer = boost::interprocess::offset_ptr<T const>;
+		using void_pointer = boost::interprocess::offset_ptr<void>;
+		using const_void_pointer = boost::interprocess::offset_ptr<void const>;
 		using size_type = size_t;
 		using difference_type = std::ptrdiff_t;
 		using upstream_allocator_type = Allocator<T>;
 
-		using propagate_on_container_copy_assignment = typename std::allocator_traits<Allocator<T>>::propagate_on_container_copy_assignment;
-		using propagate_on_container_move_assignment = typename std::allocator_traits<Allocator<T>>::propagate_on_container_move_assignment;
-		using propagate_on_container_swap = typename std::allocator_traits<Allocator<T>>::propagate_on_container_swap;
-		using is_always_equal = typename std::allocator_traits<Allocator<T>>::is_always_equal;
+		using propagate_on_container_copy_assignment = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_copy_assignment;
+		using propagate_on_container_move_assignment = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_move_assignment;
+		using propagate_on_container_swap = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_swap;
+		using is_always_equal = typename std::allocator_traits<upstream_allocator_type>::is_always_equal;
 
 	private:
 		template<typename, template<typename> typename>
 		friend struct offset_ptr_stl_allocator;
 
-		[[no_unique_address]] Allocator<T> inner_;
+		[[no_unique_address]] upstream_allocator_type inner_;
 
 	public:
 		constexpr offset_ptr_stl_allocator() noexcept(std::is_nothrow_default_constructible_v<upstream_allocator_type>) = default;
