@@ -314,32 +314,53 @@ namespace dice::template_library {
 
 #if __has_include(<boost/interprocess/offset_ptr.hpp>)
 	/**
-	 * @brief Basically std::allocator but returning boost::interprocess::offset_ptr
+	 * @brief Wraps and `std::allocator`-like type, but returns boost::interprocess::offset_ptr instead of raw pointers
 	 * @tparam T type to allocate
 	 */
-	template<typename T>
-	struct offset_ptr_stl_allocator : std::allocator<T> {
+	template<typename T, template<typename> typename Allocator = std::allocator>
+	struct offset_ptr_stl_allocator {
 		using value_type = T;
 		using pointer = boost::interprocess::offset_ptr<T>;
 		using size_type = size_t;
 		using difference_type = std::ptrdiff_t;
 
-		using propagate_on_container_copy_assignment = typename std::allocator_traits<std::allocator<T>>::propagate_on_container_copy_assignment;
-		using propagate_on_container_move_assignment = typename std::allocator_traits<std::allocator<T>>::propagate_on_container_move_assignment;
-		using propagate_on_container_swap = typename std::allocator_traits<std::allocator<T>>::propagate_on_container_swap;
-		using is_always_equal = typename std::allocator_traits<std::allocator<T>>::is_always_equal;
+		using propagate_on_container_copy_assignment = typename std::allocator_traits<Allocator<T>>::propagate_on_container_copy_assignment;
+		using propagate_on_container_move_assignment = typename std::allocator_traits<Allocator<T>>::propagate_on_container_move_assignment;
+		using propagate_on_container_swap = typename std::allocator_traits<Allocator<T>>::propagate_on_container_swap;
+		using is_always_equal = typename std::allocator_traits<Allocator<T>>::is_always_equal;
 
-		constexpr offset_ptr_stl_allocator() noexcept = default;
+	private:
+		[[no_unique_address]] Allocator<T> inner_;
+
+	public:
+		template<typename ...Args>
+		constexpr offset_ptr_stl_allocator(Args &&...args) noexcept(std::is_nothrow_constructible_v<Allocator<T>, decltype(std::forward<Args>(args))...>)
+			: inner_{std::forward<Args>(args)...} {
+		}
+
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_constructible_v<Allocator<T>>)
+			: inner_{other.inner_} {
+		}
+
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_constructible_v<Allocator<T>>)
+			: inner_{other.inner_} {
+		}
 
 		template<typename U>
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U> const &) noexcept {}
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U> const &other) noexcept
+			: inner_{other.inner_} {
+		}
 
 		constexpr pointer allocate(size_t n) {
-			return pointer{std::allocator<T>::allocate(n)};
+			return pointer{std::allocator_traits<Allocator<T>>::allocate(inner_, n)};
 		}
 
 		constexpr void deallocate(pointer ptr, size_t n) {
-			return std::allocator<T>::deallocate(std::to_address(ptr), n);
+			std::allocator_traits<Allocator<T>>::deallocate(inner_, std::to_address(ptr), n);
+		}
+
+		constexpr offset_ptr_stl_allocator select_on_container_copy_construction() const {
+			return offset_ptr_stl_allocator{std::allocator_traits<Allocator<T>>::select_on_container_copy_construction(inner_)};
 		}
 	};
 #endif // __has_include(<boost/interprocess/offset_ptr.hpp>)

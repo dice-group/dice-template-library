@@ -83,6 +83,18 @@ TEST_SUITE("polymorphic_allocator") {
 		CHECK(*ptr == 5);
 		std::allocator_traits<alloc_t>::deallocate(alloc, ptr, 1);
 	}
+
+	TEST_CASE("offset_ptr_stl_allocator with std::pmr") {
+		using alloc_t = dice::template_library::offset_ptr_stl_allocator<int, std::pmr::polymorphic_allocator>;
+
+		std::pmr::monotonic_buffer_resource rc;
+		alloc_t alloc{&rc};
+
+		auto ptr = std::allocator_traits<alloc_t>::allocate(alloc, 1);
+		*ptr = 5;
+		CHECK(*ptr == 5);
+		std::allocator_traits<alloc_t>::deallocate(alloc, ptr, 1);
+	}
 #endif // __has_include
 
 	template<typename T>
