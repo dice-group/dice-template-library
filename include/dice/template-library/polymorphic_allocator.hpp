@@ -388,7 +388,8 @@ namespace dice::template_library {
 			return inner_;
 		}
 
-		friend constexpr void swap(offset_ptr_stl_allocator &a, offset_ptr_stl_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>) {
+		friend constexpr void swap(offset_ptr_stl_allocator &a, offset_ptr_stl_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>)
+		requires(std::is_swappable_v<upstream_allocator_type>) {
 			using std::swap;
 			swap(a.inner_, b.inner_);
 		}
