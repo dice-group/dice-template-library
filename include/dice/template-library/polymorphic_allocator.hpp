@@ -388,8 +388,13 @@ namespace dice::template_library {
 			return inner_;
 		}
 
-		constexpr bool operator==(offset_ptr_stl_allocator const &other) const noexcept = default;
-		constexpr bool operator!=(offset_ptr_stl_allocator const &other) const noexcept = default;
+		friend constexpr void swap(offset_ptr_stl_allocator &a, offset_ptr_stl_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>) {
+			using std::swap;
+			swap(a.inner_, b.inner_);
+		}
+
+		bool operator==(offset_ptr_stl_allocator const &other) const noexcept = default;
+		bool operator!=(offset_ptr_stl_allocator const &other) const noexcept = default;
 	};
 #endif // __has_include(<boost/interprocess/offset_ptr.hpp>)
 
