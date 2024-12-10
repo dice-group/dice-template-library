@@ -345,13 +345,14 @@ namespace dice::template_library {
 
 	public:
 		constexpr offset_ptr_stl_allocator() noexcept(std::is_nothrow_default_constructible_v<upstream_allocator_type>) = default;
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator const &other) noexcept = default;
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept = default;
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>) = default;
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>) = default;
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<upstream_allocator_type>) = default;
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<upstream_allocator_type>) = default;
 
 		template<typename U>
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U, Allocator> const &other) noexcept
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U, Allocator> const &other)
+		noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, typename offset_ptr_stl_allocator<U, Allocator>::upstream_allocator_type const &>)
 			: inner_{other.inner_} {
 		}
 
