@@ -118,9 +118,9 @@ namespace dice::template_library {
 		using void_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocators<T>>::void_pointer...>::type;
 		using const_void_pointer = typename detail_pmr::same_type<typename std::allocator_traits<Allocators<T>>::const_void_pointer...>::type;
 
-		using propagate_on_container_copy_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_copy_assignment::value || ...)>;
-		using propagate_on_container_move_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_move_assignment::value || ...)>;
-		using propagate_on_container_swap = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_swap::value || ...)>;
+		using propagate_on_container_copy_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_copy_assignment::value && ...)>;
+		using propagate_on_container_move_assignment = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_move_assignment::value && ...)>;
+		using propagate_on_container_swap = std::bool_constant<(std::allocator_traits<Allocators<T>>::propagate_on_container_swap::value && ...)>;
 		using is_always_equal = std::bool_constant<sizeof...(Allocators) == 1 && std::allocator_traits<typename detail_pmr::first_type<Allocators<T>...>::type>::is_always_equal::value>;
 
 		template<typename U>
@@ -188,8 +188,10 @@ namespace dice::template_library {
 		constexpr bool operator==(polymorphic_allocator const &other) const noexcept = default;
 		constexpr bool operator!=(polymorphic_allocator const &other) const noexcept = default;
 
-		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(noexcept(std::swap(lhs.alloc_, rhs.alloc_))) {
-			std::swap(lhs.alloc_, rhs.alloc_);
+		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<inner_variant_t>)
+		requires (std::is_swappable_v<inner_variant_t>) {
+			using std::swap;
+			swap(lhs.alloc_, rhs.alloc_);
 		}
 
 		constexpr polymorphic_allocator select_on_container_copy_construction() const {
@@ -287,8 +289,10 @@ namespace dice::template_library {
 		constexpr bool operator==(polymorphic_allocator const &other) const noexcept = default;
 		constexpr bool operator!=(polymorphic_allocator const &other) const noexcept = default;
 
-		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(noexcept(std::swap(lhs.alloc_, rhs.alloc_))) {
-			std::swap(lhs.alloc_, rhs.alloc_);
+		friend constexpr void swap(polymorphic_allocator &lhs, polymorphic_allocator &rhs) noexcept(std::is_nothrow_swappable_v<inner_type>)
+		requires (std::is_swappable_v<inner_type>) {
+			using std::swap;
+			swap(lhs.alloc_, rhs.alloc_);
 		}
 
 		constexpr polymorphic_allocator select_on_container_copy_construction() const {
@@ -314,33 +318,85 @@ namespace dice::template_library {
 
 #if __has_include(<boost/interprocess/offset_ptr.hpp>)
 	/**
-	 * @brief Basically std::allocator but returning boost::interprocess::offset_ptr
+	 * @brief Wraps and `std::allocator`-like type, but returns boost::interprocess::offset_ptr instead of raw pointers
 	 * @tparam T type to allocate
 	 */
-	template<typename T>
-	struct offset_ptr_stl_allocator : std::allocator<T> {
+	template<typename T, template<typename> typename Allocator = std::allocator>
+	struct offset_ptr_stl_allocator {
 		using value_type = T;
 		using pointer = boost::interprocess::offset_ptr<T>;
+		using const_pointer = boost::interprocess::offset_ptr<T const>;
+		using void_pointer = boost::interprocess::offset_ptr<void>;
+		using const_void_pointer = boost::interprocess::offset_ptr<void const>;
 		using size_type = size_t;
 		using difference_type = std::ptrdiff_t;
+		using upstream_allocator_type = Allocator<T>;
 
-		using propagate_on_container_copy_assignment = typename std::allocator_traits<std::allocator<T>>::propagate_on_container_copy_assignment;
-		using propagate_on_container_move_assignment = typename std::allocator_traits<std::allocator<T>>::propagate_on_container_move_assignment;
-		using propagate_on_container_swap = typename std::allocator_traits<std::allocator<T>>::propagate_on_container_swap;
-		using is_always_equal = typename std::allocator_traits<std::allocator<T>>::is_always_equal;
+		using propagate_on_container_copy_assignment = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_copy_assignment;
+		using propagate_on_container_move_assignment = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_move_assignment;
+		using propagate_on_container_swap = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_swap;
+		using is_always_equal = typename std::allocator_traits<upstream_allocator_type>::is_always_equal;
 
-		constexpr offset_ptr_stl_allocator() noexcept = default;
+	private:
+		template<typename, template<typename> typename>
+		friend struct offset_ptr_stl_allocator;
+
+		[[no_unique_address]] upstream_allocator_type inner_;
+
+	public:
+		constexpr offset_ptr_stl_allocator() noexcept(std::is_nothrow_default_constructible_v<upstream_allocator_type>) = default;
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>) = default;
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>) = default;
+		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<upstream_allocator_type>) = default;
+		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<upstream_allocator_type>) = default;
 
 		template<typename U>
-		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U> const &) noexcept {}
+		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator<U, Allocator> const &other)
+		noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, typename offset_ptr_stl_allocator<U, Allocator>::upstream_allocator_type const &>)
+			: inner_{other.inner_} {
+		}
+
+		explicit constexpr offset_ptr_stl_allocator(upstream_allocator_type const &upstream) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>)
+			: inner_{upstream} {
+		}
+
+		explicit constexpr offset_ptr_stl_allocator(upstream_allocator_type &&upstream) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>)
+			: inner_{std::move(upstream)} {
+		}
+
+		template<typename ...Args>
+		explicit constexpr offset_ptr_stl_allocator(std::in_place_t, Args &&...args) noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, decltype(std::forward<Args>(args))...>)
+			: inner_{std::forward<Args>(args)...} {
+		}
 
 		constexpr pointer allocate(size_t n) {
-			return pointer{std::allocator<T>::allocate(n)};
+			return pointer{std::allocator_traits<upstream_allocator_type>::allocate(inner_, n)};
 		}
 
 		constexpr void deallocate(pointer ptr, size_t n) {
-			return std::allocator<T>::deallocate(std::to_address(ptr), n);
+			std::allocator_traits<upstream_allocator_type>::deallocate(inner_, std::to_address(ptr), n);
 		}
+
+		constexpr offset_ptr_stl_allocator select_on_container_copy_construction() const {
+			return offset_ptr_stl_allocator{std::allocator_traits<Allocator<T>>::select_on_container_copy_construction(inner_)};
+		}
+
+		[[nodiscard]] upstream_allocator_type const &upstream_allocator() const noexcept {
+			return inner_;
+		}
+
+		[[nodiscard]] upstream_allocator_type &upstream_allocator() noexcept {
+			return inner_;
+		}
+
+		friend constexpr void swap(offset_ptr_stl_allocator &a, offset_ptr_stl_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>)
+		requires(std::is_swappable_v<upstream_allocator_type>) {
+			using std::swap;
+			swap(a.inner_, b.inner_);
+		}
+
+		bool operator==(offset_ptr_stl_allocator const &other) const noexcept = default;
+		bool operator!=(offset_ptr_stl_allocator const &other) const noexcept = default;
 	};
 #endif // __has_include(<boost/interprocess/offset_ptr.hpp>)
 
