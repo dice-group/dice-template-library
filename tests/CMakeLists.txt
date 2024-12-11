@@ -63,3 +63,6 @@ custom_add_test(tests_variant2)
 
 add_executable(tests_type_traits tests_type_traits.cpp)
 custom_add_test(tests_type_traits)
+
+add_executable(tests_limit_allocator tests_limit_allocator.cpp)
+custom_add_test(tests_limit_allocator)
