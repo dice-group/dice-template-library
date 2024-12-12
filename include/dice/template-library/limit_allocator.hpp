@@ -15,7 +15,7 @@ namespace dice::template_library {
 	 */
 	enum struct limit_allocator_syncness : bool {
 		sync, ///< thread-safe (synchronized)
-		unsync ///< not thread-safe (unsynchronized)
+		unsync///< not thread-safe (unsynchronized)
 	};
 
 	namespace detail_limit_allocator {
@@ -56,7 +56,7 @@ namespace dice::template_library {
 				bytes_left += n_bytes;
 			}
 		};
-	} // namespace detail_limit_allocator
+	}// namespace detail_limit_allocator
 
 	/**
 	 * Allocator wrapper that limits the amount of memory its underlying allocator
@@ -66,11 +66,11 @@ namespace dice::template_library {
 	 * @tparam Allocator the underlying allocator
 	 * @tparam syncness determines the synchronization of the limit
 	 */
-    template<typename T, template<typename> typename Allocator = std::allocator, limit_allocator_syncness syncness = limit_allocator_syncness::sync>
+	template<typename T, template<typename> typename Allocator = std::allocator, limit_allocator_syncness syncness = limit_allocator_syncness::sync>
 	struct limit_allocator {
-    	using control_block_type = detail_limit_allocator::limit_allocator_control_block<syncness>;
+		using control_block_type = detail_limit_allocator::limit_allocator_control_block<syncness>;
 		using value_type = T;
-    	using upstream_allocator_type = Allocator<T>;
+		using upstream_allocator_type = Allocator<T>;
 		using pointer = typename std::allocator_traits<upstream_allocator_type>::pointer;
 		using const_pointer = typename std::allocator_traits<upstream_allocator_type>::const_pointer;
 		using void_pointer = typename std::allocator_traits<upstream_allocator_type>::void_pointer;
@@ -92,18 +92,20 @@ namespace dice::template_library {
 		template<typename, template<typename> typename, limit_allocator_syncness>
 		friend struct limit_allocator;
 
-    	std::shared_ptr<control_block_type> control_block_;
+		std::shared_ptr<control_block_type> control_block_;
 		[[no_unique_address]] upstream_allocator_type inner_;
 
-		constexpr limit_allocator(std::shared_ptr<control_block_type> const &control_block, upstream_allocator_type const &alloc) requires(std::is_default_constructible_v<upstream_allocator_type>)
-		    : control_block_{control_block},
-		      inner_{alloc} {
+		constexpr limit_allocator(std::shared_ptr<control_block_type> const &control_block, upstream_allocator_type const &alloc)
+			requires(std::is_default_constructible_v<upstream_allocator_type>)
+			: control_block_{control_block},
+			  inner_{alloc} {
 		}
 
 	public:
-		explicit constexpr limit_allocator(size_t bytes_limit) requires(std::is_default_constructible_v<upstream_allocator_type>)
-    		: control_block_{std::make_shared<control_block_type>(bytes_limit)},
-    		  inner_{} {
+		explicit constexpr limit_allocator(size_t bytes_limit)
+			requires(std::is_default_constructible_v<upstream_allocator_type>)
+			: control_block_{std::make_shared<control_block_type>(bytes_limit)},
+			  inner_{} {
 		}
 
 		constexpr limit_allocator(limit_allocator const &other) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>) = default;
@@ -113,23 +115,22 @@ namespace dice::template_library {
 		constexpr ~limit_allocator() = default;
 
 		template<typename U>
-		constexpr limit_allocator(limit_allocator<U, Allocator> const &other)
-		noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, typename limit_allocator<U, Allocator>::upstream_allocator_type const &>)
+		constexpr limit_allocator(limit_allocator<U, Allocator> const &other) noexcept(std::is_nothrow_constructible_v<upstream_allocator_type, typename limit_allocator<U, Allocator>::upstream_allocator_type const &>)
 			: control_block_{other.control_block_},
-    		  inner_{other.inner_} {
+			  inner_{other.inner_} {
 		}
 
 		constexpr limit_allocator(size_t bytes_limit, upstream_allocator_type const &upstream)
 			: control_block_{std::make_shared<control_block_type>(bytes_limit)},
-    		  inner_{upstream} {
+			  inner_{upstream} {
 		}
 
 		constexpr limit_allocator(size_t bytes_limit, upstream_allocator_type &&upstream)
 			: control_block_{std::make_shared<control_block_type>(bytes_limit)},
-    		  inner_{std::move(upstream)} {
+			  inner_{std::move(upstream)} {
 		}
 
-		template<typename ...Args>
+		template<typename... Args>
 		explicit constexpr limit_allocator(size_t bytes_limit, std::in_place_t, Args &&...args)
 			: control_block_{std::make_shared<control_block_type>(bytes_limit)},
 			  inner_{std::forward<Args>(args)...} {
@@ -160,7 +161,8 @@ namespace dice::template_library {
 		}
 
 		friend constexpr void swap(limit_allocator &a, limit_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>)
-		requires(std::is_swappable_v<upstream_allocator_type>) {
+			requires(std::is_swappable_v<upstream_allocator_type>)
+		{
 			using std::swap;
 			swap(a.control_block_, b.control_block_);
 			swap(a.inner_, b.inner_);
@@ -169,6 +171,6 @@ namespace dice::template_library {
 		bool operator==(limit_allocator const &other) const noexcept = default;
 		bool operator!=(limit_allocator const &other) const noexcept = default;
 	};
-} // namespace dice::template_library
+}// namespace dice::template_library
 
-#endif // DICE_TEMPLATELIBRARY_LIMITALLOCATOR_HPP
+#endif// DICE_TEMPLATELIBRARY_LIMITALLOCATOR_HPP
