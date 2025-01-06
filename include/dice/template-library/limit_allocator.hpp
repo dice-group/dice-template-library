@@ -15,7 +15,7 @@ namespace dice::template_library {
 	 */
 	enum struct limit_allocator_syncness : bool {
 		sync, ///< thread-safe (synchronized)
-		unsync///< not thread-safe (unsynchronized)
+		unsync, ///< not thread-safe (unsynchronized)
 	};
 
 	namespace detail_limit_allocator {
