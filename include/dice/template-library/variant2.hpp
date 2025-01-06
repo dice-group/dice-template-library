@@ -10,16 +10,16 @@
 #include <utility>
 #include <variant>
 
-#define DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(noexcept_spec, action) \
-	if constexpr (noexcept_spec) {                                      \
-		(action);                                                       \
-	} else {                                                            \
-		try {                                                           \
-			(action);                                                   \
-		} catch (...) {                                                 \
-			discriminant_ = discriminant_type::ValuelessByException;    \
-			throw;                                                      \
-		}                                                               \
+#define DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(noexcept_spec, action_block) \
+	if constexpr (noexcept_spec) {                                            \
+		action_block                                                          \
+	} else {                                                                  \
+		try {                                                                 \
+			action_block                                                      \
+		} catch (...) {                                                       \
+			discriminant_ = discriminant_type::ValuelessByException;          \
+			throw;                                                            \
+		}                                                                     \
 	}
 
 
