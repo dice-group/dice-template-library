@@ -10,6 +10,19 @@
 #include <utility>
 #include <variant>
 
+#define DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(noexcept_spec, action) \
+	if constexpr (noexcept_spec) {                                      \
+		(action);                                                       \
+	} else {                                                            \
+		try {                                                           \
+			(action);                                                   \
+		} catch (...) {                                                 \
+			discriminant_ = discriminant_type::ValuelessByException;    \
+			throw;                                                      \
+		}                                                               \
+	}
+
+
 namespace dice::template_library {
     template<typename T, typename U>
     struct variant2;
@@ -314,13 +327,10 @@ namespace dice::template_library {
                             break;
                         }
                         case discriminant_type::Second: {
-                            try {
-                                a_.~T();
+                            a_.~T();
+                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<U>, {
                                 new (&b_) U{other.b_};
-                            } catch (...) {
-                                discriminant_ = discriminant_type::ValuelessByException;
-                                throw;
-                            }
+                            });
                             break;
                         }
                         case discriminant_type::ValuelessByException: {
@@ -337,13 +347,10 @@ namespace dice::template_library {
                 case discriminant_type::Second: {
                     switch (other.discriminant_) {
                         case discriminant_type::First: {
-                            try {
-                                b_.~U();
+                            b_.~U();
+                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<T>, {
                                 new (&a_) T{other.a_};
-                            } catch (...) {
-                                discriminant_ = discriminant_type::ValuelessByException;
-                                throw;
-                            }
+                            });
                             break;
                         }
                         case discriminant_type::Second: {
@@ -410,12 +417,9 @@ namespace dice::template_library {
                         }
                         case discriminant_type::Second: {
                             a_.~T();
-                            try {
+                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_move_constructible_v<U>, {
                                 new (&b_) U{std::move(other.b_)};
-                            } catch (...) {
-                                discriminant_ = discriminant_type::ValuelessByException;
-                                throw;
-                            }
+                            });
                             break;
                         }
                         case discriminant_type::ValuelessByException: {
@@ -433,12 +437,9 @@ namespace dice::template_library {
                     switch (other.discriminant_) {
                         case discriminant_type::First: {
                             b_.~U();
-                            try {
+                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_move_constructible_v<T>, {
                                 new (&a_) T{std::move(other.a_)};
-                            } catch (...) {
-                                discriminant_ = discriminant_type::ValuelessByException;
-                                throw;
-                            }
+                            });
                             break;
                         }
                         case discriminant_type::Second: {
@@ -499,12 +500,9 @@ namespace dice::template_library {
                 }
                 case discriminant_type::Second: {
                     b_.~U();
-                    try {
+                    DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<T>, {
                         new (&a_) T{value};
-                    } catch (...) {
-                        discriminant_ = discriminant_type::ValuelessByException;
-                        throw;
-                    }
+                    });
                     discriminant_ = discriminant_type::First;
                     break;
                 }
@@ -533,12 +531,9 @@ namespace dice::template_library {
                 }
                 case discriminant_type::Second: {
                     b_.~U();
-                    try {
+                    DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_move_constructible_v<T>, {
                         new (&a_) T{std::move(value)};
-                    } catch (...) {
-                        discriminant_ = discriminant_type::ValuelessByException;
-                        throw;
-                    }
+                    });
                     discriminant_ = discriminant_type::First;
                     break;
                 }
@@ -562,12 +557,9 @@ namespace dice::template_library {
             switch (discriminant_) {
                 case discriminant_type::First: {
                     a_.~T();
-                    try {
+                    DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<U>, {
                         new (&b_) U{value};
-                    } catch (...) {
-                        discriminant_ = discriminant_type::ValuelessByException;
-                        throw;
-                    }
+                    });
                     discriminant_ = discriminant_type::Second;
                     break;
                 }
@@ -594,12 +586,9 @@ namespace dice::template_library {
             switch (discriminant_) {
                 case discriminant_type::First: {
                     a_.~T();
-                    try {
+                    DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_move_constructible_v<U>, {
                         new (&b_) U{std::move(value)};
-                    } catch (...) {
-                        discriminant_ = discriminant_type::ValuelessByException;
-                        throw;
-                    }
+                    });
                     discriminant_ = discriminant_type::Second;
                     break;
                 }
