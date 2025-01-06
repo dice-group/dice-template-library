@@ -337,6 +337,11 @@ namespace dice::template_library {
 		using propagate_on_container_swap = typename std::allocator_traits<upstream_allocator_type>::propagate_on_container_swap;
 		using is_always_equal = typename std::allocator_traits<upstream_allocator_type>::is_always_equal;
 
+		template<typename U>
+		struct rebind {
+			using other = offset_ptr_stl_allocator<U, Allocator>;
+		};
+
 	private:
 		template<typename, template<typename> typename>
 		friend struct offset_ptr_stl_allocator;

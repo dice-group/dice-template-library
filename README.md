@@ -9,6 +9,7 @@ It contains:
 - `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
+- `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
 - `overloaded`: Composition for `std::variant` visitor lambdas
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
@@ -63,6 +64,10 @@ For example, you might have some allocations in persistent or shared memory (or 
 The problem with `mmap` allocations is that they will be placed at an arbitrary position in virtual memory each time they are loaded,
 therefore absolute pointers will cause segfaults if the segment is reloaded.
 Which means: vtables will not work (because they use absolute pointers) and therefore you cannot use `std::pmr::polymorphic_allocator`.
+
+### `limit_allocator`
+Allocator wrapper that limits the amount of memory that can be allocated through the inner allocator.
+If the limit is exceeded it will throw `std::bad_alloc`.
 
 ### `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`
 A mechanism similar to go's `defer` keyword, which can be used to defer some action to scope exit.
