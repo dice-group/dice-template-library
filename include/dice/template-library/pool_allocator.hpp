@@ -69,7 +69,7 @@ namespace dice::template_library {
 
 		template<typename U>
 		constexpr pool_allocator(pool_allocator<U, bucket_sizes...> const &other) noexcept
-			: pool_{other.state_} {
+			: pool_{other.pool_} {
 		}
 
 		constexpr pointer allocate(size_t n) {
