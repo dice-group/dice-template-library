@@ -3,8 +3,10 @@
 
 #include <boost/pool/pool.hpp>
 
+#include <algorithm>
 #include <array>
-#include <memory>
+#include <cstddef>
+#include <type_traits>
 
 namespace dice::template_library {
 
@@ -55,14 +57,15 @@ namespace dice::template_library {
     	pool<bucket_sizes...> *pool_;
 
 	public:
-		explicit constexpr pool_allocator(pool<bucket_sizes...> &p) noexcept
-			: pool_{&p} {
+		explicit constexpr pool_allocator(pool<bucket_sizes...> &parent_pool) noexcept
+			: pool_{&parent_pool} {
 		}
 
 		constexpr pool_allocator(pool_allocator const &other) noexcept = default;
 		constexpr pool_allocator(pool_allocator &&other) noexcept = default;
 		constexpr pool_allocator &operator=(pool_allocator const &other) noexcept = default;
 		constexpr pool_allocator &operator=(pool_allocator &&other) noexcept = default;
+		constexpr ~pool_allocator() noexcept = default;
 
 		template<typename U>
 		constexpr pool_allocator(pool_allocator<U, bucket_sizes...> const &other) noexcept
@@ -70,7 +73,7 @@ namespace dice::template_library {
 		}
 
 		constexpr pointer allocate(size_t n) {
-			return pool_->allocate(sizeof(T) * n);
+			return static_cast<pointer>(pool_->allocate(sizeof(T) * n));
 		}
 
 		constexpr void deallocate(pointer ptr, size_t n) {
@@ -81,9 +84,9 @@ namespace dice::template_library {
 			return pool_allocator{*pool_};
 		}
 
-		friend constexpr void swap(pool_allocator &a, pool_allocator &b) noexcept {
+		friend constexpr void swap(pool_allocator &lhs, pool_allocator &rhs) noexcept {
 			using std::swap;
-			swap(a.pool_, b.pool_);
+			swap(lhs.pool_, rhs.pool_);
 		}
 
 		bool operator==(pool_allocator const &other) const noexcept = default;
@@ -108,7 +111,7 @@ namespace dice::template_library {
 
 		template<size_t ix, size_t bucket_size, size_t ...rest>
 		void *allocate_impl(size_t n_bytes) {
-			if (n_bytes < bucket_size) {
+			if (n_bytes <= bucket_size) {
 				// fits into bucket
 
 				void *ptr = pools_[ix].malloc();
@@ -129,16 +132,17 @@ namespace dice::template_library {
 
 		template<size_t ix, size_t bucket_size, size_t ...rest>
 		void deallocate_impl(void *data, size_t n_bytes) {
-			if (n_bytes < bucket_size) {
+			if (n_bytes <= bucket_size) {
 				// fits into bucket
 				pools_[ix].free(data);
+				return;
 			}
 
 			if constexpr (sizeof...(rest) > 0) {
-				return deallocate_impl<ix + 1, rest...>(data, n_bytes);
+				deallocate_impl<ix + 1, rest...>(data, n_bytes);
 			} else {
 				// does not fit into any bucket, must have been allocated via new[]
-				return delete[] static_cast<char *>(data);
+				delete[] static_cast<char *>(data);
 			}
 		}
 
