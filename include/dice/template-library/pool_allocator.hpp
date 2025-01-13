@@ -95,7 +95,7 @@ namespace dice::template_library {
 
 	template<size_t ...bucket_sizes>
 	struct pool {
-		static_assert(std::ranges::is_sorted(std::array{bucket_sizes...}),
+		static_assert(std::ranges::is_sorted(std::array<size_t, sizeof...(bucket_sizes)>{bucket_sizes...}),
 			          "bucket_sizes parameters must be sorted (small to large)");
 
 		using size_type = size_t;
