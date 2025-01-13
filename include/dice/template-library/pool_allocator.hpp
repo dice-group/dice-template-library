@@ -104,7 +104,7 @@ namespace dice::template_library {
 		using difference_type = std::ptrdiff_t;
 
 		template<typename T>
-		using corresponding_allocator_type = pool_allocator<T, bucket_sizes...>;
+		using allocator_type = pool_allocator<T, bucket_sizes...>;
 
 	private:
 		// note: underlying allocator can not be specified via template parameter
@@ -194,7 +194,7 @@ namespace dice::template_library {
 		 * @return `std`-style allocator for this pool
 		 */
 		template<typename T = std::byte>
-		[[nodiscard]] corresponding_allocator_type<T> get_allocator() noexcept {
+		[[nodiscard]] allocator_type<T> get_allocator() noexcept {
 			return pool_allocator<T, bucket_sizes...>{*this};
 		}
 	};
