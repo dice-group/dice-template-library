@@ -95,11 +95,16 @@ namespace dice::template_library {
 
 	template<size_t ...bucket_sizes>
 	struct pool {
+		static_assert(sizeof...(bucket_sizes) > 0,
+					  "must at least provide one bucket size, otherwise this would never use a pool for allocation");
 		static_assert(std::ranges::is_sorted(std::array<size_t, sizeof...(bucket_sizes)>{bucket_sizes...}),
 			          "bucket_sizes parameters must be sorted (small to large)");
 
 		using size_type = size_t;
 		using difference_type = std::ptrdiff_t;
+
+		template<typename T>
+		using corresponding_allocator_type = pool_allocator<T, bucket_sizes...>;
 
 	private:
 		// note: underlying allocator can not be specified via template parameter
@@ -189,7 +194,7 @@ namespace dice::template_library {
 		 * @return `std`-style allocator for this pool
 		 */
 		template<typename T = std::byte>
-		[[nodiscard]] pool_allocator<T, bucket_sizes...> get_allocator() noexcept {
+		[[nodiscard]] corresponding_allocator_type<T> get_allocator() noexcept {
 			return pool_allocator<T, bucket_sizes...>{*this};
 		}
 	};
