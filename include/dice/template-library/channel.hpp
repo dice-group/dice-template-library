@@ -66,7 +66,7 @@ namespace dice::template_library {
                 std::lock_guard lock{queue_mutex_};
                 closed_.test_and_set(std::memory_order_release);
             }
-            queue_not_empty_.notify_one(); // notify pop() so that it does not get stuck
+            queue_not_empty_.notify_all(); // notify pop() so that it does not get stuck
             queue_not_full_.notify_all(); // notify emplace()
         }
 
