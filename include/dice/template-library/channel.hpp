@@ -12,10 +12,8 @@
 namespace dice::template_library {
 
 	/**
-     * A single producer, single consumer channel/queue
-     * @note this can technically be used as a multi producer, single consumer queue, but care must be taken
-     *      of when exactly close() is called
-     * @warning close() must be called once the producing thread is done, otherwise the reading thread will hang indefinitely
+     * A multi producer, multi consumer channel/queue
+     * @warning close() must be called once the producing threads are done, otherwise the reading thread will hang indefinitely
      *
      * @tparam T value type of the channel
      */
