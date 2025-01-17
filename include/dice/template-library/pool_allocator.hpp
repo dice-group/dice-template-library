@@ -60,34 +60,34 @@ namespace dice::template_library {
     	pool<bucket_sizes...> *pool_;
 
 	public:
-		explicit constexpr pool_allocator(pool<bucket_sizes...> &parent_pool) noexcept
+		explicit pool_allocator(pool<bucket_sizes...> &parent_pool) noexcept
 			: pool_{&parent_pool} {
 		}
 
-		constexpr pool_allocator(pool_allocator const &other) noexcept = default;
-		constexpr pool_allocator(pool_allocator &&other) noexcept = default;
-		constexpr pool_allocator &operator=(pool_allocator const &other) noexcept = default;
-		constexpr pool_allocator &operator=(pool_allocator &&other) noexcept = default;
-		constexpr ~pool_allocator() noexcept = default;
+		pool_allocator(pool_allocator const &other) noexcept = default;
+		pool_allocator(pool_allocator &&other) noexcept = default;
+		pool_allocator &operator=(pool_allocator const &other) noexcept = default;
+		pool_allocator &operator=(pool_allocator &&other) noexcept = default;
+		~pool_allocator() noexcept = default;
 
 		template<typename U>
-		constexpr pool_allocator(pool_allocator<U, bucket_sizes...> const &other) noexcept
+		pool_allocator(pool_allocator<U, bucket_sizes...> const &other) noexcept
 			: pool_{other.pool_} {
 		}
 
-		constexpr pointer allocate(size_t n) {
+		pointer allocate(size_t n) {
 			return static_cast<pointer>(pool_->allocate(sizeof(T) * n));
 		}
 
-		constexpr void deallocate(pointer ptr, size_t n) {
+		void deallocate(pointer ptr, size_t n) {
 			pool_->deallocate(ptr, sizeof(T) * n);
 		}
 
-		constexpr pool_allocator select_on_container_copy_construction() const {
+		pool_allocator select_on_container_copy_construction() const {
 			return pool_allocator{*pool_};
 		}
 
-		friend constexpr void swap(pool_allocator &lhs, pool_allocator &rhs) noexcept {
+		friend void swap(pool_allocator &lhs, pool_allocator &rhs) noexcept {
 			using std::swap;
 			swap(lhs.pool_, rhs.pool_);
 		}
