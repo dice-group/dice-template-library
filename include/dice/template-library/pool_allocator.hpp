@@ -18,7 +18,10 @@ namespace dice::template_library {
 	 * An allocation will be placed into the first bucket where it can fit.
 	 * Allocations that do not fit into any bucket are fulfilled with calls to `new`.
 	 *
-	 * @tparam bucket_sizes allocation sizes (in bytes) for the underlying arenas
+	 * @tparam bucket_sizes allocation sizes for individual elements (in bytes) for the underlying arenas.
+	 *		Each size provided here is used to configure the element size of a single arena.
+	 *		Importantly, it is **not** the arena chunk size, rather it is the size of elements being placed into the arena.
+	 *		The chunk size itself cannot be configured, it is automatically determined by boost::pool.
 	 */
 	template<size_t ...bucket_sizes>
 	struct pool;
