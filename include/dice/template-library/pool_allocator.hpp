@@ -21,7 +21,7 @@ namespace dice::template_library {
 	 * @tparam bucket_sizes allocation sizes for individual elements (in bytes) for the underlying arenas.
 	 *		Each size provided here is used to configure the element size of a single arena.
 	 *		Importantly, it is **not** the arena chunk size, rather it is the size of elements being placed into the arena.
-	 *		The chunk size itself cannot be configured, it is automatically determined by boost::pool.
+	 *		The chunk size itself as well as the maximum capacity cannot be configured, they are automatically determined by boost::pool.
 	 */
 	template<size_t ...bucket_sizes>
 	struct pool;
