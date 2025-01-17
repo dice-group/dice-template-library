@@ -86,10 +86,15 @@ TEST_SUITE("pool allocator") {
 		cpy = alloc; // copy assignment
 		mv = std::move(cpy); // move assignment
 		swap(mv, alloc); // swap
-		dice::template_library::pool_allocator<int, 8, 16> const alloc2 = alloc; // converting constructor
-		auto alloc3 = allocator_traits::select_on_container_copy_construction(alloc);
 
+		dice::template_library::pool_allocator<int, 8, 16> const alloc2 = alloc; // converting constructor
+		allocator_traits::template rebind_alloc<int> const alloc3 = alloc;
+
+		static_assert(std::is_same_v<decltype(alloc2), decltype(alloc3)>);
+		CHECK_EQ(alloc2, alloc3);
+
+		auto alloc4 = allocator_traits::select_on_container_copy_construction(alloc);
 		CHECK_EQ(mv, alloc);
-		CHECK_EQ(alloc, alloc3);
+		CHECK_EQ(alloc, alloc4);
 	}
 }
