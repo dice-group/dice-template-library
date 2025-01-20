@@ -80,3 +80,16 @@ target_link_libraries(example_variant2
         dice-template-library::dice-template-library
 )
 
+add_executable(example_limit_allocator
+        example_limit_allocator.cpp)
+target_link_libraries(example_limit_allocator
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
+add_executable(example_pool_allocator
+        example_pool_allocator.cpp)
+target_link_libraries(example_pool_allocator
+        PRIVATE
+        dice-template-library::dice-template-library
+)
