@@ -94,5 +94,8 @@ TEST_SUITE("pool allocator") {
 		auto alloc4 = allocator_traits::select_on_container_copy_construction(alloc);
 		CHECK_EQ(mv, alloc);
 		CHECK_EQ(alloc, alloc4);
+
+		allocator_type alloc5{alloc.underlying_pool()};
+		CHECK_EQ(alloc5, alloc);
 	}
 }
