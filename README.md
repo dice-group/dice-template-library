@@ -10,6 +10,7 @@ It contains:
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
+- `pool` & `pool_allocator`: Arena/pool allocator optimized for a limited number of known allocation sizes.
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
 - `overloaded`: Composition for `std::variant` visitor lambdas
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
@@ -68,6 +69,11 @@ Which means: vtables will not work (because they use absolute pointers) and ther
 ### `limit_allocator`
 Allocator wrapper that limits the amount of memory that can be allocated through the inner allocator.
 If the limit is exceeded it will throw `std::bad_alloc`.
+
+### `pool_allocator`
+A memory arena/pool allocator with configurable allocation sizes. This is implemented
+as a collection of pools with varying allocation sizes. Allocations that do not
+fit into any of its pools are directly served via `new`.
 
 ### `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`
 A mechanism similar to go's `defer` keyword, which can be used to defer some action to scope exit.
