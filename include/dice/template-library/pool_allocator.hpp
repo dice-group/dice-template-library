@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <type_traits>
+#include <memory>
 
 namespace dice::template_library {
 
@@ -24,79 +25,6 @@ namespace dice::template_library {
 	 *		The chunk size itself as well as the maximum capacity cannot be configured, they are automatically determined by boost::pool.
 	 */
 	template<size_t ...bucket_sizes>
-	struct pool;
-
-	/**
-	 * `std`-style allocator that allocates into an underlying pool.
-	 * The bucket size used for allocation is `sizeof(T) * n_elems`.
-	 *
-	 * @tparam T type to be allocated
-	 * @tparam bucket_sizes same as for `pool<bucket_sizes...>`
-	 */
-	template<typename T, size_t ...bucket_sizes>
-	struct pool_allocator {
-		using value_type = T;
-		using pointer = T *;
-		using const_pointer = T const *;
-		using void_pointer = void *;
-		using const_void_pointer = void const *;
-		using size_type = size_t;
-		using difference_type = std::ptrdiff_t;
-
-		using propagate_on_container_copy_assignment = std::true_type;
-		using propagate_on_container_move_assignment = std::true_type;
-		using propagate_on_container_swap = std::true_type;
-		using is_always_equal = std::false_type;
-
-    	template<typename U>
-    	struct rebind {
-    		using other = pool_allocator<U, bucket_sizes...>;
-    	};
-
-	private:
-		template<typename, size_t ...>
-		friend struct pool_allocator;
-
-    	pool<bucket_sizes...> *pool_;
-
-	public:
-		explicit pool_allocator(pool<bucket_sizes...> &parent_pool) noexcept
-			: pool_{&parent_pool} {
-		}
-
-		pool_allocator(pool_allocator const &other) noexcept = default;
-		pool_allocator(pool_allocator &&other) noexcept = default;
-		pool_allocator &operator=(pool_allocator const &other) noexcept = default;
-		pool_allocator &operator=(pool_allocator &&other) noexcept = default;
-		~pool_allocator() noexcept = default;
-
-		template<typename U>
-		pool_allocator(pool_allocator<U, bucket_sizes...> const &other) noexcept
-			: pool_{other.pool_} {
-		}
-
-		pointer allocate(size_t n) {
-			return static_cast<pointer>(pool_->allocate(sizeof(T) * n));
-		}
-
-		void deallocate(pointer ptr, size_t n) {
-			pool_->deallocate(ptr, sizeof(T) * n);
-		}
-
-		pool_allocator select_on_container_copy_construction() const {
-			return pool_allocator{*pool_};
-		}
-
-		friend void swap(pool_allocator &lhs, pool_allocator &rhs) noexcept {
-			using std::swap;
-			swap(lhs.pool_, rhs.pool_);
-		}
-
-		bool operator==(pool_allocator const &other) const noexcept = default;
-		bool operator!=(pool_allocator const &other) const noexcept = default;
-	};
-
-	template<size_t ...bucket_sizes>
 	struct pool {
 		static_assert(sizeof...(bucket_sizes) > 0,
 					  "must at least provide one bucket size, otherwise this would never use a pool for allocation");
@@ -105,9 +33,6 @@ namespace dice::template_library {
 
 		using size_type = size_t;
 		using difference_type = std::ptrdiff_t;
-
-		template<typename T>
-		using allocator_type = pool_allocator<T, bucket_sizes...>;
 
 	private:
 		// note: underlying allocator can not be specified via template parameter
@@ -188,18 +113,87 @@ namespace dice::template_library {
 		void deallocate(void *data, size_t n_bytes) {
 			return deallocate_impl<0, bucket_sizes...>(data, n_bytes);
 		}
+	};
 
+	/**
+	 * `std`-style allocator that allocates into an underlying pool.
+	 * The bucket size used for allocation is `sizeof(T) * n_elems`.
+	 *
+	 * @tparam T type to be allocated
+	 * @tparam bucket_sizes same as for `pool<bucket_sizes...>`
+	 */
+	template<typename T, size_t ...bucket_sizes>
+	struct pool_allocator {
+		using value_type = T;
+		using pointer = T *;
+		using const_pointer = T const *;
+		using void_pointer = void *;
+		using const_void_pointer = void const *;
+		using size_type = size_t;
+		using difference_type = std::ptrdiff_t;
+
+		using propagate_on_container_copy_assignment = std::true_type;
+		using propagate_on_container_move_assignment = std::true_type;
+		using propagate_on_container_swap = std::true_type;
+		using is_always_equal = std::false_type;
+
+    	template<typename U>
+    	struct rebind {
+    		using other = pool_allocator<U, bucket_sizes...>;
+    	};
+
+	private:
+		template<typename, size_t ...>
+		friend struct pool_allocator;
+
+    	std::shared_ptr<pool<bucket_sizes...>> pool_;
+
+	public:
 		/**
-		 * Retrieve an (`std`-style) allocator that allocates on `*this` pool.
-		 *
-		 * @warning the pool (`*this`) must always outlive the returned `pool_allocator`
-		 * @tparam T the type that should be allocated by the returned allocator
-		 * @return `std`-style allocator for this pool
+		 * Creates a pool_allocator with a default constructed pool
 		 */
-		template<typename T = std::byte>
-		[[nodiscard]] allocator_type<T> get_allocator() noexcept {
-			return pool_allocator<T, bucket_sizes...>{*this};
+		pool_allocator()
+			: pool_{std::make_shared<pool<bucket_sizes...>>()} {
 		}
+
+		explicit pool_allocator(std::shared_ptr<pool<bucket_sizes...>> underlying_pool)
+			: pool_{std::move(underlying_pool)} {
+		}
+
+		pool_allocator(pool_allocator const &other) noexcept = default;
+		pool_allocator(pool_allocator &&other) noexcept = default;
+		pool_allocator &operator=(pool_allocator const &other) noexcept = default;
+		pool_allocator &operator=(pool_allocator &&other) noexcept = default;
+		~pool_allocator() noexcept = default;
+
+		template<typename U>
+		pool_allocator(pool_allocator<U, bucket_sizes...> const &other) noexcept
+			: pool_{other.pool_} {
+		}
+
+		[[nodiscard]] std::shared_ptr<pool<bucket_sizes...>> const &underlying_pool() const noexcept {
+			return pool_;
+		}
+
+		pointer allocate(size_t n) {
+			return static_cast<pointer>(pool_->allocate(sizeof(T) * n));
+		}
+
+		void deallocate(pointer ptr, size_t n) {
+			pool_->deallocate(ptr, sizeof(T) * n);
+		}
+
+		pool_allocator select_on_container_copy_construction() const {
+			return pool_allocator{pool_};
+		}
+
+		friend void swap(pool_allocator &lhs, pool_allocator &rhs) noexcept {
+			using std::swap;
+			swap(lhs.pool_, rhs.pool_);
+		}
+
+		bool operator==(pool_allocator const &other) const noexcept = default;
+		bool operator!=(pool_allocator const &other) const noexcept = default;
 	};
 
 } // namespace dice::template_library

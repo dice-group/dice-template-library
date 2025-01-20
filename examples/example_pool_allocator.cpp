@@ -1,5 +1,6 @@
 #include <dice/template-library/pool_allocator.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <vector>
@@ -10,10 +11,10 @@ struct list {
 };
 
 int main() {
-	dice::template_library::pool<sizeof(list)> pool;
+	dice::template_library::pool_allocator<std::byte, sizeof(list)> alloc;
 
 	{ // efficient pool allocations for elements of known size
-		auto list_alloc = pool.get_allocator<list>();
+		dice::template_library::pool_allocator<list, sizeof(list)> list_alloc = alloc;
 
 		auto *head = list_alloc.allocate(1); // efficient pool allocation
 		new (head) list{.elem = 0, .next = nullptr};
@@ -32,7 +33,7 @@ int main() {
 	}
 
 	{ // fallback allocation with new & support as container allocator
-		std::vector<uint64_t, dice::template_library::pool_allocator<uint64_t, sizeof(list)>> vec(pool.get_allocator());
+		std::vector<uint64_t, dice::template_library::pool_allocator<uint64_t, sizeof(list)>> vec(alloc);
 		vec.resize(1024);
 	}
 }

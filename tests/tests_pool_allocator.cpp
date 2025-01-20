@@ -38,10 +38,10 @@ TEST_SUITE("pool allocator") {
 	}
 
 	TEST_CASE("many allocations and deallocations") {
-		dice::template_library::pool<8, 16> pool;
-		auto alloc1 = pool.get_allocator<uint64_t>(); // first pool
-		auto alloc2 = pool.get_allocator<std::array<uint64_t, 2>>(); // second pool
-		auto alloc3 = pool.get_allocator<std::array<uint64_t, 4>>(); // fallback to new
+		dice::template_library::pool_allocator<std::byte, 8, 16> alloc;
+		dice::template_library::pool_allocator<uint64_t, 8, 16> alloc1 = alloc; // first pool
+		dice::template_library::pool_allocator<std::array<uint64_t, 2>, 8, 16> alloc2 = alloc; // second pool
+		dice::template_library::pool_allocator<std::array<uint64_t, 4>, 8, 16> alloc3 = alloc; // fallback to new
 
 		for (size_t ix = 0; ix < 1'000'000; ++ix) {
 			auto *ptr1 = alloc1.allocate(1);
@@ -55,7 +55,6 @@ TEST_SUITE("pool allocator") {
 	}
 
 	TEST_CASE("allocator interface") {
-		using pool_type = dice::template_library::pool<8, 16>;
 		using allocator_type = dice::template_library::pool_allocator<uint64_t, 8, 16>;
 		using allocator_traits = std::allocator_traits<allocator_type>;
 
@@ -73,8 +72,7 @@ TEST_SUITE("pool allocator") {
 		static_assert(std::is_same_v<typename allocator_traits::template rebind_alloc<int64_t>, dice::template_library::pool_allocator<int64_t, 8, 16>>);
 		static_assert(std::is_same_v<typename allocator_traits::template rebind_traits<int64_t>, std::allocator_traits<dice::template_library::pool_allocator<int64_t, 8, 16>>>);
 
-		pool_type pool;
-		allocator_type alloc = pool.get_allocator<uint64_t>();
+		allocator_type alloc;
 
 		uint64_t *ptr = allocator_traits::allocate(alloc, 1);
 		*ptr = 123;
