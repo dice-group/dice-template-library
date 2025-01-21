@@ -12,10 +12,8 @@
 namespace dice::template_library {
 
 	/**
-     * A single producer, single consumer channel/queue
-     * @note this can technically be used as a multi producer, single consumer queue, but care must be taken
-     *      of when exactly close() is called
-     * @warning close() must be called once the producing thread is done, otherwise the reading thread will hang indefinitely
+     * A multi producer, multi consumer channel/queue
+     * @warning close() must be called once the producing threads are done, otherwise the reading thread will hang indefinitely
      *
      * @tparam T value type of the channel
      */
@@ -66,7 +64,7 @@ namespace dice::template_library {
                 std::lock_guard lock{queue_mutex_};
                 closed_.test_and_set(std::memory_order_release);
             }
-            queue_not_empty_.notify_one(); // notify pop() so that it does not get stuck
+            queue_not_empty_.notify_all(); // notify pop() so that it does not get stuck
             queue_not_full_.notify_all(); // notify emplace()
         }
 
