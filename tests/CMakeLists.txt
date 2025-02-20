@@ -69,3 +69,10 @@ custom_add_test(tests_limit_allocator)
 
 add_executable(tests_pool_allocator tests_pool_allocator.cpp)
 custom_add_test(tests_pool_allocator)
+
+add_executable(tests_mutex tests_mutex.cpp)
+custom_add_test(tests_mutex)
+
+add_executable(tests_shared_mutex tests_shared_mutex.cpp)
+custom_add_test(tests_shared_mutex)
+
