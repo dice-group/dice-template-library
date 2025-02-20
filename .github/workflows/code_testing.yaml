@@ -16,6 +16,8 @@ jobs:
             compiler: clang-17
           - os: ubuntu-22.04
             compiler: clang-18
+          - os: ubuntu-22.04
+            compiler: clang-19
 
           - os: ubuntu-22.04
             compiler: gcc-12
