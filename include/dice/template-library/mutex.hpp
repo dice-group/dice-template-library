@@ -25,7 +25,7 @@ namespace dice::template_library {
         using mutex_type = Mutex;
 
     private:
-        T *value_ptr_;
+        value_type *value_ptr_;
         std::unique_lock<mutex_type> lock_;
 
     public:
@@ -47,6 +47,12 @@ namespace dice::template_library {
 
         value_type &operator*() const noexcept {
             return *value_ptr_;
+        }
+
+        friend void swap(mutex_guard const &lhs, mutex_guard const &rhs) noexcept {
+            using std::swap;
+            swap(lhs.value_ptr_, rhs.value_ptr_);
+            swap(lhs.lock_, rhs.lock_);
         }
     };
 

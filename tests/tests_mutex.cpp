@@ -47,12 +47,28 @@ TEST_SUITE("mutex") {
 		CHECK_EQ(mut.lock()->y, 12.2);
 	}
 
+	TEST_CASE("swap") {
+		mutex<int> a{1};
+		mutex<int> b{2};
+
+		auto ga = a.lock();
+		auto gb = b.lock();
+
+		CHECK_EQ(*ga, 1);
+		CHECK_EQ(*gb, 2);
+
+		swap(ga, gb);
+
+		CHECK_EQ(*ga, 2);
+		CHECK_EQ(*gb, 1);
+	}
+
 	TEST_CASE("lock compiles") {
 		mutex<int> mut{};
 		CHECK_EQ(*mut.lock(), 0);
 	}
 
-	TEST_CASE("try lock compiles") {
+	TEST_CASE("try_lock compiles") {
 		mutex<int> mut{};
 		auto guard = mut.try_lock();
 		CHECK(guard.has_value());

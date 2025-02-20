@@ -101,3 +101,11 @@ target_link_libraries(example_mutex
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_shared_mutex
+        example_shared_mutex.cpp)
+target_link_libraries(example_shared_mutex
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
