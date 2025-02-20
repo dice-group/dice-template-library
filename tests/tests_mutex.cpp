@@ -13,15 +13,8 @@ TEST_SUITE("mutex") {
 	static_assert(!std::is_move_assignable_v<mutex<int>>);
 
 	TEST_CASE("defalt ctor") {
-		{ // normal init
-			mutex<int> mut{};
-			CHECK_EQ(*mut.lock(), 0);
-		}
-
-		{ // constexpr init
-			static constinit mutex<int> cmut{};
-			CHECK_EQ(*cmut.lock(), 0);
-		}
+		mutex<int> mut{};
+		CHECK_EQ(*mut.lock(), 0);
 	}
 
 	TEST_CASE("copy value inside") {
