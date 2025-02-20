@@ -18,6 +18,7 @@ It contains:
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
 - `variant2`: Like `std::variant` but optimized for exactly two types
+- `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 
 ## Usage
 
@@ -106,6 +107,11 @@ Additionally, `visit` does not involve any virtual function calls.
 
 ### `type_traits.hpp`
 Things that are missing in the standard library `<type_traits>` header.
+
+### `mutex`/`shared_mutex`
+Rust inspired mutex interfaces that hold their data instead of living next to it.
+The benefit of this approach is that it makes it harder (impossible in rust) to access the
+data without holding the mutex.
 
 ### Further Examples
 
