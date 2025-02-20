@@ -9,6 +9,9 @@
 
 namespace dice::template_library {
 
+    template<typename T, typename Mutex = std::shared_mutex>
+    struct shared_mutex;
+
 	/**
      * An RAII guard for a value behind a shared_mutex.
      * When this shared_mutex_guard is dropped the lock is automatically released.
@@ -27,15 +30,17 @@ namespace dice::template_library {
         using lock_type = std::conditional_t<std::is_const_v<T>, std::shared_lock<mutex_type>, std::unique_lock<mutex_type>>;
 
     private:
+        friend struct shared_mutex<std::remove_const_t<T>, Mutex>;
+
         value_type *value_ptr_;
         lock_type lock_;
 
-    public:
         shared_mutex_guard(lock_type &&lock, T &value) noexcept
             : value_ptr_{&value},
               lock_{std::move(lock)} {
         }
 
+    public:
         shared_mutex_guard() = delete;
         shared_mutex_guard(shared_mutex_guard const &other) noexcept = delete;
         shared_mutex_guard &operator=(shared_mutex_guard const &other) noexcept = delete;
@@ -67,7 +72,7 @@ namespace dice::template_library {
      * @tparam T value type stored
      * @tparam Mutex the mutex type
      */
-    template<typename T, typename Mutex = std::shared_mutex>
+    template<typename T, typename Mutex>
     struct shared_mutex {
         using value_type = T;
         using mutex_type = Mutex;

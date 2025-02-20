@@ -8,6 +8,9 @@
 
 namespace dice::template_library {
 
+    template<typename T, typename Mutex = std::mutex>
+    struct mutex;
+
 	/**
      * An RAII guard for a value behind a mutex.
      * When this mutex_guard is dropped the lock is automatically released.
@@ -25,15 +28,17 @@ namespace dice::template_library {
         using mutex_type = Mutex;
 
     private:
+        friend struct mutex<T, Mutex>;
+
         value_type *value_ptr_;
         std::unique_lock<mutex_type> lock_;
 
-    public:
         mutex_guard(std::unique_lock<mutex_type> &&lock, T &value) noexcept
             : value_ptr_{&value},
               lock_{std::move(lock)} {
         }
 
+    public:
         mutex_guard() = delete;
         mutex_guard(mutex_guard const &other) noexcept = delete;
         mutex_guard &operator=(mutex_guard const &other) noexcept = delete;
@@ -65,7 +70,7 @@ namespace dice::template_library {
      * @tparam T value type stored
      * @tparam Mutex the mutex type
      */
-    template<typename T, typename Mutex = std::mutex>
+    template<typename T, typename Mutex>
     struct mutex {
         using value_type = T;
         using mutex_type = Mutex;
