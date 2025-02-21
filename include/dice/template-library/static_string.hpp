@@ -47,7 +47,7 @@ namespace dice::template_library {
             : size_{sv.size()}, alloc_{alloc} {
 
             data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
-            memcpy(data_, sv.data(), size_);
+            memcpy(std::to_address(data_), sv.data(), size_);
         }
 
         basic_static_string(basic_static_string const &) = delete;
@@ -82,7 +82,7 @@ namespace dice::template_library {
                     data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
                 }
 
-                memcpy(data_, other.data_, size_);
+                memcpy(std::to_address(data_), other.data_, size_);
                 return *this;
             }
         }
@@ -94,10 +94,13 @@ namespace dice::template_library {
         }
 
         operator view_type() const noexcept {
-            return {data_, size_};
+            return {std::to_address(data_), size_};
         }
 
-        [[nodiscard]] value_type const *data() const noexcept {
+        [[nodiscard]] const_pointer data() const noexcept {
+            return data_;
+        }
+        [[nodiscard]] pointer data() noexcept {
             return data_;
         }
 
