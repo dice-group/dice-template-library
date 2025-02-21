@@ -82,7 +82,7 @@ namespace dice::template_library {
                     data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
                 }
 
-                memcpy(std::to_address(data_), other.data_, size_);
+                memcpy(std::to_address(data_), std::to_address(other.data_), size_);
                 return *this;
             }
         }
