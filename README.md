@@ -19,6 +19,7 @@ It contains:
 - `channel`: A single producer, single consumer queue
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
+- `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
 
 ## Usage
 
@@ -112,6 +113,11 @@ Things that are missing in the standard library `<type_traits>` header.
 Rust inspired mutex interfaces that hold their data instead of living next to it.
 The benefit of this approach is that it makes it harder (impossible in rust) to access the
 data without holding the mutex.
+
+### `static_string`
+A string type that is smaller than `std::string` but does not have the ability to grow or shrink.
+This is useful if you never need to resize the string and want to keep the memory footprint low.
+It also supports allocators with "fancy" pointers.
 
 ### Further Examples
 
