@@ -115,8 +115,9 @@ The benefit of this approach is that it makes it harder (impossible in rust) to 
 data without holding the mutex.
 
 ### `static_string`
-A string type that is small than `std::string` but does not have the ability to grow or shrink.
+A string type that is smaller than `std::string` but does not have the ability to grow or shrink.
 This is useful if you never need to resize the string and want to keep the memory footprint low.
+It also supports allocators with "fancy" pointers.
 
 ### Further Examples
 

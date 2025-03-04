@@ -49,7 +49,7 @@ namespace dice::template_library {
 
             if (size_ != 0) {
                 data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
-                memcpy(std::to_address(data_), std::to_address(other.data_), size_);
+                std::memcpy(std::to_address(data_), std::to_address(other.data_), size_);
             } else {
                 data_ = nullptr;
             }
@@ -69,7 +69,7 @@ namespace dice::template_library {
             }
 
             data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
-            memcpy(std::to_address(data_), sv.data(), size_);
+            std::memcpy(std::to_address(data_), sv.data(), size_);
         }
 
         basic_static_string(basic_static_string const &other) : basic_static_string{static_cast<view_type>(other), other.alloc_} {

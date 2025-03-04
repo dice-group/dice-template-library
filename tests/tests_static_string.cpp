@@ -47,7 +47,7 @@ TEST_SUITE("static_string") {
 		CHECK_FALSE(actual.empty());
 		CHECK(std::ranges::equal(actual, expected));
 		CHECK(std::ranges::equal(actual | std::views::reverse, expected | std::views::reverse));
-		CHECK_EQ(memcmp(actual.data(), expected.data(), actual.size()), 0);
+		CHECK_EQ(std::memcmp(actual.data(), expected.data(), actual.size()), 0);
 		CHECK_EQ(actual.front(), expected.front());
 		CHECK_EQ(actual.back(), expected.back());
 		CHECK_EQ(actual[0], expected[0]);
