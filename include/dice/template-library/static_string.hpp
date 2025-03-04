@@ -81,13 +81,19 @@ namespace dice::template_library {
 
                 // alloc_ != other.alloc_ and not allowed to propagate, need to copy
 
-                if (size_ != other.size_) [[likely]] {
+                if (size_ != 0) {
                     std::allocator_traits<allocator_type>::deallocate(alloc_, data_, size_);
-                    size_ = other.size_;
-                    data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
                 }
 
-                memcpy(std::to_address(data_), std::to_address(other.data_), size_);
+                size_ = other.size_;
+
+                if (size_ != 0) {
+                    data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
+                    memcpy(std::to_address(data_), std::to_address(other.data_), size_);
+                } else {
+                    data_ = nullptr;
+                }
+
                 return *this;
             }
         }
