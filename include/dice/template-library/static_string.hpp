@@ -46,6 +46,11 @@ namespace dice::template_library {
         explicit basic_static_string(view_type const sv, allocator_type const &alloc = allocator_type{})
             : size_{sv.size()}, alloc_{alloc} {
 
+            if (sv.empty()) {
+                data_ = nullptr;
+                return;
+            }
+
             data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
             memcpy(std::to_address(data_), sv.data(), size_);
         }
