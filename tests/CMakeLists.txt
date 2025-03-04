@@ -76,3 +76,5 @@ custom_add_test(tests_mutex)
 add_executable(tests_shared_mutex tests_shared_mutex.cpp)
 custom_add_test(tests_shared_mutex)
 
+add_executable(tests_static_string tests_static_string.cpp)
+custom_add_test(tests_static_string)

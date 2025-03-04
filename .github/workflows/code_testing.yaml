@@ -82,7 +82,7 @@ jobs:
       - name: Run examples
         working-directory: build
         run: |
-          for example in examples/examples_*; do
+          for example in examples/example*; do
             echo "executing ${example}"
             ./${example}
           done

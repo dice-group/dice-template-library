@@ -2,9 +2,11 @@
 #define DICE_TEMPLATELIBRARY_CONSTSTRING_HPP
 
 #include <cassert>
+#include <cstring>
+#include <memory>
+#include <ostream>
 #include <string_view>
 #include <utility>
-#include <memory>
 
 namespace dice::template_library {
 
@@ -38,6 +40,21 @@ namespace dice::template_library {
             swap(a.size_, b.size_);
         }
 
+        void copy_assign_from_other(basic_static_string const &other) {
+            if (size_ != 0) {
+                std::allocator_traits<allocator_type>::deallocate(alloc_, data_, size_);
+            }
+
+            size_ = other.size_;
+
+            if (size_ != 0) {
+                data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
+                memcpy(std::to_address(data_), std::to_address(other.data_), size_);
+            } else {
+                data_ = nullptr;
+            }
+        }
+
     public:
         constexpr basic_static_string(allocator_type const &alloc = allocator_type{}) noexcept
             : data_{nullptr}, size_{0}, alloc_{alloc} {
@@ -55,22 +72,35 @@ namespace dice::template_library {
             memcpy(std::to_address(data_), sv.data(), size_);
         }
 
-        basic_static_string(basic_static_string const &) = delete;
-        basic_static_string &operator=(basic_static_string const &) = delete;
+        basic_static_string(basic_static_string const &other) : basic_static_string{static_cast<view_type>(other), other.alloc_} {
+        }
+
+        basic_static_string &operator=(basic_static_string const &other) {
+            if (this == &other) {
+                return *this;
+            }
+
+            if constexpr (std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value) {
+                alloc_ = other.alloc_;
+            }
+
+            copy_assign_from_other(other);
+            return *this;
+        }
 
         constexpr basic_static_string(basic_static_string &&other) noexcept : data_{std::exchange(other.data_, nullptr)},
                                                                               size_{std::exchange(other.size_, 0)},
                                                                               alloc_{std::move(other.alloc_)} {
         }
 
-        basic_static_string &operator=(basic_static_string &&other) noexcept(std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value
-                                                                                || std::allocator_traits<Allocator>::is_always_equal::value) {
+        basic_static_string &operator=(basic_static_string &&other) noexcept(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value
+                                                                                || std::allocator_traits<allocator_type>::is_always_equal::value) {
             assert(this != &other);
 
-            if constexpr (std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value) {
+            if constexpr (std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value) {
                 swap(*this, other);
                 return *this;
-            } else if constexpr (std::allocator_traits<Allocator>::is_always_equal::value) {
+            } else if constexpr (std::allocator_traits<allocator_type>::is_always_equal::value) {
                 swap_data(*this, other);
                 return *this;
             } else {
@@ -80,20 +110,7 @@ namespace dice::template_library {
                 }
 
                 // alloc_ != other.alloc_ and not allowed to propagate, need to copy
-
-                if (size_ != 0) {
-                    std::allocator_traits<allocator_type>::deallocate(alloc_, data_, size_);
-                }
-
-                size_ = other.size_;
-
-                if (size_ != 0) {
-                    data_ = std::allocator_traits<allocator_type>::allocate(alloc_, size_);
-                    memcpy(std::to_address(data_), std::to_address(other.data_), size_);
-                } else {
-                    data_ = nullptr;
-                }
-
+                copy_assign_from_other(other);
                 return *this;
             }
         }
@@ -115,7 +132,7 @@ namespace dice::template_library {
             return data_;
         }
 
-        [[nodiscard]] size_type empty() const noexcept {
+        [[nodiscard]] bool empty() const noexcept {
             return size_ == 0;
         }
 
@@ -123,12 +140,12 @@ namespace dice::template_library {
             return size_;
         }
 
-        [[nodiscard]] value_type operator[](size_type ix) const noexcept {
+        [[nodiscard]] value_type operator[](size_type const ix) const noexcept {
             assert(ix < size());
             return std::to_address(data_)[ix];
         }
 
-        [[nodiscard]] value_type &operator[](size_type ix) noexcept {
+        [[nodiscard]] value_type &operator[](size_type const ix) noexcept {
             assert(ix < size());
             return std::to_address(data_)[ix];
         }
@@ -218,6 +235,12 @@ namespace dice::template_library {
             return static_cast<view_type>(self) <=> other;
         }
     };
+
+    template<typename Char, typename CharTraits, typename Allocator>
+    std::basic_ostream<Char, CharTraits> &operator<<(std::basic_ostream<Char, CharTraits> &os, basic_static_string<Char, CharTraits, Allocator> const &str) {
+        os << static_cast<std::basic_string_view<Char, CharTraits>>(str);
+        return os;
+    }
 
     using static_string = basic_static_string<char>;
     using static_wstring = basic_static_string<wchar_t>;
