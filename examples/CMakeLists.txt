@@ -109,3 +109,10 @@ target_link_libraries(example_shared_mutex
         dice-template-library::dice-template-library
 )
 
+add_executable(example_static_string
+        example_static_string.cpp)
+target_link_libraries(example_static_string
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
