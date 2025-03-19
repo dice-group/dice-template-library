@@ -31,6 +31,64 @@ namespace dice::template_library {
 	template<typename T>
 	inline constexpr bool is_zst_v = is_zst<T>::value;
 
+	/**
+	 * If From is const make To const as well
+	 */
+	template<typename From, typename To>
+	struct copy_const {
+		using type = To;
+	};
+
+	template<typename From, typename To>
+	struct copy_const<From const, To> {
+		using type = To const;
+	};
+
+	template<typename From, typename To>
+	using copy_const_t = typename copy_const<From, To>::type;
+
+	/**
+	 * If From is volatile make To volatile as well
+	 */
+	template<typename From, typename To>
+	struct copy_volatile {
+		using type = To;
+	};
+
+	template<typename From, typename To>
+	struct copy_volatile<From volatile, To> {
+		using type = To volatile;
+	};
+
+	template<typename From, typename To>
+	using copy_volatile_t = typename copy_volatile<From, To>::type;
+
+	/**
+	 * If From is const and/or volatile make To const and/or volatile as well
+	 */
+	template<typename From, typename To>
+	struct copy_cv {
+		using type = To;
+	};
+
+	template<typename From, typename To>
+	struct copy_cv<From const, To> {
+		using type = To const;
+	};
+
+	template<typename From, typename To>
+	struct copy_cv<From volatile, To> {
+		using type = To volatile;
+	};
+
+	template<typename From, typename To>
+	struct copy_cv<From const volatile, To> {
+		using type = To const volatile;
+	};
+
+	template<typename From, typename To>
+	using copy_cv_t = typename copy_cv<From, To>::type;
+
 } // namespace dice::template_library
 
 #endif // DICE_TEMPLATELIBRARY_ZST_HPP
