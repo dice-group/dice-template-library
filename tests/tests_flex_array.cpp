@@ -4,6 +4,7 @@
 #include <dice/template-library/flex_array.hpp>
 #include <algorithm>
 #include <numeric>
+#include <ranges>
 
 namespace dice::template_library {
 	// extern template sometimes make problems if internal types are too eagerly instantiated
@@ -34,7 +35,8 @@ TEST_SUITE("flex_array") {
 		ref.resize(expected_size);
 		std::iota(ref.begin(), ref.end(), 1);
 
-		CHECK_EQ(std::accumulate(f.begin(), f.end(), 0), std::accumulate(ref.begin(), ref.end(), 0));
+		CHECK(std::ranges::equal(f, ref));
+		CHECK(std::ranges::equal(std::ranges::subrange(f.rbegin(), f.rend()), ref | std::views::reverse)); // using subrange(rbegin(), rend()) just to make really sure that they are used
 
 		if (expected_size > 0) {
 			CHECK_EQ(*f.data(), 1);
