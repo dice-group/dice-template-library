@@ -36,7 +36,7 @@ TEST_SUITE("flex_array") {
 		std::iota(ref.begin(), ref.end(), 1);
 
 		CHECK(std::ranges::equal(f, ref));
-		CHECK(std::ranges::equal(f | std::views::reverse, ref | std::views::reverse));
+		CHECK(std::ranges::equal(std::ranges::subrange(f.rbegin(), f.rend()), ref | std::views::reverse)); // using subrange(rbegin(), rend()) just to make really sure that they are used
 
 		if (expected_size > 0) {
 			CHECK_EQ(*f.data(), 1);
