@@ -20,5 +20,17 @@ TEST_SUITE("overloaded") {
 				FAIL("not expecting float");
 			}
 		}, v);
+
+		dice::template_library::match(v,
+			[](int x) {
+				CHECK_EQ(x, 5);
+			},
+			[](double d) {
+				FAIL("not expecting double");
+			},
+			[](auto f) {
+				FAIL("not expecting float");
+			}
+		);
 	}
 }
