@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATE_LIBRARY_OVERLOADED_HPP
 #define DICE_TEMPLATE_LIBRARY_OVERLOADED_HPP
 
+#include <utility>
+
 namespace dice::template_library {
 
 	/**
@@ -17,6 +19,11 @@ namespace dice::template_library {
 
 	template<typename ...Fs>
 	overloaded(Fs...) -> overloaded<Fs...>;
+
+	template<typename Variant, typename ...Fs>
+	decltype(auto) match(Variant &&variant, Fs &&...visitors) {
+		return visit(overloaded{std::forward<Fs>(visitors)...}, std::forward<Variant>(variant));
+	}
 
 } // namespace dice::template_library
 
