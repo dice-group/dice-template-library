@@ -4,6 +4,7 @@
 #include <format>
 #include <iterator>
 #include <ranges>
+#include <vector>
 
 namespace dice::template_library {
 
