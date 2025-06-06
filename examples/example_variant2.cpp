@@ -1,7 +1,9 @@
 #include <cassert>
 #include <string>
+#include <variant>
 
 #include <dice/template-library/variant2.hpp>
+#include <dice/template-library/overloaded.hpp>
 
 namespace dtl = dice::template_library;
 using namespace std::literals;
@@ -38,4 +40,13 @@ int main() {
 	assert(dtl::holds_alternative<void const*>(y)); // succeeds
 	y = "xyz"s;
 	assert(dtl::holds_alternative<std::string>(y)); // succeeds
+
+	auto visitor = dtl::overloaded{
+		[](int x) { return x; },
+			[](double d) { return static_cast<int>(d); }
+	};
+
+	auto z = dtl::visit(visitor, v);
+	assert(z == 42);
+
 }
