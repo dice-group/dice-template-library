@@ -48,7 +48,7 @@ int main() {
 	assert(r5 == "Got something else");
 
 	auto r6 = dice::template_library::match(
-			v,
+			v2,
 			[](int x) { return x; },
 			[](double d) { return static_cast<int>(d); },
 			[]([[maybe_unused]]auto f) { return 0; });
