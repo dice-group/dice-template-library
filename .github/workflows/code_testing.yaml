@@ -20,8 +20,6 @@ jobs:
             compiler: clang-19
 
           - os: ubuntu-22.04
-            compiler: gcc-12
-          - os: ubuntu-22.04
             compiler: gcc-13
     runs-on: ${{ matrix.config.os }}
     name: ${{ matrix.config.os }} (${{ matrix.config.compiler }})
