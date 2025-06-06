@@ -20,6 +20,7 @@ It contains:
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
+- `all_of`/`any_of`/`none_of`: range adaptors versions of the algoriths from `std::ranges::`. So, you can pip a range in.  
 
 ## Usage
 
@@ -81,7 +82,6 @@ fit into any of its pools are directly served via `new`.
 A mechanism similar to go's `defer` keyword, which can be used to defer some action to scope exit.
 The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example C types).
 Usage examples can be found [here](examples/examples_defer.cpp).
-
 
 ### `tuple algorthims`
 Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
