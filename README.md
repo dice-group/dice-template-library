@@ -10,6 +10,7 @@ It contains:
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
+- `DICE_MEMFN`: Macro to pass member functions like free functions as argument. 
 - `pool` & `pool_allocator`: Arena/pool allocator optimized for a limited number of known allocation sizes.
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
 - `overloaded` and `match`: Batteries for `std::variant` (and also `dtl::variant2`. Compose re-usable visitors with `overload` or apply a single-use visitor directly with `match`.
@@ -71,6 +72,11 @@ Which means: vtables will not work (because they use absolute pointers) and ther
 ### `limit_allocator`
 Allocator wrapper that limits the amount of memory that can be allocated through the inner allocator.
 If the limit is exceeded it will throw `std::bad_alloc`.
+
+### `DICE_MEMFN`
+DICE_MEMFN is a convenience macro that makes it easy to pass member functions as argument, e.g., to range adaptors.
+It eliminates boilerplate code by creating a lambda that captures this and perfectly forwards
+arguments to your member function.
 
 ### `pool_allocator`
 A memory arena/pool allocator with configurable allocation sizes. This is implemented
