@@ -206,7 +206,8 @@ TEST_SUITE("unique range adaptor") {
 
 	TEST_CASE("edge cases") {
 		std::vector<int> empty_vec{};
-		CHECK((empty_vec | dtl::unique | dtl::empty));
+		auto result_empty_vec = empty_vec | dtl::unique;
+		CHECK(std::begin(result_empty_vec) == std::end(result_empty_vec));
 
 		std::vector all_unique{1, 2, 3, 4, 5};
 		auto result_all_unique = all_unique | dtl::unique;
@@ -268,7 +269,7 @@ TEST_SUITE("range view") {
 
 		// A range up to 0 should be empty
 		auto view3 = dtl::range<int>(0);
-		CHECK((view3 | dtl::empty));
+		CHECK(std::ranges::begin(view3) == std::ranges::end(view3));
 
 		// A range up to 1 should contain only 0
 		auto view4 = dtl::range<int>(1);
@@ -283,11 +284,11 @@ TEST_SUITE("range view") {
 
 		// Start is after stop, should be empty
 		auto view2 = dtl::range<int>(5, 2);
-		CHECK((view2 | dtl::empty));
+		CHECK(std::begin(view2) == std::end(view2));
 
 		// Start is equal to stop, should be empty
 		auto view3 = dtl::range<int>(5, 5);
-		CHECK((view3 | dtl::empty));
+		CHECK(std::begin(view3) == std::end(view3));
 
 		// negative numbers
 		auto view4 = dtl::range<int>(-2, 2);
@@ -312,7 +313,7 @@ TEST_SUITE("range view") {
 
 			// wrong direction
 			auto view_wrong_dir = dtl::range<int>(10, 0, 2);
-			CHECK((view_wrong_dir | dtl::empty));
+			CHECK(std::begin(view_wrong_dir) == std::end(view_wrong_dir));
 		}
 
 		SUBCASE("negative step") {
@@ -326,7 +327,7 @@ TEST_SUITE("range view") {
 
 			// wrong direction
 			auto view_wrong_dir = dtl::range<int>(0, 10, -2);
-			CHECK((view_wrong_dir | dtl::empty));
+			CHECK(std::begin(view_wrong_dir) == std::end(view_wrong_dir));
 		}
 	}
 }

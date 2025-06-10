@@ -8,24 +8,26 @@
 #include <unordered_set>
 
 // all_of, any_of, none_of terminal algorithm
-#define DTL_DEFINE_PIPEABLE_RANGE_ALGO(ALGO_NAME)                                     \
+#define DTL_DEFINE_PIPEABLE_RANGE_ALGO(algo_name)                                     \
 	namespace ranges_algo_detail {                                                    \
 		template<typename Pred>                                                       \
-		struct ALGO_NAME##_fn {                                                       \
+		struct algo_name##_fn {                                                       \
+		private:                                                                      \
 			Pred pred;                                                                \
                                                                                       \
+		public:                                                                       \
 			template<typename P>                                                      \
-			constexpr explicit ALGO_NAME##_fn(P &&p) : pred(std::forward<P>(p)) {}    \
+			constexpr explicit algo_name##_fn(P &&p) : pred(std::forward<P>(p)) {}    \
                                                                                       \
 			/* input_range causes no dangling risk since this adaptor is terminal  */ \
 			template<std::ranges::input_range R>                                      \
 			constexpr bool                                                            \
 			operator()(R &&r) const {                                                 \
-				return std::ranges::ALGO_NAME(r, pred);                               \
+				return std::ranges::algo_name(r, pred);                               \
 			}                                                                         \
                                                                                       \
 			template<typename R>                                                      \
-			friend auto operator|(R &&r, const ALGO_NAME##_fn &self)                  \
+			friend auto operator|(R &&r, algo_name##_fn const &self)                  \
 					-> decltype(self(std::forward<R>(r))) {                           \
 				return self(std::forward<R>(r));                                      \
 			}                                                                         \
@@ -33,8 +35,8 @@
 	}                                                                                 \
                                                                                       \
 	template<typename Pred>                                                           \
-	constexpr auto ALGO_NAME(Pred &&pred) {                                           \
-		return ranges_algo_detail::ALGO_NAME##_fn<std::decay_t<Pred>>(                \
+	constexpr auto algo_name(Pred &&pred) {                                           \
+		return ranges_algo_detail::algo_name##_fn<std::remove_cvref_t<Pred>>(         \
 				std::forward<Pred>(pred));                                            \
 	}
 
@@ -48,19 +50,15 @@ namespace dice::template_library {
 namespace dice::template_library {
 	namespace ranges_algo_detail {
 		struct empty_fn {
+
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
-				// Use std::ranges::empty if the expression is valid for the range type.
-				if constexpr (requires { std::ranges::empty(range); }) {
-					return std::ranges::empty(range);
-				} else {
-					// std::ranges::begin/end work for const and non-const ranges.
-					return std::ranges::begin(range) == std::ranges::end(range);
-				}
+				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires an input range as it might otherwise be expensive to materialize the first element.");
+				return std::ranges::empty(range);
 			}
 
 			template<std::ranges::input_range R>
-			friend constexpr auto operator|(R &&range, const empty_fn &self)
+			friend constexpr auto operator|(R &&range, empty_fn const &self)
 					-> decltype(self(std::forward<R>(range))) {
 				return self(std::forward<R>(range));
 			}
@@ -69,12 +67,11 @@ namespace dice::template_library {
 		struct non_empty_fn {
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
-				// Implemented as the negation of empty_fn for code reuse.
 				return !empty_fn{}(std::forward<R>(range));
 			}
 
 			template<std::ranges::input_range R>
-			friend constexpr auto operator|(R &&range, const non_empty_fn &self)
+			friend constexpr auto operator|(R &&range, non_empty_fn const &self)
 					-> decltype(self(std::forward<R>(range))) {
 				return self(std::forward<R>(range));
 			}
@@ -107,22 +104,24 @@ namespace dice::template_library {
 	namespace ranges_algo_detail {
 		template<typename T, typename Pred>
 		struct remove_element_fn {
+		private:
 			T value_;
 			Pred pred_;
 
+		public:
 			template<typename V, typename P>
 			constexpr remove_element_fn(V &&value, P &&pred)
 				: value_(std::forward<V>(value)), pred_(std::forward<P>(pred)) {}
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
 			constexpr auto operator()(R &&range) const {
-				return std::forward<R>(range) | std::views::filter([value = value_, pred = pred_](const auto &element) {
+				return std::forward<R>(range) | std::views::filter([value = value_, pred = pred_](auto const &element) {
 						   return !std::invoke(pred, element, value);
 					   });
 			}
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
-			friend constexpr auto operator|(R &&range, const remove_element_fn &self)
+			friend constexpr auto operator|(R &&range, remove_element_fn const &self)
 					-> decltype(self(std::forward<R>(range))) {
 				return self(std::forward<R>(range));
 			}
@@ -138,7 +137,7 @@ namespace dice::template_library {
 	 */
 	template<typename T, typename Pred = std::ranges::equal_to>
 	constexpr auto remove_element(T &&value, Pred &&pred = Pred{}) {
-		return ranges_algo_detail::remove_element_fn<std::decay_t<T>, std::decay_t<Pred>>(
+		return ranges_algo_detail::remove_element_fn<std::remove_cvref_t<T>, std::remove_cvref_t<Pred>>(
 				std::forward<T>(value), std::forward<Pred>(pred));
 	}
 }// namespace dice::template_library
@@ -157,23 +156,23 @@ namespace dice::template_library {
 			template<std::ranges::input_range R>
 				requires std::copyable<std::ranges::range_value_t<R>>
 			constexpr bool operator()(R &&range) const {
-				if (dice::template_library::empty(range)) {
+				auto it = std::ranges::begin(range);
+				if (it == std::ranges::end(range)) {
 					return true;
 				}
-
-				auto it = std::ranges::begin(range);
-				const auto first_element = *(it++);
+				const auto first_element = *it;
+				++it;
 
 				// Check if all subsequent elements in the range match the first one.
 				return std::ranges::subrange(it, std::ranges::end(range)) |
-					   dice::template_library::all_of([this, first_element](const auto &current_element) {
+					   dice::template_library::all_of([this, first_element](auto const &current_element) {
 						   return std::invoke(pred_, current_element, first_element);
 					   });
 			}
 
 			template<std::ranges::input_range R>
 				requires std::copyable<std::ranges::range_value_t<R>>
-			friend constexpr auto operator|(R &&range, const all_equal_fn &self)
+			friend constexpr auto operator|(R &&range, all_equal_fn const &self)
 					-> decltype(self(std::forward<R>(range))) {
 				return self(std::forward<R>(range));
 			}
@@ -190,7 +189,7 @@ namespace dice::template_library {
      */
 	template<typename Pred = std::ranges::equal_to>
 	constexpr auto all_equal(Pred &&pred = Pred{}) {
-		return ranges_algo_detail::all_equal_fn<std::decay_t<Pred>>(
+		return ranges_algo_detail::all_equal_fn<std::remove_cvref_t<Pred>>(
 				std::forward<Pred>(pred));
 	}
 }// namespace dice::template_library
@@ -205,12 +204,15 @@ namespace dice::template_library {
 		private:
 			struct iterator;
 
-			using ValueType = std::decay_t<std::ranges::range_value_t<V>>;
+			using ValueType = std::remove_cvref_t<std::ranges::range_value_t<V>>;
 			static_assert(std::copy_constructible<ValueType>, "The value type for unique must be copy-constructible.");
+			static_assert((requires(const ValueType &v) { { std::hash<ValueType>{}(v) } -> std::convertible_to<std::size_t>; } && std::equality_comparable<V>) ||
+								  std::strict_weak_order<std::less<V>, V, V>,
+						  "The value type must be either hashable and equality comparable, or support less than..");
 
 			using SetType = std::conditional_t<
 					// Check if std::hash is a valid expression for the value type.
-					requires(const ValueType &v) { { std::hash<ValueType>{}(v) } -> std::convertible_to<std::size_t>; },
+					requires(ValueType const &v) { { std::hash<ValueType>{}(v) } -> std::convertible_to<std::size_t>; },
 					std::unordered_set<ValueType>,
 					std::set<ValueType>>;
 
@@ -284,7 +286,7 @@ namespace dice::template_library {
 			}
 
 			template<std::ranges::viewable_range R>
-			friend constexpr auto operator|(R &&r, const unique_fn &self)
+			friend constexpr auto operator|(R &&r, unique_fn const &self)
 					-> decltype(self(std::forward<R>(r))) {
 				return self(std::forward<R>(r));
 			}
@@ -310,9 +312,9 @@ namespace dice::template_library {
 
 		// The view that represents the generated sequence.
 		template<std::integral T>
-		struct range_generator_view : public std::ranges::view_interface<range_generator_view<T>> {
+		struct range_generator_view : std::ranges::view_interface<range_generator_view<T>> {
 		private:
-			class iterator;// Forward-declare
+			struct iterator;// Forward-declare
 
 			T start_{};
 			T stop_{};
@@ -331,9 +333,9 @@ namespace dice::template_library {
 
 		// The iterator that generates the numbers on the fly.
 		template<std::integral T>
-		class range_generator_view<T>::iterator {
+		struct range_generator_view<T>::iterator {
 		private:
-			const range_generator_view *parent_ = nullptr;
+			range_generator_view const *parent_ = nullptr;
 			T value_{};
 
 		public:
@@ -343,7 +345,7 @@ namespace dice::template_library {
 			using difference_type = std::ptrdiff_t;
 
 			iterator() = default;
-			constexpr explicit iterator(const range_generator_view *parent, T value)
+			constexpr explicit iterator(range_generator_view const *parent, T value)
 				: parent_(parent),
 				  value_(value) {}
 
@@ -375,9 +377,9 @@ namespace dice::template_library {
 	 * - `range<T>(start, stop, step)`: Generates numbers from start, incrementing by step, until stop is met or passed.
 	 */
 	template<std::integral T, typename S = T>
-	constexpr auto range(T arg1, T arg2, S step) {
+	constexpr auto range(T start, T stop, S step) {
 		static_assert(std::is_integral_v<S>, "Step must be an integral type.");
-		return ranges_algo_detail::range_generator_view<T>(arg1, arg2, static_cast<std::make_signed_t<T>>(step));
+		return ranges_algo_detail::range_generator_view<T>(start, stop, static_cast<std::make_signed_t<T>>(step));
 	}
 
 	template<std::integral T>
@@ -397,25 +399,24 @@ namespace dice::template_library {
 	namespace ranges_algo_detail {
 		template<typename Pred>
 		struct all_distinct_fn {
+		private:
 			Pred pred_;
 
+		public:
 			template<typename P>
 			constexpr explicit all_distinct_fn(P &&pred)
 				: pred_(std::forward<P>(pred)) {}
 
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
-				using ValueType = std::decay_t<std::ranges::range_value_t<R>>;
+				using ValueType = std::remove_cvref_t<std::ranges::range_value_t<R>>;
 
-				if (dice::template_library::empty(range)) {
-					return true;
-				}
 
 				// backend_selection
 				constexpr bool is_default_pred = std::is_same_v<Pred, std::ranges::equal_to>;
 
 				constexpr bool hash_set_usable = std::copy_constructible<ValueType> &&
-												 requires(const ValueType &v) {
+												 requires(ValueType const &v) {
 													 { std::hash<ValueType>{}(v) } -> std::convertible_to<std::size_t>;
 												 };
 
@@ -424,6 +425,11 @@ namespace dice::template_library {
 													is_default_pred;// non-default predicates cannot be used with the ordered set
 				static_assert(hash_set_usable || ordered_set_usable, "The elements of the consumed range are neither compatible with std::unordered_set nor with std::set.");
 
+				auto it = std::ranges::begin(range);
+				if (it == std::ranges::end(range)) {
+					return true;
+				}
+
 				auto seen = [&] {
 					if constexpr (hash_set_usable) {
 						return std::unordered_set<ValueType, std::hash<ValueType>, Pred>{1, {}, pred_};
@@ -431,14 +437,14 @@ namespace dice::template_library {
 						return std::set<ValueType>{};
 					}
 				}();
-				for (const auto &element : range) {
+				for (const auto &element : std::ranges::subrange{it, std::ranges::end(range)}) {
 					if (!seen.insert(element).second) { return false; }
 				}
 				return true;
 			}
 
 			template<std::ranges::input_range R>
-			friend constexpr auto operator|(R &&range, const all_distinct_fn &self)
+			friend constexpr auto operator|(R &&range, all_distinct_fn const &self)
 					-> decltype(self(std::forward<R>(range))) {
 				return self(std::forward<R>(range));
 			}
@@ -458,7 +464,7 @@ namespace dice::template_library {
 	 */
 	template<typename Pred = std::ranges::equal_to>
 	constexpr auto all_distinct(Pred &&pred = Pred{}) {
-		return ranges_algo_detail::all_distinct_fn<std::decay_t<Pred>>(
+		return ranges_algo_detail::all_distinct_fn<std::remove_cvref_t<Pred>>(
 				std::forward<Pred>(pred));
 	}
 
