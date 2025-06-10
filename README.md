@@ -12,7 +12,7 @@ It contains:
 - `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
 - `pool` & `pool_allocator`: Arena/pool allocator optimized for a limited number of known allocation sizes.
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
-- `overloaded`: Composition for `std::variant` visitor lambdas
+- `overloaded` and `match`: Batteries for `std::variant` (and also `dtl::variant2`. Compose re-usable visitors with `overload` or apply a single-use visitor directly with `match`.
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
@@ -83,7 +83,7 @@ The primary use-case for this is on-the-fly RAII-like resource management for ty
 Usage examples can be found [here](examples/examples_defer.cpp).
 
 
-### `tuple algorthims`
+### `tuple algorithms`
 Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
 
 ### `flex_array`
@@ -105,6 +105,9 @@ fashion than a mutex+container would allow.
 Like `std::variant` but specifically optimized for usage with two types/variants. 
 The internal representation is a `union` of the two types plus a 1 byte (3 state) discriminant.
 Additionally, `visit` does not involve any virtual function calls.
+
+### `overload` / `match`
+Things that are missing around `std::variant` and visitors in the standard library. Implementation of the common `overload` pattern to create re-usable visitors. Also, comes with a `match` function that allows you to declare the visitor directly  inline when applying it. 
 
 ### `type_traits.hpp`
 Things that are missing in the standard library `<type_traits>` header.
