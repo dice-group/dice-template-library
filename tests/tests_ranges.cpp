@@ -69,7 +69,7 @@ TEST_SUITE("range adaptors for all_of, any_of, none_of") {
 	}
 
 	TEST_CASE("const range") {
-		const std::vector v = {2, 4, 6};
+		std::vector const v = {2, 4, 6};
 		CHECK((v | dtl::all_of(is_even)));
 		CHECK(!(v | dtl::none_of(is_even)));
 		CHECK((v | dtl::any_of(is_even)));
@@ -178,18 +178,18 @@ TEST_SUITE("all_equal algorithm") {
 
 struct ComparableOnly {
 	int id;
-	auto operator<=>(const ComparableOnly &) const = default;
+	auto operator<=>(ComparableOnly const &) const = default;
 };
 
 struct HashableOnly {
 	int id;
-	bool operator==(const HashableOnly &other) const { return id == other.id; }
+	bool operator==(HashableOnly const &other) const { return id == other.id; }
 };
 
 namespace std {
 	template<>
 	struct hash<HashableOnly> {
-		std::size_t operator()(const HashableOnly &h) const noexcept {
+		std::size_t operator()(HashableOnly const &h) const noexcept {
 			return std::hash<int>{}(h.id);
 		}
 	};
@@ -230,7 +230,7 @@ TEST_SUITE("unique range adaptor") {
 		std::vector<ComparableOnly> const input{{10}, {20}, {10}, {30}};
 		auto result_view = input | dtl::unique;
 		std::vector<ComparableOnly> expected{{10}, {20}, {30}};
-		CHECK(std::ranges::equal(result_view, expected, [](const auto &a, const auto &b) { return a.id == b.id; }));
+		CHECK(std::ranges::equal(result_view, expected, [](auto const &a, auto const &b) { return a.id == b.id; }));
 	}
 
 	TEST_CASE("std::unordered_set for hashable-only types") {
@@ -361,7 +361,7 @@ TEST_SUITE("all_distinct algorithm") {
 	}
 
 	TEST_CASE("custom predicate with HashableOnly type") {
-		auto same_id_custom = [](const HashableOnly &a, const HashableOnly &b) {
+		auto same_id_custom = [](HashableOnly const &a, HashableOnly const &b) {
 			return a.id == b.id;
 		};
 
