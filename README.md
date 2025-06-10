@@ -74,7 +74,7 @@ Allocator wrapper that limits the amount of memory that can be allocated through
 If the limit is exceeded it will throw `std::bad_alloc`.
 
 ### `DICE_MEMFN`
-MEMFN is a convenience macro that makes it easy to pass member functions as argument, e.g., to range adaptors.
+DICE_MEMFN is a convenience macro that makes it easy to pass member functions as argument, e.g., to range adaptors.
 It eliminates boilerplate code by creating a lambda that captures this and perfectly forwards
 arguments to your member function.
 

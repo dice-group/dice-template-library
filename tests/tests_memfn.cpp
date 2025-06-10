@@ -35,12 +35,12 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 			last_call = CallSignature::ByRvalueRef;
 			moved_in_data = std::move(s);
 		}
-		void process_mixed_args(const std::string &s_const_ref, int &i_ref, const std::string &s_value) {
+		void process_mixed_args(const std::string &s_value, const std::string &s_const_ref, int &i_ref) {
 			last_call = CallSignature::MixedArgs;
 			i_ref *= 2;
 			moved_in_data = s_const_ref + "_" + s_value;
 		}
-		std::string transform_int_to_string(int i, const std::string &prefix) {
+		std::string transform_int_to_string(const std::string &prefix, int i) {
 			last_call = CallSignature::RangeTransform;
 			return prefix + std::to_string(i);
 		}
