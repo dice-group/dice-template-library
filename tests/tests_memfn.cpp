@@ -26,7 +26,7 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 
 		// Member functions to be called by the macro
 		void process_by_value(std::string s) { last_call = CallSignature::ByValue; }
-		void process_by_const_lvalue_ref(const std::string &s) { last_call = CallSignature::ByConstLvalueRef; }
+		void process_by_const_lvalue_ref(std::string const &s) { last_call = CallSignature::ByConstLvalueRef; }
 		void process_by_lvalue_ref(std::string &s) {
 			last_call = CallSignature::ByLvalueRef;
 			s += "_modified";
@@ -35,12 +35,12 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 			last_call = CallSignature::ByRvalueRef;
 			moved_in_data = std::move(s);
 		}
-		void process_mixed_args(const std::string &s_value, const std::string &s_const_ref, int &i_ref) {
+		void process_mixed_args(std::string const &s_value, std::string const &s_const_ref, int &i_ref) {
 			last_call = CallSignature::MixedArgs;
 			i_ref *= 2;
 			moved_in_data = s_const_ref + "_" + s_value;
 		}
-		std::string transform_int_to_string(const std::string &prefix, int i) {
+		std::string transform_int_to_string(std::string const &prefix, int i) {
 			last_call = CallSignature::RangeTransform;
 			return prefix + std::to_string(i);
 		}
@@ -48,7 +48,7 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 
 		// methods for the tests
 		void run_const_lvalue_ref_test() {
-			const std::string data = "immutable";
+			std::string const data = "immutable";
 			auto task = DICE_MEMFN(process_by_const_lvalue_ref);
 			task(data);
 			CHECK(last_call == CallSignature::ByConstLvalueRef);
@@ -84,7 +84,7 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 		}
 
 		void run_mixed_args_test() {
-			const std::string const_data = "hello";
+			std::string const const_data = "hello";
 			int mutable_int = 10;
 			std::string movable_data = "world";
 
@@ -99,7 +99,7 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 
 		void run_range_adaptor_test() {
 			std::vector<int> source_data = {10, 20, 30};
-			const std::string prefix = "item_";
+			std::string const prefix = "item_";
 
 			auto transformed_view = source_data | std::views::transform(DICE_MEMFN(transform_int_to_string, prefix));
 
