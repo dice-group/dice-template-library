@@ -16,6 +16,7 @@ It contains:
 - `overloaded` and `match`: Batteries for `std::variant` (and also `dtl::variant2`. Compose re-usable visitors with `overload` or apply a single-use visitor directly with `match`.
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
+- `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
 - `variant2`: Like `std::variant` but optimized for exactly two types
@@ -88,9 +89,11 @@ A mechanism similar to go's `defer` keyword, which can be used to defer some act
 The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example C types).
 Usage examples can be found [here](examples/examples_defer.cpp).
 
-
 ### `tuple algorithms`
 Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
+
+### `fmt_join`
+Works just like [`fmt::join`](https://fmt.dev/latest/api/#range-and-tuple-formatting) but for `std::format`.
 
 ### `flex_array`
 A combination of `std::array`, `std::span` and a `vector` with small buffer optimization where the size is either

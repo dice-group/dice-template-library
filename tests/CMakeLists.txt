@@ -52,6 +52,9 @@ custom_add_test(tests_tuple_algorithm)
 add_executable(tests_flex_array tests_flex_array.cpp)
 custom_add_test(tests_flex_array)
 
+add_executable(tests_fmt_join tests_fmt_join.cpp)
+custom_add_test(tests_fmt_join)
+
 add_executable(tests_generator tests_generator.cpp)
 custom_add_test(tests_generator)
 
