@@ -52,9 +52,9 @@ namespace std {
 			return element_formatter_.parse(parse_ctx);
 		}
 
-		auto format(const dice::template_library::fmt_join_algo_detail::joiner<R, Sep> &join_obj, auto &format_ctx) const {
+		auto format(dice::template_library::fmt_join_algo_detail::joiner<R, Sep> const &join_obj, auto &format_ctx) const {
 			auto it = std::ranges::begin(join_obj.range);
-			const auto end = std::ranges::end(join_obj.range);
+			auto const end = std::ranges::end(join_obj.range);
 
 			if (it == end) {
 				return format_ctx.out();
@@ -67,7 +67,7 @@ namespace std {
 
 			while (it != end) {
 				// format separator
-				if constexpr (std::ranges::range<const Sep &>) {
+				if constexpr (std::ranges::range<Sep const &>) {
 					format_ctx.advance_to(std::ranges::copy(join_obj.separator, format_ctx.out()));
 				} else {
 					// otherwise single character
