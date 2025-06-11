@@ -45,6 +45,13 @@ target_link_libraries(examples_defer
         dice-template-library::dice-template-library
 )
 
+add_executable(examples_fmt_join
+        examples_fmt_join.cpp)
+target_link_libraries(examples_fmt_join
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
 add_executable(examples_tuple_algorithm
         examples_tuple_algorithm.cpp)
 target_link_libraries(examples_tuple_algorithm
@@ -87,6 +94,13 @@ target_link_libraries(example_limit_allocator
         dice-template-library::dice-template-library
 )
 
+add_executable(example_memfn
+        example_memfn.cpp)
+target_link_libraries(example_memfn
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
 add_executable(example_pool_allocator
         example_pool_allocator.cpp)
 target_link_libraries(example_pool_allocator
@@ -94,6 +108,12 @@ target_link_libraries(example_pool_allocator
         dice-template-library::dice-template-library
 )
 
+add_executable(example_ranges
+        example_ranges.cpp)
+target_link_libraries(example_ranges
+        PRIVATE
+        dice-template-library::dice-template-library
+)
 
 add_executable(example_mutex
         example_mutex.cpp)
