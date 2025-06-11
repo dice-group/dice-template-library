@@ -108,6 +108,12 @@ target_link_libraries(example_pool_allocator
         dice-template-library::dice-template-library
 )
 
+add_executable(example_ranges
+        example_ranges.cpp)
+target_link_libraries(example_ranges
+        PRIVATE
+        dice-template-library::dice-template-library
+)
 
 add_executable(example_mutex
         example_mutex.cpp)
