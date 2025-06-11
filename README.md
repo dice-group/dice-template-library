@@ -10,11 +10,13 @@ It contains:
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
+- `DICE_MEMFN`: Macro to pass member functions like free functions as argument. 
 - `pool` & `pool_allocator`: Arena/pool allocator optimized for a limited number of known allocation sizes.
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
-- `overloaded`: Composition for `std::variant` visitor lambdas
+- `overloaded` and `match`: Batteries for `std::variant` (and also `dtl::variant2`. Compose re-usable visitors with `overload` or apply a single-use visitor directly with `match`.
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
+- `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
 - `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
 - `variant2`: Like `std::variant` but optimized for exactly two types
@@ -73,6 +75,11 @@ Which means: vtables will not work (because they use absolute pointers) and ther
 Allocator wrapper that limits the amount of memory that can be allocated through the inner allocator.
 If the limit is exceeded it will throw `std::bad_alloc`.
 
+### `DICE_MEMFN`
+DICE_MEMFN is a convenience macro that makes it easy to pass member functions as argument, e.g., to range adaptors.
+It eliminates boilerplate code by creating a lambda that captures this and perfectly forwards
+arguments to your member function.
+
 ### `pool_allocator`
 A memory arena/pool allocator with configurable allocation sizes. This is implemented
 as a collection of pools with varying allocation sizes. Allocations that do not
@@ -83,8 +90,11 @@ A mechanism similar to go's `defer` keyword, which can be used to defer some act
 The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example C types).
 Usage examples can be found [here](examples/examples_defer.cpp).
 
-### `tuple algorthims`
+### `tuple algorithms`
 Some algorithms for iterating tuples, for example `tuple_fold` a fold/reduce implementation for tuples.
+
+### `fmt_join`
+Works just like [`fmt::join`](https://fmt.dev/latest/api/#range-and-tuple-formatting) but for `std::format`.
 
 ### `flex_array`
 A combination of `std::array`, `std::span` and a `vector` with small buffer optimization where the size is either
@@ -105,6 +115,9 @@ fashion than a mutex+container would allow.
 Like `std::variant` but specifically optimized for usage with two types/variants. 
 The internal representation is a `union` of the two types plus a 1 byte (3 state) discriminant.
 Additionally, `visit` does not involve any virtual function calls.
+
+### `overload` / `match`
+Things that are missing around `std::variant` and visitors in the standard library. Implementation of the common `overload` pattern to create re-usable visitors. Also, comes with a `match` function that allows you to declare the visitor directly  inline when applying it. 
 
 ### `type_traits.hpp`
 Things that are missing in the standard library `<type_traits>` header.

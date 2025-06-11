@@ -52,6 +52,9 @@ custom_add_test(tests_tuple_algorithm)
 add_executable(tests_flex_array tests_flex_array.cpp)
 custom_add_test(tests_flex_array)
 
+add_executable(tests_fmt_join tests_fmt_join.cpp)
+custom_add_test(tests_fmt_join)
+
 add_executable(tests_generator tests_generator.cpp)
 custom_add_test(tests_generator)
 
@@ -66,6 +69,9 @@ custom_add_test(tests_type_traits)
 
 add_executable(tests_limit_allocator tests_limit_allocator.cpp)
 custom_add_test(tests_limit_allocator)
+
+add_executable(tests_memfn tests_memfn.cpp)
+custom_add_test(tests_memfn)
 
 add_executable(tests_pool_allocator tests_pool_allocator.cpp)
 custom_add_test(tests_pool_allocator)

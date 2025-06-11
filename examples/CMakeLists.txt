@@ -45,6 +45,13 @@ target_link_libraries(examples_defer
         dice-template-library::dice-template-library
 )
 
+add_executable(examples_fmt_join
+        examples_fmt_join.cpp)
+target_link_libraries(examples_fmt_join
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
 add_executable(examples_tuple_algorithm
         examples_tuple_algorithm.cpp)
 target_link_libraries(examples_tuple_algorithm
@@ -83,6 +90,13 @@ target_link_libraries(example_variant2
 add_executable(example_limit_allocator
         example_limit_allocator.cpp)
 target_link_libraries(example_limit_allocator
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
+add_executable(example_memfn
+        example_memfn.cpp)
+target_link_libraries(example_memfn
         PRIVATE
         dice-template-library::dice-template-library
 )
