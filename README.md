@@ -22,7 +22,7 @@ It contains:
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
-- `all_of`/`any_of`/`none_of`: range adaptors versions of the algoriths from `std::ranges::`. So, you can pip a range in.  
+- `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
 
 ## Usage
 
@@ -131,6 +131,11 @@ data without holding the mutex.
 A string type that is smaller than `std::string` but does not have the ability to grow or shrink.
 This is useful if you never need to resize the string and want to keep the memory footprint low.
 It also supports allocators with "fancy" pointers.
+
+### `ranges`
+Additional range algorithms (e.g. `unique_view`) and adaptors (e.g. a pipeable `all_of`)
+that are missing from the standard library.
+
 
 ### Further Examples
 
