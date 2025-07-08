@@ -13,7 +13,7 @@ It contains:
 - `DICE_MEMFN`: Macro to pass member functions like free functions as argument. 
 - `pool` & `pool_allocator`: Arena/pool allocator optimized for a limited number of known allocation sizes.
 - `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`: On-the-fly RAII for types that do not support it natively (similar to go's `defer` keyword)
-- `overloaded` and `match`: Batteries for `std::variant` (and also `dtl::variant2`. Compose re-usable visitors with `overload` or apply a single-use visitor directly with `match`.
+- `overloaded` and `match`: Batteries for `std::variant` (and also `dtl::variant2`). Compose re-usable visitors with `overload` or apply a single-use visitor directly with `match`.
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
@@ -28,7 +28,7 @@ It contains:
 
 ### `switch_cases`
 
-Use runtime values in compile-time context. This is realised by instantiating ranges of values at compile-time and
+Use runtime values in a compile-time context. This is realised by instantiating ranges of values at compile-time and
 dispatching to the correct version at runtime. You can add fallbacks for when the runtime value lies outside the range
 defined. By using `switch_cases` inside of `switch_cases` multidimensional ranges can be handled as well. Examples can
 be found [here](examples/examples_switch_cases.cpp).
@@ -42,7 +42,7 @@ template <std::size_t N> struct my_type{...};
 ```
 
 Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to `my_type<j>` for `i<=j` with this code.
-Negative indices, recasting to fewer values and non-default construction is also possible. Examples can be
+Negative indices, recasting to fewer values and non-default construction are also possible. Examples can be
 found [here](examples/examples_integral_template_tuple.cpp).
 
 ### `integral_template_variant`
@@ -53,7 +53,7 @@ template <std::size_t N> struct my_type{...};
 ```
 
 Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of `integral_template_variant<my_type, i, j>`.
-Negative indices, and j <= i are also possible. Examples can be
+Negative indices and `j <= i` are also possible. Examples can be
 found [here](examples/examples_integral_template_variant.cpp).
 
 ### `for_{types,values,range}`
@@ -63,12 +63,12 @@ be found [here](examples/examples_for.cpp).
 
 ### `polymorphic_allocator`
 A `std::pmr::polymorphic_allocator`-like type that uses static dispatch instead of dynamic dispatch to choose the allocator.
-This allocator is primarily useful for situations where you have inhomogeneous memory and one of the memory
+This allocator is primarily useful for situations where you have inhomogeneous memory, and one of the memory
 types does not allow dynamic dispatch using vtables; but you still want to mix and match values from both memory types.
 
 For example, you might have some allocations in persistent or shared memory (or generally: memory-mapped allocations) and others on the heap.
 The problem with `mmap` allocations is that they will be placed at an arbitrary position in virtual memory each time they are loaded,
-therefore absolute pointers will cause segfaults if the segment is reloaded.
+therefore, absolute pointers will cause segfaults if the segment is reloaded.
 Which means: vtables will not work (because they use absolute pointers) and therefore you cannot use `std::pmr::polymorphic_allocator`.
 
 ### `limit_allocator`
@@ -87,7 +87,7 @@ fit into any of its pools are directly served via `new`.
 
 ### `DICE_DEFER`/`DICE_DEFER_TO_SUCCES`/`DICE_DEFER_TO_FAIL`
 A mechanism similar to go's `defer` keyword, which can be used to defer some action to scope exit.
-The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example C types).
+The primary use-case for this is on-the-fly RAII-like resource management for types that do not support RAII (for example, C types).
 Usage examples can be found [here](examples/examples_defer.cpp).
 
 ### `tuple algorithms`
@@ -105,10 +105,10 @@ The reference implementation of `std::generator` from [P2502R2](https://www.open
 By default, the generator and corresponding utilities are exported under the `dice::template_library::` namespace.
 If you want this generator to serve as a drop in replacement for `std::generator` until it arrives
 use `#define DICE_TEMPLATELIBRARY_GENERATOR_STD_COMPAT 1` before including the generator header. That will export
-all generator related things under namespace `std::`.
+all generator-related things under namespace `std::`.
 
 ### `channel`
-A single producer, single consume queue. This can be used to communicate between threads in a more high level
+A single-producer, single-consume queue. This can be used to communicate between threads in a more high level
 fashion than a mutex+container would allow.
 
 ### `variant2`
@@ -117,7 +117,7 @@ The internal representation is a `union` of the two types plus a 1 byte (3 state
 Additionally, `visit` does not involve any virtual function calls.
 
 ### `overload` / `match`
-Things that are missing around `std::variant` and visitors in the standard library. Implementation of the common `overload` pattern to create re-usable visitors. Also, comes with a `match` function that allows you to declare the visitor directly  inline when applying it. 
+Things that are missing around `std::variant` and visitors in the standard library. Implementation of the common `overload` pattern to create re-usable visitors. Also, comes with a `match` function that allows you to declare the visitor directly inline when applying it. 
 
 ### `type_traits.hpp`
 Things that are missing in the standard library `<type_traits>` header.
@@ -133,7 +133,7 @@ This is useful if you never need to resize the string and want to keep the memor
 It also supports allocators with "fancy" pointers.
 
 ### `ranges`
-Additional range algorithms (e.g. `unique_view`) and adaptors (e.g. a pipeable `all_of`)
+Additional range algorithms (e.g. `unique_view`) and adaptors (e.g., a pipeable `all_of`)
 that are missing from the standard library.
 
 
@@ -146,7 +146,7 @@ option `-DBUILD_EXAMPLES=ON` to be added.
 
 A C++20 compatible compiler. Code was only tested on x86_64.
 
-## Include it into your projects
+## Include it in your projects
 
 ### CMake
 

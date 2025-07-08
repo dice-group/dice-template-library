@@ -58,22 +58,22 @@ TEST_SUITE("variant2") {
 		static constexpr size_t index = variant_index<T, std::remove_cvref_t<Variant>>::value;
 
 		static_assert(same_kind_of_type<decltype(get<T>(std::forward<Variant>(x))), decltype(std::forward<Variant>(x))>);
-		CHECK_EQ(get<T>(std::forward<Variant>(x)), expected_val);
+		REQUIRE_EQ(get<T>(std::forward<Variant>(x)), expected_val);
 
 		if constexpr (std::is_lvalue_reference_v<decltype(std::forward<Variant>(x))>) {
 			static_assert(same_kind_of_type<decltype(get_if<T>(&std::forward<Variant>(x))), decltype(&std::forward<Variant>(x))>);
-			CHECK_EQ(*get_if<T>(&std::forward<Variant>(x)), expected_val);
+			REQUIRE_EQ(*get_if<T>(&std::forward<Variant>(x)), expected_val);
 		}
 
-		CHECK(holds_alternative<T>(x));
-		CHECK_FALSE(x.valueless_by_exception());
-		CHECK_EQ(x.index(), index);
+		REQUIRE(holds_alternative<T>(x));
+		REQUIRE_FALSE(x.valueless_by_exception());
+		REQUIRE_EQ(x.index(), index);
 
 		visit([&]<typename U>(U &&val) {
 			static_assert(same_kind_of_type<decltype(std::forward<U>(val)), decltype(std::forward<Variant>(x))>);
 
 			if constexpr (std::is_same_v<std::remove_cvref_t<U>, T>) {
-				CHECK_EQ(val, expected_val);
+				REQUIRE_EQ(val, expected_val);
 			} else {
 				FAIL("Unexpected element active");
 			}
@@ -81,13 +81,13 @@ TEST_SUITE("variant2") {
 
 		std::remove_cvref_t<Variant> const y{std::in_place_type<T>, expected_val};
 
-		CHECK(x == x);
-		CHECK_FALSE(x != x);
-		CHECK(x <=> x == std::strong_ordering::equal);
+		REQUIRE(x == x);
+		REQUIRE_FALSE(x != x);
+		REQUIRE(x <=> x == std::strong_ordering::equal);
 
-		CHECK(x == y);
-		CHECK_FALSE(x != y);
-		CHECK(x <=> y == std::strong_ordering::equal);
+		REQUIRE(x == y);
+		REQUIRE_FALSE(x != y);
+		REQUIRE(x <=> y == std::strong_ordering::equal);
 
 		if constexpr (requires { std::hash<std::variant_alternative_t<0, std::remove_cvref_t<Variant>>>{}; } && requires { std::hash<std::variant_alternative_t<1, std::remove_cvref_t<Variant>>>{}; }) {
 			[[maybe_unused]] auto h = std::hash<std::remove_cvref_t<Variant>>{}(x); // only checking if this compiles
@@ -96,13 +96,13 @@ TEST_SUITE("variant2") {
 
 	template<typename Variant>
 	void check_valuelessness(Variant const &v) {
-		CHECK(v.valueless_by_exception());
-		CHECK_EQ(v.index(), std::variant_npos);
-		CHECK_THROWS((void) get<int>(v));
-		CHECK_THROWS((void) get<make_valueless>(v));
-		CHECK_EQ(get_if<int>(&v), nullptr);
-		CHECK_EQ(get_if<make_valueless>(&v), nullptr);
-		CHECK_THROWS((void) visit([](auto &&x) { }, v));
+		REQUIRE(v.valueless_by_exception());
+		REQUIRE_EQ(v.index(), std::variant_npos);
+		REQUIRE_THROWS((void) get<int>(v));
+		REQUIRE_THROWS((void) get<make_valueless>(v));
+		REQUIRE_EQ(get_if<int>(&v), nullptr);
+		REQUIRE_EQ(get_if<make_valueless>(&v), nullptr);
+		REQUIRE_THROWS((void) visit([](auto &&x) { }, v));
 	}
 
 	TEST_CASE("properties") {
@@ -196,14 +196,14 @@ TEST_SUITE("variant2") {
 		variant2<int, make_valueless> v{};
 		check_acessors(v, 0);
 
-		CHECK_THROWS(v.emplace<make_valueless>());
+		REQUIRE_THROWS(v.emplace<make_valueless>());
 		check_valuelessness(v);
 
 		int const a = 5;
 		v = a;
 		check_acessors(v, 5);
 
-		CHECK_THROWS(v = make_valueless{std::nothrow});
+		REQUIRE_THROWS(v = make_valueless{std::nothrow});
 		check_valuelessness(v);
 
 		int b = 6;
@@ -211,7 +211,7 @@ TEST_SUITE("variant2") {
 		check_acessors(v, b);
 
 		make_valueless const novalue{std::nothrow};
-		CHECK_THROWS(v = novalue);
+		REQUIRE_THROWS(v = novalue);
 		check_valuelessness(v);
 
 		variant2<int, make_valueless> const c{8};
@@ -219,22 +219,22 @@ TEST_SUITE("variant2") {
 		check_acessors(v, 8);
 
 		make_valueless novalue2{std::nothrow};
-		CHECK_THROWS(v = std::move(novalue2));
+		REQUIRE_THROWS(v = std::move(novalue2));
 		check_valuelessness(v);
 
 		variant2<int, make_valueless> d{9};
 		v = std::move(d);
 		check_acessors(v, 9);
 
-		CHECK_THROWS(v.emplace<make_valueless>(make_valueless{std::nothrow}));
+		REQUIRE_THROWS(v.emplace<make_valueless>(make_valueless{std::nothrow}));
 		check_valuelessness(v);
 
 		variant2<int, make_valueless> const e{std::in_place_type<make_valueless>, std::nothrow};
-		CHECK_THROWS(v = e);
+		REQUIRE_THROWS(v = e);
 		check_valuelessness(v);
 
 		variant2<int, make_valueless> f{std::in_place_type<make_valueless>, std::nothrow};
-		CHECK_THROWS(v = std::move(f));
+		REQUIRE_THROWS(v = std::move(f));
 		check_valuelessness(v);
 	}
 

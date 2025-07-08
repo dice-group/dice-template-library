@@ -54,14 +54,13 @@ namespace dice::template_library {
    */
 	template<std::integral auto first, decltype(first) last, typename F, typename D>
 	constexpr decltype(auto) switch_cases(decltype(first) condition, F &&cases_function, D &&default_function) {
-		using namespace detail_switch_cases;
 
 		constexpr decltype(first) min = std::min(first, last);
 		constexpr decltype(last) max = std::max(first, last);
 
 		if constexpr (min != max) {
 			if (min <= condition && condition < max) {
-				return execute_case<min, max>(condition, std::forward<F>(cases_function));
+				return detail_switch_cases::execute_case<min, max>(condition, std::forward<F>(cases_function));
 			}
 		}
 

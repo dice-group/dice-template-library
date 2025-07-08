@@ -13,7 +13,7 @@ namespace dice::template_library {
 				{
 					DICE_DEFER { executed = true; };
 				}
-				CHECK(executed);
+				REQUIRE(executed);
 			}
 
 			SUBCASE("fail") {
@@ -24,7 +24,7 @@ namespace dice::template_library {
 					// expecting excetpion
 				}
 
-				CHECK(executed);
+				REQUIRE(executed);
 			}
 		}
 
@@ -35,7 +35,7 @@ namespace dice::template_library {
 				{
 					DICE_DEFER_TO_FAIL { executed = true; };
 				}
-				CHECK_FALSE(executed);
+				REQUIRE_FALSE(executed);
 			}
 
 			SUBCASE("fail") {
@@ -46,7 +46,7 @@ namespace dice::template_library {
 					// expecting excetpion
 				}
 
-				CHECK(executed);
+				REQUIRE(executed);
 			}
 		}
 
@@ -57,7 +57,7 @@ namespace dice::template_library {
 				{
 					DICE_DEFER_TO_SUCCESS { executed = true; };
 				}
-				CHECK(executed);
+				REQUIRE(executed);
 			}
 
 			SUBCASE("fail") {
@@ -68,7 +68,7 @@ namespace dice::template_library {
 					// expecting excetpion
 				}
 
-				CHECK_FALSE(executed);
+				REQUIRE_FALSE(executed);
 			}
 		}
 

@@ -2,12 +2,17 @@
 #include <doctest/doctest.h>
 
 #include <dice/template-library/flex_array.hpp>
+
 #include <algorithm>
+#include <compare>
 #include <numeric>
 #include <ranges>
+#include <span>
+#include <stdexcept>
+#include <vector>
 
 namespace dice::template_library {
-	// extern template sometimes make problems if internal types are too eagerly instantiated
+	// extern templates sometimes make problems if internal types are too eagerly instantiated
 	extern template struct flex_array<int, 5>;
 	extern template struct flex_array<int, dynamic_extent, 5>;
 
@@ -20,13 +25,13 @@ TEST_SUITE("flex_array") {
 
 	template<size_t extent, size_t max_extent>
 	void check_all_static(flex_array<int, extent, max_extent> const &f) {
-		CHECK_FALSE(f.empty());
-		CHECK_EQ(f.size(), 5);
-		CHECK_EQ(f.max_size(), 5);
-		CHECK_EQ(std::distance(f.begin(), f.end()), 5);
-		CHECK_EQ(std::distance(f.cbegin(), f.cend()), 5);
-		CHECK_EQ(std::distance(f.rbegin(), f.rend()), 5);
-		CHECK_EQ(std::distance(f.crbegin(), f.crend()), 5);
+		REQUIRE_FALSE(f.empty());
+		REQUIRE_EQ(f.size(), 5);
+		REQUIRE_EQ(f.max_size(), 5);
+		REQUIRE_EQ(std::distance(f.begin(), f.end()), 5);
+		REQUIRE_EQ(std::distance(f.cbegin(), f.cend()), 5);
+		REQUIRE_EQ(std::distance(f.rbegin(), f.rend()), 5);
+		REQUIRE_EQ(std::distance(f.crbegin(), f.crend()), 5);
 	}
 
 	template<size_t extent, size_t max_extent>
@@ -35,43 +40,43 @@ TEST_SUITE("flex_array") {
 		ref.resize(expected_size);
 		std::iota(ref.begin(), ref.end(), 1);
 
-		CHECK(std::ranges::equal(f, ref));
-		CHECK(std::ranges::equal(std::ranges::subrange(f.rbegin(), f.rend()), ref | std::views::reverse)); // using subrange(rbegin(), rend()) just to make really sure that they are used
+		REQUIRE(std::ranges::equal(f, ref));
+		REQUIRE(std::ranges::equal(std::ranges::subrange(f.rbegin(), f.rend()), ref | std::views::reverse)); // using subrange(rbegin(), rend()) just to make really sure that they are used
 
 		if (expected_size > 0) {
-			CHECK_EQ(*f.data(), 1);
+			REQUIRE_EQ(*f.data(), 1);
 		}
 
-		CHECK(std::ranges::equal(ref, std::span{f}));
+		REQUIRE(std::ranges::equal(ref, std::span{f}));
 	}
 
 	template<size_t extent, size_t max_extent>
 	void check_all_dynamic(flex_array<int, extent, max_extent> &f, size_t expected_size) {
-		CHECK_EQ(f.empty(), expected_size == 0);
-		CHECK_EQ(f.size(), expected_size);
-		CHECK_EQ(f.max_size(), max_extent);
-		CHECK_EQ(std::distance(f.begin(), f.end()), expected_size);
-		CHECK_EQ(std::distance(f.cbegin(), f.cend()), expected_size);
-		CHECK_EQ(std::distance(f.rbegin(), f.rend()), expected_size);
-		CHECK_EQ(std::distance(f.crbegin(), f.crend()), expected_size);
+		REQUIRE_EQ(f.empty(), expected_size == 0);
+		REQUIRE_EQ(f.size(), expected_size);
+		REQUIRE_EQ(f.max_size(), max_extent);
+		REQUIRE_EQ(std::distance(f.begin(), f.end()), expected_size);
+		REQUIRE_EQ(std::distance(f.cbegin(), f.cend()), expected_size);
+		REQUIRE_EQ(std::distance(f.rbegin(), f.rend()), expected_size);
+		REQUIRE_EQ(std::distance(f.crbegin(), f.crend()), expected_size);
 
 		f.resize(5);
-		CHECK_FALSE(f.empty());
-		CHECK_EQ(f.size(), 5);
-		CHECK_EQ(f.max_size(), max_extent);
-		CHECK_EQ(std::distance(f.begin(), f.end()), 5);
-		CHECK_EQ(std::distance(f.cbegin(), f.cend()), 5);
-		CHECK_EQ(std::distance(f.rbegin(), f.rend()), 5);
-		CHECK_EQ(std::distance(f.crbegin(), f.crend()), 5);
+		REQUIRE_FALSE(f.empty());
+		REQUIRE_EQ(f.size(), 5);
+		REQUIRE_EQ(f.max_size(), max_extent);
+		REQUIRE_EQ(std::distance(f.begin(), f.end()), 5);
+		REQUIRE_EQ(std::distance(f.cbegin(), f.cend()), 5);
+		REQUIRE_EQ(std::distance(f.rbegin(), f.rend()), 5);
+		REQUIRE_EQ(std::distance(f.crbegin(), f.crend()), 5);
 
 		f[0] = 1;
 		f[1] = 2;
 		f[2] = 3;
 		f[3] = 4;
 		f[4] = 5;
-		CHECK_EQ(std::accumulate(f.begin(), f.end(), 0), 15);
-		CHECK_EQ(*f.data(), 1);
-		CHECK_EQ(*(f.data() + f.size() - 1), 5);
+		REQUIRE_EQ(std::accumulate(f.begin(), f.end(), 0), 15);
+		REQUIRE_EQ(*f.data(), 1);
+		REQUIRE_EQ(*(f.data() + f.size() - 1), 5);
 	}
 
 	TEST_CASE("static size") {
@@ -109,17 +114,17 @@ TEST_SUITE("flex_array") {
 			flex_array<int, 5> f2{6, 7, 8, 9, 10};
 
 			swap(f, f2);
-			CHECK(std::ranges::equal(f, std::array{6, 7, 8, 9, 10}));
-			CHECK(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
+			REQUIRE(std::ranges::equal(f, std::array{6, 7, 8, 9, 10}));
+			REQUIRE(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
 		}
 
 		SUBCASE("cmp") {
 			flex_array<int, 5> f{1, 2, 3, 4, 5};
 			flex_array<int, 5> f2{6, 7, 8, 9, 10};
 
-			CHECK_EQ(f <=> f2, std::strong_ordering::less);
-			CHECK_EQ(f <=> f, std::strong_ordering::equal);
-			CHECK_EQ(f2 <=> f, std::strong_ordering::greater);
+			REQUIRE_EQ(f <=> f2, std::strong_ordering::less);
+			REQUIRE_EQ(f <=> f, std::strong_ordering::equal);
+			REQUIRE_EQ(f2 <=> f, std::strong_ordering::greater);
 		}
 
 		SUBCASE("no-cmp") {
@@ -153,10 +158,10 @@ TEST_SUITE("flex_array") {
 		}
 
 		SUBCASE("ctor exceptions") {
-			CHECK_THROWS_AS((flex_array<int, dynamic_extent, 1>{1, 2}), std::length_error);
+			REQUIRE_THROWS_AS((flex_array<int, dynamic_extent, 1>{1, 2}), std::length_error);
 
 			std::array<int, 2> ref{1, 2};
-			CHECK_THROWS_AS((flex_array<int, dynamic_extent, 1>(ref.begin(), ref.end())), std::length_error);
+			REQUIRE_THROWS_AS((flex_array<int, dynamic_extent, 1>(ref.begin(), ref.end())), std::length_error);
 		}
 
 		SUBCASE("swap") {
@@ -164,8 +169,8 @@ TEST_SUITE("flex_array") {
 			flex_array<int, dynamic_extent, 5> f2{6, 7, 8};
 
 			swap(f, f2);
-			CHECK(std::ranges::equal(f, std::array{6, 7, 8}));
-			CHECK(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
+			REQUIRE(std::ranges::equal(f, std::array{6, 7, 8}));
+			REQUIRE(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
 		}
 
 		SUBCASE("cmp") {
@@ -173,9 +178,9 @@ TEST_SUITE("flex_array") {
 			flex_array<int, dynamic_extent, 5> f2{6, 7, 8};
 			flex_array<int, dynamic_extent, 5> f3{5, 6, 7, 8, 9};
 
-			CHECK_EQ(f <=> f2, std::strong_ordering::less);
-			CHECK_EQ(f <=> f, std::strong_ordering::equal);
-			CHECK_EQ(f3 <=> f, std::strong_ordering::greater);
+			REQUIRE_EQ(f <=> f2, std::strong_ordering::less);
+			REQUIRE_EQ(f <=> f, std::strong_ordering::equal);
+			REQUIRE_EQ(f3 <=> f, std::strong_ordering::greater);
 		}
 
 		SUBCASE("no-cmp") {
@@ -214,7 +219,7 @@ TEST_SUITE("flex_array") {
 		SUBCASE("ctor larger than size") {
 			farray f{1, 2, 3, 4, 5, 6};
 			std::array<int, 6> ref{1, 2, 3, 4, 5, 6};
-			CHECK(std::ranges::equal(f, ref));
+			REQUIRE(std::ranges::equal(f, ref));
 		}
 
 		SUBCASE("swap") {
@@ -222,8 +227,8 @@ TEST_SUITE("flex_array") {
 			farray f2{6, 7, 8};
 
 			swap(f, f2);
-			CHECK(std::ranges::equal(f, std::array{6, 7, 8}));
-			CHECK(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
+			REQUIRE(std::ranges::equal(f, std::array{6, 7, 8}));
+			REQUIRE(std::ranges::equal(f2, std::array{1, 2, 3, 4, 5}));
 		}
 
 		SUBCASE("cmp") {
@@ -231,9 +236,9 @@ TEST_SUITE("flex_array") {
 			farray f2{6, 7, 8};
 			farray f3{5, 6, 7, 8, 9};
 
-			CHECK_EQ(f <=> f2, std::strong_ordering::less);
-			CHECK_EQ(f <=> f, std::strong_ordering::equal);
-			CHECK_EQ(f3 <=> f, std::strong_ordering::greater);
+			REQUIRE_EQ(f <=> f2, std::strong_ordering::less);
+			REQUIRE_EQ(f <=> f, std::strong_ordering::equal);
+			REQUIRE_EQ(f3 <=> f, std::strong_ordering::greater);
 		}
 
 		SUBCASE("no-cmp") {
@@ -248,10 +253,10 @@ TEST_SUITE("flex_array") {
 			flex_array<int, dynamic_extent, 6> d{s};
 			flex_array<int, 5, dynamic_extent> d2{s};
 
-			CHECK_EQ(d.size(), 5);
-			CHECK_EQ(d.max_size(), 6);
-			CHECK(std::ranges::equal(s, d));
-			CHECK(std::ranges::equal(s, d2));
+			REQUIRE_EQ(d.size(), 5);
+			REQUIRE_EQ(d.max_size(), 6);
+			REQUIRE(std::ranges::equal(s, d));
+			REQUIRE(std::ranges::equal(s, d2));
 
 			d = s; // checking if this compiles
 			d2 = s;
@@ -264,13 +269,13 @@ TEST_SUITE("flex_array") {
 			flex_array<int, 3> s{d};
 			flex_array<int, 3> s2{d2};
 
-			CHECK(std::ranges::equal(s, d));
-			CHECK(std::ranges::equal(s2, d2));
+			REQUIRE(std::ranges::equal(s, d));
+			REQUIRE(std::ranges::equal(s2, d2));
 
-			CHECK_THROWS_AS((flex_array<int, 2>{d}), std::length_error);
-			CHECK_THROWS_AS((flex_array<int, 4>{d}), std::length_error);
-			CHECK_THROWS_AS((flex_array<int, 2>{d2}), std::length_error);
-			CHECK_THROWS_AS((flex_array<int, 4>{d2}), std::length_error);
+			REQUIRE_THROWS_AS((flex_array<int, 2>{d}), std::length_error);
+			REQUIRE_THROWS_AS((flex_array<int, 4>{d}), std::length_error);
+			REQUIRE_THROWS_AS((flex_array<int, 2>{d2}), std::length_error);
+			REQUIRE_THROWS_AS((flex_array<int, 4>{d2}), std::length_error);
 		}
 	}
 #endif // __has_include

@@ -21,14 +21,14 @@ TEST_SUITE("generator") {
 	///////////////////////
     // Simple non-nested serial generator
 
-    generator<uint64_t> fib(int max) {
+    generator<uint64_t> fib(int const max) {
         auto a = 0, b = 1;
         for (auto n = 0; n < max; n++) {
             co_yield std::exchange(a, std::exchange(b, a + b));
         }
     }
 
-    generator<int> other_generator(int i, int j) {
+    generator<int> other_generator(int i, int const j) {
         while (i != j) {
             co_yield i++;
         }
@@ -73,7 +73,7 @@ TEST_SUITE("generator") {
 
     struct X {
         int id;
-        X(int id) : id(id) {
+        X(int const id) : id(id) {
             std::printf("X::X(%i)\n", id);
         }
         X(const X& x) : id(x.id) {
@@ -196,7 +196,7 @@ TEST_SUITE("generator") {
 
         int id;
 
-        explicit stateful_allocator(int id) noexcept : id(id) {}
+        explicit stateful_allocator(int const id) noexcept : id(id) {}
 
         template <typename U>
         stateful_allocator(const stateful_allocator<U>& x) : id(x.id) {}
@@ -245,7 +245,7 @@ TEST_SUITE("generator") {
 			actual.push_back(x);
 		}
 
-		CHECK_EQ(actual, expected);
+		REQUIRE_EQ(actual, expected);
 	}
 
 	TEST_CASE("by_value") {
@@ -257,7 +257,7 @@ TEST_SUITE("generator") {
 				actual.push_back(x);
 			}
 
-			CHECK_EQ(actual, expected);
+			REQUIRE_EQ(actual, expected);
 		}
 
 		SUBCASE("seq") {
@@ -268,7 +268,7 @@ TEST_SUITE("generator") {
 				actual.push_back(x);
 			}
 
-			CHECK_EQ(actual, expected);
+			REQUIRE_EQ(actual, expected);
 		}
 	}
 
@@ -280,7 +280,7 @@ TEST_SUITE("generator") {
 			actual.push_back(x.id);
 		}
 
-		CHECK_EQ(actual, expected);
+		REQUIRE_EQ(actual, expected);
 	}
 
 	TEST_CASE("by_rvalue_ref") {
@@ -293,7 +293,7 @@ TEST_SUITE("generator") {
 			actual.push_back(x.id);
 		}
 
-		CHECK_EQ(actual, expected);
+		REQUIRE_EQ(actual, expected);
 	}
 
 	TEST_CASE("by_const_ref") {
@@ -306,7 +306,7 @@ TEST_SUITE("generator") {
 			actual.push_back(x.id);
 		}
 
-		CHECK_EQ(actual, expected);
+		REQUIRE_EQ(actual, expected);
 	}
 
 	TEST_CASE("by_lvalue_ref") {
@@ -319,20 +319,20 @@ TEST_SUITE("generator") {
 			actual.push_back(x.id);
 		}
 
-		CHECK_EQ(actual, expected);
+		REQUIRE_EQ(actual, expected);
 	}
 
 	TEST_CASE("value_type") {
 		SUBCASE("string_views") {
 			std::vector<std::string_view> const s1_expected{"foo", "bar"};
 			std::vector<std::string_view> const s1_actual = to_vector(string_views());
-			CHECK_EQ(s1_actual, s1_expected);
+			REQUIRE_EQ(s1_actual, s1_expected);
 		}
 
 		SUBCASE("strings") {
 			std::vector<std::string> const s2_expected{"", "start", "foo!", "bar!", "end"};
 			std::vector<std::string> const s2_actual = to_vector(strings(std::allocator_arg, std::allocator<std::byte>{}));
-			CHECK_EQ(s2_actual, s2_expected);
+			REQUIRE_EQ(s2_actual, s2_expected);
 		}
 
 		SUBCASE("string tuples") {
@@ -340,7 +340,7 @@ TEST_SUITE("generator") {
 			std::vector<std::tuple<std::string, std::string>> const s3_actual =
 				to_vector(zip(strings(std::allocator_arg, std::allocator<std::byte>{}), strings(std::allocator_arg, std::allocator<std::byte>{})));
 
-			CHECK_EQ(s3_actual, s3_expected);
+			REQUIRE_EQ(s3_actual, s3_expected);
 		}
 	}
 
@@ -352,28 +352,28 @@ TEST_SUITE("generator") {
 			actual.push_back(*ptr);
 		}
 
-		CHECK_EQ(actual, expected);
+		REQUIRE_EQ(actual, expected);
 	}
 
 	TEST_CASE("stateless_alloc") {
 		SUBCASE("a") {
 			auto g = stateless_example();
-			CHECK_EQ(*g.begin(), 42);
+			REQUIRE_EQ(*g.begin(), 42);
 		}
 
 		SUBCASE("b") {
 			auto g = stateless_example(std::allocator_arg, std::allocator<float>{});
-			CHECK_EQ(*g.begin(), 42);
+			REQUIRE_EQ(*g.begin(), 42);
 		}
 	}
 
 	TEST_CASE("stateful_alloc") {
 		auto g = stateful_alloc_example(std::allocator_arg, stateful_allocator<double>{42});
-		CHECK_EQ(*g.begin(), 42);
+		REQUIRE_EQ(*g.begin(), 42);
 	}
 
 	TEST_CASE("member_coro") {
 		member_coro m;
-		CHECK_EQ(*m.f().begin(), 42);
+		REQUIRE_EQ(*m.f().begin(), 42);
 	}
 }

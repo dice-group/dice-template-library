@@ -40,6 +40,8 @@ namespace dice::template_library {
 
 		ScopeExitGuard(ScopeExitGuard const &) = delete;
 		ScopeExitGuard &operator=(ScopeExitGuard const &) = delete;
+		ScopeExitGuard(ScopeExitGuard &&) noexcept(std::is_nothrow_move_constructible_v<F>) = default;
+		ScopeExitGuard &operator=(ScopeExitGuard &&) noexcept(std::is_nothrow_move_assignable_v<F>) = default;
 
 		~ScopeExitGuard() noexcept(Pol != ScopeExitPolicy::OnSuccess) {
 			if (!func_.has_value()) {
@@ -52,7 +54,7 @@ namespace dice::template_library {
 			 * If the number of in-flight exceptions increased, this means the scope must have failed.
 			 * Otherwise it must not have failed.
 			 */
-			auto const scope_failed = [this]() noexcept {
+			[[maybe_unused]] auto const scope_failed = [this]() noexcept {
 				return uncaught_exceptions_ < std::uncaught_exceptions();
 			};
 

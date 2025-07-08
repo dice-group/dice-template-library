@@ -11,7 +11,7 @@ TEST_SUITE("overloaded") {
 
 		std::visit(dice::template_library::overloaded{
 			[](int x) {
-				CHECK_EQ(x, 5);
+				REQUIRE_EQ(x, 5);
 			},
 			[](double d) {
 				FAIL("not expecting double");
@@ -23,7 +23,7 @@ TEST_SUITE("overloaded") {
 
 		dice::template_library::match(v,
 			[](int x) {
-				CHECK_EQ(x, 5);
+				REQUIRE_EQ(x, 5);
 			},
 			[](double d) {
 				FAIL("not expecting double");
