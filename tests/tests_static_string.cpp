@@ -68,10 +68,10 @@ TEST_SUITE("static_string") {
 
 	TEST_CASE("move ctor") {
 		std::string_view const expected = "Hello World";
-		static_string const s{expected};
+		static_string s{expected};
 		check_non_empty_string(s, expected);
 
-		static_string const s2{std::move(s)};
+		static_string s2{std::move(s)};
 
 		check_empty_string(s);
 		check_non_empty_string(s2, expected);

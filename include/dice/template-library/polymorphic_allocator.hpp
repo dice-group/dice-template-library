@@ -210,7 +210,7 @@ namespace dice::template_library {
 		 */
 		template<typename UAllocator>
 		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
-			return std::holds_alternative<UAllocator>(alloc_);
+			return holds_alternative<UAllocator>(alloc_);
 		}
 
 		/**
@@ -218,7 +218,7 @@ namespace dice::template_library {
 		 */
 		template<template<typename> typename UAllocator>
 		[[nodiscard]] constexpr bool holds_allocator() const noexcept {
-			return std::holds_alternative<UAllocator<T>>(alloc_);
+			return holds_alternative<UAllocator<T>>(alloc_);
 		}
 	};
 
@@ -357,7 +357,7 @@ namespace dice::template_library {
 		constexpr offset_ptr_stl_allocator(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>) = default;
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator const &other) noexcept(std::is_nothrow_copy_assignable_v<upstream_allocator_type>) = default;
 		constexpr offset_ptr_stl_allocator &operator=(offset_ptr_stl_allocator &&other) noexcept(std::is_nothrow_move_assignable_v<upstream_allocator_type>) = default;
-		constexpr ~offset_ptr_stl_allocator() noexcept((std::is_nothrow_destructible_v<upstream_allocator_type>) = default;
+		constexpr ~offset_ptr_stl_allocator() noexcept(std::is_nothrow_destructible_v<upstream_allocator_type>) = default;
 
 
 		template<typename U>
