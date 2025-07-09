@@ -19,8 +19,8 @@ using allocator_type = dice::template_library::polymorphic_allocator<T, stl_allo
 
 using vector_type = boost::interprocess::vector<int, allocator_type<int>>;
 
-inline constexpr char const *shm_name = "dice_template_library_polymorhic_allocator_example_shm";
-inline constexpr char const *shm_vec_name = "example_vec";
+inline constexpr auto shm_name = "dice_template_library_polymorhic_allocator_example_shm";
+inline constexpr auto shm_vec_name = "example_vec";
 
 
 vector_type vector_sum(std::vector<vector_type const *> const &operands) {

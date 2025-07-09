@@ -4,6 +4,10 @@
 
 #include <doctest/doctest.h>
 
+#include <vector>
+#include <cstdint>
+
+
 namespace dice::template_library {
 	TEST_SUITE("testing of compile time for_types") {
 		TEST_CASE("sizeof fixed-sized types") {

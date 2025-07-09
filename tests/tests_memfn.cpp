@@ -51,24 +51,24 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 			std::string const data = "immutable";
 			auto task = DICE_MEMFN(process_by_const_lvalue_ref);
 			task(data);
-			CHECK(last_call == CallSignature::ByConstLvalueRef);
+			REQUIRE(last_call == CallSignature::ByConstLvalueRef);
 		}
 
 		void run_lvalue_ref_test() {
 			std::string data = "mutable";
 			auto task = DICE_MEMFN(process_by_lvalue_ref);
 			task(data);
-			CHECK(last_call == CallSignature::ByLvalueRef);
-			CHECK(data == "mutable_modified");
+			REQUIRE(last_call == CallSignature::ByLvalueRef);
+			REQUIRE(data == "mutable_modified");
 		}
 
 		void run_rvalue_ref_test() {
 			std::string data = "movable";
 			auto task = DICE_MEMFN(process_by_rvalue_ref);
 			task(std::move(data));
-			CHECK(last_call == CallSignature::ByRvalueRef);
-			CHECK(moved_in_data == "movable");
-			CHECK(data.empty());
+			REQUIRE(last_call == CallSignature::ByRvalueRef);
+			REQUIRE(moved_in_data == "movable");
+			REQUIRE(data.empty());
 		}
 
 		void run_by_value_test() {
@@ -76,11 +76,11 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 			auto task = DICE_MEMFN(process_by_value);
 
 			task(data);
-			CHECK(last_call == CallSignature::ByValue);
-			CHECK(data == "copyable");
+			REQUIRE(last_call == CallSignature::ByValue);
+			REQUIRE(data == "copyable");
 
 			task("temporary");
-			CHECK(last_call == CallSignature::ByValue);
+			REQUIRE(last_call == CallSignature::ByValue);
 		}
 
 		void run_mixed_args_test() {
@@ -91,10 +91,10 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 			auto task = DICE_MEMFN(process_mixed_args, movable_data);
 			task(const_data, mutable_int);
 
-			CHECK(last_call == CallSignature::MixedArgs);
-			CHECK(mutable_int == 20);
-			CHECK(moved_in_data == "hello_world");
-			CHECK_FALSE(movable_data.empty());
+			REQUIRE(last_call == CallSignature::MixedArgs);
+			REQUIRE(mutable_int == 20);
+			REQUIRE(moved_in_data == "hello_world");
+			REQUIRE_FALSE(movable_data.empty());
 		}
 
 		void run_range_adaptor_test() {
@@ -106,12 +106,12 @@ TEST_SUITE("DICE_MEMFN Argument Forwarding") {
 			std::vector<std::string> results;
 			std::ranges::copy(transformed_view, std::back_inserter(results));
 
-			CHECK(last_call == CallSignature::RangeTransform);
+			REQUIRE(last_call == CallSignature::RangeTransform);
 
-			CHECK(results.size() == 3);
-			CHECK(results[0] == "item_10");
-			CHECK(results[1] == "item_20");
-			CHECK(results[2] == "item_30");
+			REQUIRE(results.size() == 3);
+			REQUIRE(results[0] == "item_10");
+			REQUIRE(results[1] == "item_20");
+			REQUIRE(results[2] == "item_30");
 		}
 	};
 

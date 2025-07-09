@@ -14,19 +14,19 @@ TEST_SUITE("mutex") {
 
 	TEST_CASE("defalt ctor") {
 		mutex<int> mut{};
-		CHECK_EQ(*mut.lock(), 0);
+		REQUIRE_EQ(*mut.lock(), 0);
 	}
 
 	TEST_CASE("copy value inside") {
 		std::vector<int> vec{1, 2, 3};
 		mutex<std::vector<int>> mut{vec};
-		CHECK_EQ(mut.lock()->size(), 3);
+		REQUIRE_EQ(mut.lock()->size(), 3);
 	}
 
 	TEST_CASE("move value inside") {
 		std::vector<int> vec{1, 2, 3};
 		mutex<std::vector<int>> mut{std::move(vec)};
-		CHECK_EQ(mut.lock()->size(), 3);
+		REQUIRE_EQ(mut.lock()->size(), 3);
 	}
 
 	TEST_CASE("in place construction") {
@@ -36,8 +36,8 @@ TEST_SUITE("mutex") {
 		};
 
 		mutex<data> mut{std::in_place, 5, 12.2};
-		CHECK_EQ(mut.lock()->x, 5);
-		CHECK_EQ(mut.lock()->y, 12.2);
+		REQUIRE_EQ(mut.lock()->x, 5);
+		REQUIRE_EQ(mut.lock()->y, 12.2);
 	}
 
 	TEST_CASE("swap") {
@@ -47,24 +47,24 @@ TEST_SUITE("mutex") {
 		auto ga = a.lock();
 		auto gb = b.lock();
 
-		CHECK_EQ(*ga, 1);
-		CHECK_EQ(*gb, 2);
+		REQUIRE_EQ(*ga, 1);
+		REQUIRE_EQ(*gb, 2);
 
 		swap(ga, gb);
 
-		CHECK_EQ(*ga, 2);
-		CHECK_EQ(*gb, 1);
+		REQUIRE_EQ(*ga, 2);
+		REQUIRE_EQ(*gb, 1);
 	}
 
 	TEST_CASE("lock compiles") {
 		mutex<int> mut{};
-		CHECK_EQ(*mut.lock(), 0);
+		REQUIRE_EQ(*mut.lock(), 0);
 	}
 
 	TEST_CASE("try_lock compiles") {
 		mutex<int> mut{};
 		auto guard = mut.try_lock();
-		CHECK(guard.has_value());
-		CHECK_EQ(**guard, 0);
+		REQUIRE(guard.has_value());
+		REQUIRE_EQ(**guard, 0);
 	}
 }

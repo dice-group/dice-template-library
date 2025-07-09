@@ -16,7 +16,7 @@ TEST_SUITE("limit_allocator sanity check") {
 		alloc.deallocate(c, 1);
 		alloc.deallocate(b, 5);
 
-		CHECK_THROWS(alloc.allocate(8));
+		REQUIRE_THROWS(alloc.allocate(8));
 
 		auto d = alloc.allocate(7);
 
@@ -26,7 +26,7 @@ TEST_SUITE("limit_allocator sanity check") {
 		auto e = alloc.allocate(12);
 		alloc.deallocate(e, 12);
 
-		CHECK_THROWS(alloc.allocate(13));
+		REQUIRE_THROWS(alloc.allocate(13));
 	}
 
 	TEST_CASE("sync") {
