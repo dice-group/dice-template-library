@@ -39,7 +39,7 @@ namespace std {
 
     template<typename T, typename U>
     struct hash<::dice::template_library::variant2<T, U>> {
-        [[nodiscard]] size_t operator()(::dice::template_library::variant2<T, U> const &var) const {
+        [[nodiscard]] size_t operator()(::dice::template_library::variant2<T, U> const &var) const noexcept {
             return visit([]<typename X>(X const &x) noexcept {
                 // this is as far as I can tell what std::variant does
                 if constexpr (std::is_same_v<X, T>) {

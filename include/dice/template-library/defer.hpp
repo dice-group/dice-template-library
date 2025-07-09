@@ -40,8 +40,8 @@ namespace dice::template_library {
 
 		ScopeExitGuard(ScopeExitGuard const &) = delete;
 		ScopeExitGuard &operator=(ScopeExitGuard const &) = delete;
-		ScopeExitGuard(ScopeExitGuard &&) noexcept(std::is_nothrow_move_constructible_v<F>) = default;
-		ScopeExitGuard &operator=(ScopeExitGuard &&) noexcept(std::is_nothrow_move_assignable_v<F>) = default;
+		ScopeExitGuard(ScopeExitGuard &&) = delete;
+		ScopeExitGuard &operator=(ScopeExitGuard &&) = delete;
 
 		~ScopeExitGuard() noexcept(Pol != ScopeExitPolicy::OnSuccess) {
 			if (!func_.has_value()) {
