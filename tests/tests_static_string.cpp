@@ -24,44 +24,44 @@ TEST_SUITE("static_string") {
 
 	template<typename Allocator>
 	void check_empty_string(basic_static_string<char, std::char_traits<char>, Allocator> const &s) {
-		CHECK_EQ(s.data(), nullptr);
-		CHECK_EQ(s.size(), 0);
-		CHECK(s.empty());
-		CHECK_EQ(s.begin(), s.end());
-		CHECK_EQ(s.rbegin(), s.rend());
-		CHECK_EQ(s.cbegin(), s.cend());
-		CHECK_EQ(s.crbegin(), s.crend());
-		CHECK_EQ(s, "");
-		CHECK_EQ(static_cast<std::string_view>(s), "");
+		REQUIRE_EQ(s.data(), nullptr);
+		REQUIRE_EQ(s.size(), 0);
+		REQUIRE(s.empty());
+		REQUIRE_EQ(s.begin(), s.end());
+		REQUIRE_EQ(s.rbegin(), s.rend());
+		REQUIRE_EQ(s.cbegin(), s.cend());
+		REQUIRE_EQ(s.crbegin(), s.crend());
+		REQUIRE_EQ(s, "");
+		REQUIRE_EQ(static_cast<std::string_view>(s), "");
 	}
 
 	template<typename Allocator>
 	void check_non_empty_string(basic_static_string<char, std::char_traits<char>, Allocator> const &actual, std::string_view expected) {
 		assert(!expected.empty());
 
-		CHECK_EQ(actual.size(), expected.size());
-		CHECK_EQ(actual, actual);
-		CHECK_EQ(actual, expected);
-		CHECK_EQ(actual <=> expected, std::strong_ordering::equal);
-		CHECK_EQ(actual <=> actual, std::strong_ordering::equal);
-		CHECK_FALSE(actual.empty());
-		CHECK(std::ranges::equal(actual, expected));
-		CHECK(std::ranges::equal(actual | std::views::reverse, expected | std::views::reverse));
-		CHECK_EQ(std::memcmp(actual.data(), expected.data(), actual.size()), 0);
-		CHECK_EQ(actual.front(), expected.front());
-		CHECK_EQ(actual.back(), expected.back());
-		CHECK_EQ(actual[0], expected[0]);
-		CHECK_EQ(static_cast<std::string_view>(actual), expected);
+		REQUIRE_EQ(actual.size(), expected.size());
+		REQUIRE_EQ(actual, actual);
+		REQUIRE_EQ(actual, expected);
+		REQUIRE_EQ(actual <=> expected, std::strong_ordering::equal);
+		REQUIRE_EQ(actual <=> actual, std::strong_ordering::equal);
+		REQUIRE_FALSE(actual.empty());
+		REQUIRE(std::ranges::equal(actual, expected));
+		REQUIRE(std::ranges::equal(actual | std::views::reverse, expected | std::views::reverse));
+		REQUIRE_EQ(std::memcmp(actual.data(), expected.data(), actual.size()), 0);
+		REQUIRE_EQ(actual.front(), expected.front());
+		REQUIRE_EQ(actual.back(), expected.back());
+		REQUIRE_EQ(actual[0], expected[0]);
+		REQUIRE_EQ(static_cast<std::string_view>(actual), expected);
 	}
 
 	TEST_CASE("empty string") {
 		SUBCASE("default ctor") {
-			static_string s;
+			static_string const s;
 			check_empty_string(s);
 		}
 
 		SUBCASE("string view ctor") {
-			static_string s{""};
+			static_string const s{""};
 			check_empty_string(s);
 		}
 	}

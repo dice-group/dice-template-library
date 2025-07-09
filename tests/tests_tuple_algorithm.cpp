@@ -11,7 +11,7 @@ namespace dice::template_library {
 				return acc + static_cast<double>(x);
 			});
 
-			CHECK_EQ(res, 4.2);
+			REQUIRE_EQ(res, 4.2);
 		}
 
 		TEST_CASE("tuple_type_fold") {
@@ -19,7 +19,7 @@ namespace dice::template_library {
 				return acc + typeid(T).name();
 			});
 
-			CHECK_EQ(res, "idl");
+			REQUIRE_EQ(res, "idl");
 		}
 
 		TEST_CASE("tuple_for_each") {
@@ -29,7 +29,7 @@ namespace dice::template_library {
 				res += static_cast<double>(x);
 			});
 
-			CHECK_EQ(res, 4.2);
+			REQUIRE_EQ(res, 4.2);
 		}
 
 		TEST_CASE("tuple_type_for_each") {
@@ -39,7 +39,7 @@ namespace dice::template_library {
 				res += typeid(T).name();
 			});
 
-			CHECK_EQ(res, "idl");
+			REQUIRE_EQ(res, "idl");
 		}
 	}
 

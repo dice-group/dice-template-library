@@ -106,7 +106,8 @@ namespace dice::template_library {
 
 			template<typename Self, typename Visitor>
 			[[nodiscard]] static constexpr decltype(auto) visit(Self &&self, Visitor &&visitor) {
-				return (std::invoke(visitor, std::forward<Self>(self).template get<ixs>()), ...);
+				auto&& s = std::forward<Self>(self);
+				return (std::invoke(visitor, s.template get<ixs>()), ...);
 			}
 
 			constexpr auto operator<=>(struct_tuple_base const &other) const noexcept = default;

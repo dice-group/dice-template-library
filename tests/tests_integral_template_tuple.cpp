@@ -114,7 +114,7 @@ namespace dice::template_library {
 			example_struct example_struct_v{};
 
 			auto const offset = [](void const *base, void const *member) -> size_t {
-				return reinterpret_cast<std::byte const *>(base) - reinterpret_cast<std::byte const *>(member);
+				return static_cast<std::byte const *>(base) - static_cast<std::byte const *>(member);
 			};
 
 			// best effort correctness detection

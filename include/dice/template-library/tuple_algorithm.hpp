@@ -22,7 +22,8 @@ namespace dice::template_library {
 
 		template<typename Tuple, typename F, size_t... Ixs>
 		constexpr void tuple_for_each_impl(std::index_sequence<Ixs...>, Tuple &&tuple, F f) {
-			(f(std::get<Ixs>(std::forward<Tuple>(tuple))), ...);
+			auto &&fw_tuple = std::forward<Tuple>(tuple);
+			(f(std::get<Ixs>(fw_tuple)), ...);
 		}
 
 		template<typename Tuple, typename F, size_t... Ixs>

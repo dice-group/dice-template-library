@@ -80,7 +80,7 @@ TEST_SUITE("polymorphic_allocator") {
 		alloc_t alloc;
 		auto ptr = std::allocator_traits<alloc_t>::allocate(alloc, 1);
 		*ptr = 5;
-		CHECK(*ptr == 5);
+		REQUIRE(*ptr == 5);
 		std::allocator_traits<alloc_t>::deallocate(alloc, ptr, 1);
 	}
 
@@ -92,7 +92,7 @@ TEST_SUITE("polymorphic_allocator") {
 
 		auto ptr = std::allocator_traits<alloc_t>::allocate(alloc, 1);
 		*ptr = 5;
-		CHECK(*ptr == 5);
+		REQUIRE(*ptr == 5);
 		std::allocator_traits<alloc_t>::deallocate(alloc, ptr, 1);
 	}
 #endif // __has_include
@@ -113,11 +113,11 @@ TEST_SUITE("polymorphic_allocator") {
 			*x = 5;
 
 			Alloc<int> b{a};
-			CHECK_EQ(a, b);
+			REQUIRE_EQ(a, b);
 
 			int *y = b.allocate(1);
 			*y = 5;
-			CHECK_EQ(*x, *y);
+			REQUIRE_EQ(*x, *y);
 			b.deallocate(x, 1);
 			b.deallocate(y, 1);
 		}
@@ -132,7 +132,7 @@ TEST_SUITE("polymorphic_allocator") {
 
 			int *y = b.allocate(1);
 			*y = 5;
-			CHECK_EQ(*x, *y);
+			REQUIRE_EQ(*x, *y);
 			b.deallocate(x, 1);
 			b.deallocate(y, 1);
 		}
@@ -141,9 +141,9 @@ TEST_SUITE("polymorphic_allocator") {
 			Alloc<int> a{};
 			Alloc<int> b{std::in_place_index<1>};
 
-			CHECK_NE(a, b);
+			REQUIRE_NE(a, b);
 			a = b;
-			CHECK_EQ(a, b);
+			REQUIRE_EQ(a, b);
 
 			int *x = a.allocate(1);
 			b.deallocate(x, 1);
@@ -153,10 +153,10 @@ TEST_SUITE("polymorphic_allocator") {
 			Alloc<int> a{};
 			Alloc<int> b{std::in_place_index<1>};
 
-			CHECK_NE(a, b);
+			REQUIRE_NE(a, b);
 			a = std::move(b);
 			b = a;
-			CHECK_EQ(a, b);
+			REQUIRE_EQ(a, b);
 
 			int *x = a.allocate(1);
 			b.deallocate(x, 1);
@@ -167,34 +167,34 @@ TEST_SUITE("polymorphic_allocator") {
 			Alloc<int> b{};
 			Alloc<int> c{std::in_place_index<1>};
 
-			CHECK_EQ(a, b);
-			CHECK_NE(a, c);
-			CHECK_NE(b, c);
+			REQUIRE_EQ(a, b);
+			REQUIRE_NE(a, c);
+			REQUIRE_NE(b, c);
 
 			swap(a, b);
-			CHECK_EQ(a, b);
-			CHECK_NE(a, c);
-			CHECK_NE(b, c);
+			REQUIRE_EQ(a, b);
+			REQUIRE_NE(a, c);
+			REQUIRE_NE(b, c);
 
 			swap(a, c);
-			CHECK_EQ(c, b);
-			CHECK_NE(a, b);
-			CHECK_NE(a, c);
+			REQUIRE_EQ(c, b);
+			REQUIRE_NE(a, b);
+			REQUIRE_NE(a, c);
 
 			swap(a, b);
-			CHECK_EQ(a, c);
-			CHECK_NE(a, b);
-			CHECK_NE(b, c);
+			REQUIRE_EQ(a, c);
+			REQUIRE_NE(a, b);
+			REQUIRE_NE(b, c);
 		}
 
 		SUBCASE("with default alloc") {
 			Alloc<int> alloc{};
-			CHECK(alloc.template holds_allocator<std::allocator>());
+			REQUIRE(alloc.template holds_allocator<std::allocator>());
 
 
 			auto ptr = std::allocator_traits<Alloc<int>>::allocate(alloc, 1);
 			*ptr = 123;
-			CHECK(*ptr == 123);
+			REQUIRE(*ptr == 123);
 			std::allocator_traits<Alloc<int>>::deallocate(alloc, ptr, 1);
 		}
 
@@ -204,7 +204,7 @@ TEST_SUITE("polymorphic_allocator") {
 
 				auto ptr = std::allocator_traits<Alloc<int>>::allocate(alloc, 1);
 				*ptr = 456;
-				CHECK(*ptr == 456);
+				REQUIRE(*ptr == 456);
 				std::allocator_traits<Alloc<int>>::deallocate(alloc, ptr, 1);
 			}
 
@@ -213,7 +213,7 @@ TEST_SUITE("polymorphic_allocator") {
 
 				auto ptr = std::allocator_traits<Alloc<int>>::allocate(alloc, 1);
 				*ptr = 456;
-				CHECK(*ptr == 456);
+				REQUIRE(*ptr == 456);
 				std::allocator_traits<Alloc<int>>::deallocate(alloc, ptr, 1);
 			}
 		}
@@ -225,17 +225,17 @@ TEST_SUITE("polymorphic_allocator") {
 
 		SUBCASE("implicit conversion") {
 			Alloc<int> alloc{std::allocator<int>{}};
-			CHECK(alloc.template holds_allocator<std::allocator>());
+			REQUIRE(alloc.template holds_allocator<std::allocator>());
 
 			Alloc<int> alloc2{mallocator<int>{}};
-			CHECK(alloc2.template holds_allocator<mallocator>());
+			REQUIRE(alloc2.template holds_allocator<mallocator>());
 		}
 
 		SUBCASE("select on container copy construction") {
 			Alloc<int> alloc{};
 			auto alloc2 = alloc.select_on_container_copy_construction();
 
-			CHECK_EQ(alloc, alloc2);
+			REQUIRE_EQ(alloc, alloc2);
 		}
 	}
 
