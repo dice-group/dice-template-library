@@ -1,5 +1,34 @@
 cmake_minimum_required(VERSION 3.24)
 
+set(PACKAGE_MANAGER "")
+if (CMAKE_PROJECT_TOP_LEVEL_INCLUDES MATCHES "conan_provider.cmake$")
+    message("detected conan")
+    set(PACKAGE_MANAGER "conan")
+else ()
+    message("conan not detected, defaulting to vcpkg")
+    set(PACKAGE_MANAGER "vcpkg")
+endif ()
+
+option(BUILD_TESTING "build tests" OFF)
+option(BUILD_EXAMPLES "build examples" OFF)
+option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_implementation::sbo_vector" OFF)
+option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" OFF)
+
+if (BUILD_TESTING OR BUILD_EXAMPLES)
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_test_deps=True")
+    list(APPEND VCPKG_MANIFEST_FEATURES "test")
+endif ()
+
+if (WITH_SVECTOR)
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_svector=True")
+    list(APPEND VCPKG_MANIFEST_FEATURES "svector")
+endif ()
+
+if (WITH_BOOST)
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True;-o=boost/*:header_only=True")
+    list(APPEND VCPKG_MANIFEST_FEATURES "boost")
+endif ()
+
 project(
   dice-template-library
   VERSION 1.14.0
@@ -9,25 +38,6 @@ project(
 set(POBR_VERSION 1)  # Persisted Object Binary Representation
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/include/dice/template-library/version.hpp)
-
-option(BUILD_TESTING "build tests" OFF)
-option(BUILD_EXAMPLES "build examples" OFF)
-option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_implementation::sbo_vector" OFF)
-option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" OFF)
-
-if (PROJECT_IS_TOP_LEVEL)
-    if (BUILD_TESTING OR BUILD_EXAMPLES)
-        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_test_deps=True")
-    endif ()
-
-    if (WITH_SVECTOR)
-        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_svector=True")
-    endif ()
-
-    if (WITH_BOOST)
-        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True;-o=boost/*:header_only=True")
-    endif ()
-endif ()
 
 # conan requires cmake build type to be specified and it is generally a good idea
 if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
@@ -54,13 +64,20 @@ if (WITH_SVECTOR)
 endif ()
 
 if (WITH_BOOST)
-    find_package(Boost REQUIRED CONFIG COMPONENTS interprocess pool)
+    if (PACKAGE_MANAGER STREQUAL "vcpkg")
+        find_package(Boost REQUIRED CONFIG COMPONENTS interprocess pool)
 
-    target_link_libraries(${PROJECT_NAME} INTERFACE
+        target_link_libraries(${PROJECT_NAME} INTERFACE
                 Boost::interprocess
                 Boost::pool
-            )
-    string(APPEND INSTALL_INTERFACE_LIB_DEPENDENCIES "\nfind_package(Boost REQUIRED CONFIG COMPONENTS interprocess pool)")
+        )
+        string(APPEND INSTALL_INTERFACE_LIB_DEPENDENCIES "\nfind_package(Boost REQUIRED CONFIG COMPONENTS interprocess pool)")
+    else ()
+        find_package(Boost REQUIRED COMPONENTS)
+        target_link_libraries(${PROJECT_NAME} INTERFACE
+                Boost::headers
+        )
+    endif ()
 endif ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
