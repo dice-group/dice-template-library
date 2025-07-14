@@ -1,0 +1,16 @@
+{
+  "default-registry": {
+    "kind": "git",
+    "baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c",
+    "repository": "https://github.com/microsoft/vcpkg"
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "https://github.com/dice-group/tentris-vcpkg-registry.git",
+      "reference": "main",
+      "baseline": "dc38c3859fb0cd389de0c35ae619db281016518b",
+      "packages": [ "svector" ]
+    }
+  ]
+}

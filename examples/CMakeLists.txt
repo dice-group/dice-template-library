@@ -21,7 +21,7 @@ target_link_libraries(examples_integral_template_variant
         PRIVATE dice-template-library::dice-template-library)
 
 
-find_package(Boost REQUIRED COMPONENTS)
+find_package(Boost REQUIRED CONFIG COMPONENTS)
 
 add_executable(examples_polymorphic_allocator
         examples_polymorphic_allocator.cpp)

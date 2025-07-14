@@ -43,20 +43,24 @@ target_include_directories(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
 
+set(INSTALL_INTERFACE_LIB_DEPENDENCIES "")
 if (WITH_SVECTOR)
-    find_package(svector REQUIRED)
+    find_package(svector REQUIRED CONFIG)
 
     target_link_libraries(${PROJECT_NAME} INTERFACE
             svector::svector
             )
+    string(APPEND INSTALL_INTERFACE_LIB_DEPENDENCIES "\nfind_package(svector REQUIRED CONFIG)")
 endif ()
 
 if (WITH_BOOST)
-    find_package(Boost REQUIRED COMPONENTS)
+    find_package(Boost REQUIRED CONFIG COMPONENTS interprocess pool)
 
     target_link_libraries(${PROJECT_NAME} INTERFACE
-            Boost::headers
+                Boost::interprocess
+                Boost::pool
             )
+    string(APPEND INSTALL_INTERFACE_LIB_DEPENDENCIES "\nfind_package(Boost REQUIRED CONFIG COMPONENTS interprocess pool)")
 endif ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

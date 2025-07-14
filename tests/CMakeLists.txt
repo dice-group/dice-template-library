@@ -2,8 +2,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Boost REQUIRED COMPONENTS)
-find_package(DocTest REQUIRED)
+find_package(Boost REQUIRED NO_MODULE COMPONENTS)
+find_package(doctest REQUIRED)
 
 add_custom_target(build_tests)
 add_custom_target(run_tests COMMAND ${CMAKE_CTEST_COMMAND})
