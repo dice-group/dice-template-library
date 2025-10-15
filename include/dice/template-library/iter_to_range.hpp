@@ -34,7 +34,7 @@ namespace dice::template_library {
 
 		struct iterator {
 			using inner_iterator = Iter;
-			using value_type = value_type;
+			using value_type = typename Iter::value_type;
 			using reference = value_type const &;
 			using pointer = value_type const *;
 			using difference_type = std::ptrdiff_t;
