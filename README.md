@@ -23,6 +23,7 @@ It contains:
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
+- `iter_to_range`: Eliminate the boilerplate required to write C++ iterators and ranges.
 
 ## Usage
 
@@ -136,6 +137,10 @@ It also supports allocators with "fancy" pointers.
 Additional range algorithms (e.g. `unique_view`) and adaptors (e.g., a pipeable `all_of`)
 that are missing from the standard library.
 
+### `iter_to_range`
+Eliminate the boilerplate required to write C++ iterators and ranges.
+To get a fully functional range, the only thing that is required is
+implementing a minimal, rust-style iterator interface.
 
 ### Further Examples
 
