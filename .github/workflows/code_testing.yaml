@@ -70,6 +70,7 @@ jobs:
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
+          CXXFLAGS: -Wno-changes-meaning
 
       - name: Build tests and examples
         working-directory: build
