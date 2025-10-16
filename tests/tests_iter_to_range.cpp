@@ -3,7 +3,9 @@
 
 #include <dice/template-library/iter_to_range.hpp>
 
+
 #include <algorithm>
+#include <cstddef>
 #include <initializer_list>
 #include <optional>
 #include <ranges>
@@ -28,6 +30,7 @@ TEST_SUITE("iter_to_range") {
 		non_copy_iota_iter &operator=(non_copy_iota_iter const &other) = delete;
 		~non_copy_iota_iter() = default;
 
+	protected:
 		[[nodiscard]] std::optional<int> next() {
 			return cur_++;
 		}
@@ -47,6 +50,7 @@ TEST_SUITE("iter_to_range") {
 		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values} {
 		}
 
+	protected:
 		[[nodiscard]] std::optional<int> next() {
 			if (ix_ >= values_.size()) {
 				return std::nullopt;
@@ -89,5 +93,31 @@ TEST_SUITE("iter_to_range") {
 		++iter;
 		CHECK_EQ(iter, ints.end());
 		CHECK_EQ(iter.peek(), std::nullopt);
+	}
+
+	TEST_CASE("postincrement") {
+		SUBCASE("non-copyable") {
+			non_copy_iota const ints{0};
+			auto iter = ints.begin();
+
+			static_assert(std::same_as<decltype(iter++), void>);
+
+			CHECK_EQ(*iter, 0);
+			iter++;
+			CHECK_EQ(*iter, 1);
+		}
+
+		SUBCASE("copyable") {
+			values_yielder const ints{0, 1};
+			auto iter = ints.begin();
+
+			static_assert(std::same_as<decltype(iter++), typename values_yielder::iterator>);
+
+			CHECK_EQ(*iter, 0);
+
+			auto cpy = iter++;
+			CHECK_EQ(*cpy, 0);
+			CHECK_EQ(*iter, 1);
+		}
 	}
 }
