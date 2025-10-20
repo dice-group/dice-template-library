@@ -23,6 +23,7 @@ It contains:
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
+- `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
 
 ## Usage
 
@@ -136,6 +137,10 @@ It also supports allocators with "fancy" pointers.
 Additional range algorithms (e.g. `unique_view`) and adaptors (e.g., a pipeable `all_of`)
 that are missing from the standard library.
 
+### `next_to_range`/`next_to_iter`
+Eliminate the boilerplate required to write C++ iterators and ranges.
+To get a fully functional range, the only thing that is required is
+implementing a minimal, rust-style iterator interface.
 
 ### Further Examples
 
@@ -156,7 +161,7 @@ add
 FetchContent_Declare(
         dice-template-library
         GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.15.2
+        GIT_TAG v1.16.0
         GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(dice-template-library)
@@ -175,7 +180,7 @@ target_link_libraries(your_target
 ### conan
 
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.15.2` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.16.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

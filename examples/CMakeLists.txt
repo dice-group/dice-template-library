@@ -136,3 +136,10 @@ target_link_libraries(example_static_string
         dice-template-library::dice-template-library
 )
 
+
+add_executable(example_next_to_range
+        example_next_to_range.cpp)
+target_link_libraries(example_next_to_range
+        PRIVATE
+        dice-template-library::dice-template-library
+)
