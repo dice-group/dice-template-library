@@ -29,13 +29,6 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
 endif ()
 
-# conan requires cmake build type to be specified and it is generally a good idea
-if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt)
-  if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
-  endif ()
-endif ()
-
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
