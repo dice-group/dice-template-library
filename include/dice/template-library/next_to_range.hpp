@@ -1,5 +1,5 @@
-#ifndef DICE_TEMPLATELIBRARY_ITERTORANGE_HPP
-#define DICE_TEMPLATELIBRARY_ITERTORANGE_HPP
+#ifndef DICE_TEMPLATELIBRARY_NEXTTORANGE_HPP
+#define DICE_TEMPLATELIBRARY_NEXTTORANGE_HPP
 
 #include <cassert>
 #include <cstddef>
@@ -23,7 +23,7 @@ namespace dice::template_library {
 	 * We are not using a concept here, because concepts require things to be public
 	 */
 	template<typename Iter>
-	struct iter_to_iter : Iter {
+	struct next_to_iter : Iter {
 		using base_iterator = Iter;
 		using sentinel = std::default_sentinel_t;
 		using value_type = typename Iter::value_type;
@@ -47,7 +47,7 @@ namespace dice::template_library {
 
 	public:
 		template<typename ...Args>
-		explicit iter_to_iter(Args &&...args) : Iter{std::forward<Args>(args)...},
+		explicit next_to_iter(Args &&...args) : Iter{std::forward<Args>(args)...},
 												cur_{this->next()} {
 		}
 
@@ -78,12 +78,12 @@ namespace dice::template_library {
 			return *cur_;
 		}
 
-		iter_to_iter &operator++() {
+		next_to_iter &operator++() {
 			advance();
 			return *this;
 		}
 
-		std::conditional_t<std::is_copy_constructible_v<base_iterator>, iter_to_iter, void> operator++(int) {
+		std::conditional_t<std::is_copy_constructible_v<base_iterator>, next_to_iter, void> operator++(int) {
 			if constexpr (std::is_copy_constructible_v<base_iterator>) {
 				auto cpy = *this;
 				advance();
@@ -107,11 +107,11 @@ namespace dice::template_library {
 			return peeked_;
 		}
 
-		friend bool operator==(iter_to_iter const &self, sentinel) noexcept {
+		friend bool operator==(next_to_iter const &self, sentinel) noexcept {
 			return !self.cur_.has_value();
 		}
 
-		friend bool operator==(sentinel, iter_to_iter const &self) noexcept {
+		friend bool operator==(sentinel, next_to_iter const &self) noexcept {
 			return !self.cur_.has_value();
 		}
 	};
@@ -129,8 +129,8 @@ namespace dice::template_library {
 	 * We are not using a concept here, because concepts require things to be public
 	 */
 	template<typename Iter>
-	struct iter_to_range {
-		using iterator = iter_to_iter<Iter>;
+	struct next_to_range {
+		using iterator = next_to_iter<Iter>;
 		using sentinel = typename iterator::sentinel;
 		using value_type = typename iterator::value_type;
 
@@ -143,12 +143,12 @@ namespace dice::template_library {
 
 	public:
 		template<typename ...Args> requires (!std::is_copy_constructible_v<Iter>)
-		explicit iter_to_range(Args &&...args)
+		explicit next_to_range(Args &&...args)
 			: make_iter_{[...args = std::forward<Args>(args)] { return iterator{args...}; }} {
 		}
 
 		template<typename ...Args> requires (std::is_copy_constructible_v<Iter>)
-		explicit iter_to_range(Args &&...args)
+		explicit next_to_range(Args &&...args)
 			: make_iter_{std::forward<Args>(args)...} {
 		}
 
@@ -172,4 +172,4 @@ namespace dice::template_library {
 } // namespace dice::template_library
 
 
-#endif // DICE_TEMPLATELIBRARY_ITERTORANGE_HPP
+#endif // DICE_TEMPLATELIBRARY_NEXTTORANGE_HPP

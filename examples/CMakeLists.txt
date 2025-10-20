@@ -137,9 +137,9 @@ target_link_libraries(example_static_string
 )
 
 
-add_executable(example_iter_to_range
-        example_iter_to_range.cpp)
-target_link_libraries(example_iter_to_range
+add_executable(example_next_to_range
+        example_next_to_range.cpp)
+target_link_libraries(example_next_to_range
         PRIVATE
         dice-template-library::dice-template-library
 )

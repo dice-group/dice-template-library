@@ -88,5 +88,5 @@ custom_add_test(tests_shared_mutex)
 add_executable(tests_static_string tests_static_string.cpp)
 custom_add_test(tests_static_string)
 
-add_executable(tests_iter_to_range tests_iter_to_range.cpp)
-custom_add_test(tests_iter_to_range)
+add_executable(tests_next_to_range tests_next_to_range.cpp)
+custom_add_test(tests_next_to_range)

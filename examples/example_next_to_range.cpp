@@ -1,4 +1,4 @@
-#include <dice/template-library/iter_to_range.hpp>
+#include <dice/template-library/next_to_range.hpp>
 
 #include <cstddef>
 #include <iostream>
@@ -25,11 +25,11 @@ protected:
 };
 
 // Create just a C++-style iterator
-using iota_iter = dtl::iter_to_iter<iota_iter_impl>;
+using iota_iter = dtl::next_to_iter<iota_iter_impl>;
 static_assert(std::input_iterator<iota_iter>);
 
 // Create a C++-style range
-using iota = dtl::iter_to_range<iota_iter>;
+using iota = dtl::next_to_range<iota_iter>;
 static_assert(std::ranges::range<iota>);
 
 

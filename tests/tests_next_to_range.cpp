@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/iter_to_range.hpp>
+#include <dice/template-library/next_to_range.hpp>
 
 
 #include <algorithm>
@@ -13,7 +13,7 @@
 
 namespace dtl = dice::template_library;
 
-TEST_SUITE("iter_to_range") {
+TEST_SUITE("next_to_range") {
 	struct non_copy_iota_iter {
 		using value_type = int;
 
@@ -36,7 +36,7 @@ TEST_SUITE("iter_to_range") {
 		}
 	};
 
-	using non_copy_iota = dtl::iter_to_range<non_copy_iota_iter>;
+	using non_copy_iota = dtl::next_to_range<non_copy_iota_iter>;
 	static_assert(std::ranges::range<non_copy_iota>);
 
 	struct values_yielder_iter {
@@ -60,7 +60,7 @@ TEST_SUITE("iter_to_range") {
 		}
 	};
 
-	using values_yielder = dtl::iter_to_range<values_yielder_iter>;
+	using values_yielder = dtl::next_to_range<values_yielder_iter>;
 	static_assert(std::ranges::range<values_yielder>);
 
 
