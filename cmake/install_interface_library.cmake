@@ -22,7 +22,7 @@ function(install_interface_library TARGET_NAME NAMESPACE LIBRARY_NAME INCLUDE_PA
     COMPATIBILITY SameMajorVersion)
 
   configure_package_config_file(
-    "${PROJECT_SOURCE_DIR}/cmake/${TARGET_NAME}-config.cmake.in"
+    "${PROJECT_SOURCE_DIR}/cmake/lib-config.cmake.in"
     "${PROJECT_BINARY_DIR}/${TARGET_NAME}-config.cmake"
     INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
