@@ -17,6 +17,7 @@ option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_
 
 if (PROJECT_IS_TOP_LEVEL)
     if (BUILD_TESTING OR BUILD_EXAMPLES)
+        set(WITH_BOOST ON)
         set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_test_deps=True")
     endif ()
 
