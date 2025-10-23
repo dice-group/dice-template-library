@@ -38,30 +38,46 @@ TEST_SUITE("next_to_range") {
 
 	using non_copy_iota = dtl::next_to_range<non_copy_iota_iter>;
 	static_assert(std::ranges::range<non_copy_iota>);
+	static_assert(!std::ranges::sized_range<non_copy_iota>);
 
 	struct values_yielder_iter {
 		using value_type = int;
 
 	private:
 		std::vector<int> values_;
-		size_t ix_ = 0;
+		size_t ix_;
+		size_t end_;
 
 	public:
-		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values} {
+		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values}, ix_{0}, end_{values_.size()} {
 		}
 
 	protected:
 		[[nodiscard]] std::optional<int> next() {
-			if (ix_ >= values_.size()) {
+			if (ix_ >= end_) {
 				return std::nullopt;
 			}
 
 			return values_[ix_++];
 		}
+
+		[[nodiscard]] std::optional<int> next_back() {
+			if (ix_ >= end_) {
+				return std::nullopt;
+			}
+
+			return values_[--end_];
+		}
+
+	public:
+		[[nodiscard]] size_t remaining() const noexcept {
+			return end_ - ix_;
+		}
 	};
 
 	using values_yielder = dtl::next_to_range<values_yielder_iter>;
 	static_assert(std::ranges::range<values_yielder>);
+	static_assert(std::ranges::sized_range<values_yielder>);
 
 
 	TEST_CASE("sanity check") {
@@ -93,6 +109,17 @@ TEST_SUITE("next_to_range") {
 		++iter;
 		CHECK_EQ(iter, ints.end());
 		CHECK_EQ(iter.peek(), std::nullopt);
+	}
+
+	TEST_CASE("reverse iterator") {
+		values_yielder ints{1, 2};
+		auto rev = ints.reversed();
+
+		for (auto elem : rev) {
+			std::cout << elem << std::endl;
+		}
+
+		CHECK(std::ranges::equal(rev, std::vector{2, 1}));
 	}
 
 	TEST_CASE("postincrement") {
