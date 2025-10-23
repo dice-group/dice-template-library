@@ -14,7 +14,6 @@
 namespace dice::template_library {
 
 	namespace detail_next_to_iter {
-
 		template<typename T>
 		struct detect_next : std::false_type {
 		};
@@ -39,7 +38,31 @@ namespace dice::template_library {
 			};
 		};
 
-		template<typename Iter, bool reverse>
+		template<typename T>
+		struct detect_nth : std::false_type {
+		};
+
+		template<typename T> requires (std::is_class_v<T>)
+		struct detect_nth<T> : T {
+			static constexpr bool value = requires (size_t n) {
+				typename T::value_type;
+				{ std::declval<detect_nth>().nth(n) } -> std::same_as<std::optional<typename T::value_type>>;
+			};
+		};
+
+		template<typename T>
+		struct detect_nth_back : std::false_type {
+		};
+
+		template<typename T> requires (std::is_class_v<T>)
+		struct detect_nth_back<T> : T {
+			static constexpr bool value = requires (size_t n) {
+				typename T::value_type;
+				{ std::declval<detect_nth_back>().nth_back(n) } -> std::same_as<std::optional<typename T::value_type>>;
+			};
+		};
+
+		template<typename Iter, bool reverse, bool random_access>
 		struct next_to_iter_impl : Iter {
 			using base_iterator = Iter;
 			using sentinel = std::default_sentinel_t;
@@ -61,12 +84,33 @@ namespace dice::template_library {
 				}
 			}
 
+			[[nodiscard]] std::optional<value_type> nth(size_t off) requires (random_access) {
+				if constexpr (reverse) {
+					return Iter::nth_back(off);
+				} else {
+					return Iter::nth(off);
+				}
+			}
+
 			void advance() {
 				if (peeked_.has_value()) [[unlikely]] {
 					// fast path, we have already peaked the value
 					cur_ = std::exchange(peeked_, std::nullopt);
 				} else {
 					cur_ = next();
+				}
+			}
+
+			void advance_nth(size_t off) {
+				if (peeked_.has_value()) [[unlikely]] {
+					// we have already peaked the value
+					if (off == 0) {
+						cur_ = std::exchange(peeked_, std::nullopt);
+					} else {
+						cur_ = nth(off - 1);
+					}
+				} else {
+					cur_ = nth(off);
 				}
 			}
 
@@ -118,6 +162,17 @@ namespace dice::template_library {
 				}
 			}
 
+			next_to_iter_impl &operator+=(size_t off) requires (random_access) {
+				advance_nth(off);
+				return *this;
+			}
+
+			next_to_iter_impl operator+(size_t off) const requires (random_access && std::is_copy_constructible_v<base_iterator>) {
+				auto cpy = *this;
+				cpy += off;
+				return cpy;
+			}
+
 			/**
 			 * Takes a peek at the next element if there is one, but does not advance the iterator onto it.
 			 * This function is meant to be used when the underlying iterator is not copyable or expensive to copy.
@@ -143,10 +198,11 @@ namespace dice::template_library {
 
 	} // namespace detail_next_to_iter
 
+
 	/**
 	 * A rust-style forward iterator.
 	 *
- 	 * Requirements for I (the following things must be at least protected):
+	  * Requirements for I (the following things must be at least protected):
 	 *		typename I::value_type;
 	 *		{ I::next() } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
@@ -171,14 +227,13 @@ namespace dice::template_library {
 		{ iter.remaining() } -> std::convertible_to<size_t>;
 	};
 
-
 	/**
 	 * Wrapper to make a C++-style iterator out of a rust-style iterator.
 	 *
 	 * @tparam Iter base rust-style iterator
 	 */
 	template<next_iterator Iter>
-	using next_to_iter = detail_next_to_iter::next_to_iter_impl<Iter, false>;
+	using next_to_iter = detail_next_to_iter::next_to_iter_impl<Iter, false, detail_next_to_iter::detect_nth<Iter>::value>;
 
 	/**
 	 * Wrapper to make a C++-style iterator out of a rust-style reverse iterator.
@@ -186,7 +241,7 @@ namespace dice::template_library {
 	 * @tparam Iter base rust-style reverse iterator
 	 */
 	template<next_back_iterator Iter>
-	using next_back_to_reverse_iter = detail_next_to_iter::next_to_iter_impl<Iter, true>;
+	using next_back_to_reverse_iter = detail_next_to_iter::next_to_iter_impl<Iter, true, detail_next_to_iter::detect_nth_back<Iter>::value>;
 
 
 	/**
