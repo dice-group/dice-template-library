@@ -45,33 +45,53 @@ TEST_SUITE("next_to_range") {
 
 	private:
 		std::vector<int> values_;
-		size_t ix_;
+		size_t cur_;
 		size_t end_;
 
 	public:
-		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values}, ix_{0}, end_{values_.size()} {
+		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values}, cur_{0}, end_{values_.size()} {
 		}
 
 	protected:
 		[[nodiscard]] std::optional<int> next() {
-			if (ix_ >= end_) {
+			if (cur_ >= end_) {
 				return std::nullopt;
 			}
 
-			return values_[ix_++];
+			return values_[cur_++];
+		}
+
+		[[nodiscard]] std::optional<int> nth(size_t off) {
+			if (off > remaining()) {
+				cur_ = end_;
+				return std::nullopt;
+			}
+
+			cur_ += off;
+			return next();
 		}
 
 		[[nodiscard]] std::optional<int> next_back() {
-			if (ix_ >= end_) {
+			if (cur_ >= end_) {
 				return std::nullopt;
 			}
 
 			return values_[--end_];
 		}
 
+		[[nodiscard]] std::optional<int> nth_back(size_t off) {
+			if (off > remaining()) {
+				end_ = cur_;
+				return std::nullopt;
+			}
+
+			end_ -= off;
+			return next_back();
+		}
+
 	public:
 		[[nodiscard]] size_t remaining() const noexcept {
-			return end_ - ix_;
+			return end_ - cur_;
 		}
 	};
 
@@ -115,11 +135,20 @@ TEST_SUITE("next_to_range") {
 		values_yielder ints{1, 2};
 		auto rev = ints.reversed();
 
-		for (auto elem : rev) {
-			std::cout << elem << std::endl;
-		}
-
 		CHECK(std::ranges::equal(rev, std::vector{2, 1}));
+	}
+
+	TEST_CASE("random access") {
+		values_yielder ints{0, 1, 2, 3};
+		auto it = ints.begin();
+
+		CHECK_EQ(*it, 0);
+		CHECK_EQ(*(it + 1), 1);
+		CHECK_EQ(*(it += 1), 1);
+		CHECK_EQ(*(it += 2), 3);
+
+		++it;
+		CHECK_EQ(it, ints.end());
 	}
 
 	TEST_CASE("postincrement") {

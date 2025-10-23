@@ -62,7 +62,7 @@ namespace dice::template_library {
 			};
 		};
 
-		template<typename Iter, bool reverse, bool random_access>
+		template<typename Iter, bool reverse>
 		struct next_to_iter_impl : Iter {
 			using base_iterator = Iter;
 			using sentinel = std::default_sentinel_t;
@@ -73,6 +73,8 @@ namespace dice::template_library {
 			using iterator_category = std::input_iterator_tag;
 
 		private:
+			static constexpr bool random_access = reverse ? detect_nth_back<Iter>::value : detect_nth<Iter>::value;
+
 			std::optional<value_type> cur_;
 			std::optional<value_type> peeked_;
 
@@ -102,6 +104,12 @@ namespace dice::template_library {
 			}
 
 			void advance_nth(size_t off) {
+				if (off == 0) {
+					return;
+				}
+
+				off -= 1;
+
 				if (peeked_.has_value()) [[unlikely]] {
 					// we have already peaked the value
 					if (off == 0) {
@@ -198,7 +206,6 @@ namespace dice::template_library {
 
 	} // namespace detail_next_to_iter
 
-
 	/**
 	 * A rust-style forward iterator.
 	 *
@@ -233,7 +240,7 @@ namespace dice::template_library {
 	 * @tparam Iter base rust-style iterator
 	 */
 	template<next_iterator Iter>
-	using next_to_iter = detail_next_to_iter::next_to_iter_impl<Iter, false, detail_next_to_iter::detect_nth<Iter>::value>;
+	using next_to_iter = detail_next_to_iter::next_to_iter_impl<Iter, false>;
 
 	/**
 	 * Wrapper to make a C++-style iterator out of a rust-style reverse iterator.
@@ -241,7 +248,7 @@ namespace dice::template_library {
 	 * @tparam Iter base rust-style reverse iterator
 	 */
 	template<next_back_iterator Iter>
-	using next_back_to_reverse_iter = detail_next_to_iter::next_to_iter_impl<Iter, true, detail_next_to_iter::detect_nth_back<Iter>::value>;
+	using next_back_to_reverse_iter = detail_next_to_iter::next_to_iter_impl<Iter, true>;
 
 
 	/**
@@ -296,6 +303,10 @@ namespace dice::template_library {
 			return sentinel{};
 		}
 
+		/**
+		 * @return a new iterator from the end of the range
+		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
+		 */
 		[[nodiscard]] auto rbegin() const requires (next_back_iterator<Iter>) {
 			if constexpr (std::is_copy_constructible_v<Iter>) {
 				return next_back_to_reverse_iter<Iter>{make_iter_};
@@ -304,14 +315,21 @@ namespace dice::template_library {
 			}
 		}
 
-		static constexpr sentinel rend() noexcept {
+		static constexpr sentinel rend() noexcept requires (next_back_iterator<Iter>) {
 			return sentinel{};
 		}
 
+		/**
+		 * @return a reversed view of *this
+		 * @note this exists because std::views::reverse requires `std::bidirectional_iterator` from the iterator
+		 */
 		[[nodiscard]] auto reversed() const requires (next_back_iterator<Iter>) {
 			return std::ranges::subrange(rbegin(), rend());
 		}
 
+		/**
+		 * @return the size of the range#
+		 */
 		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return make_iter_.remaining();
 		}
