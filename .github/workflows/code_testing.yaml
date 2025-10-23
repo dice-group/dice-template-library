@@ -12,14 +12,14 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: ubuntu-22.04
-            compiler: clang-17
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: clang-18
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: clang-19
+          - os: ubuntu-24.04
+            compiler: clang-20
 
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: gcc-13
           - os: ubuntu-24.04
             compiler: gcc-14
