@@ -111,7 +111,7 @@ namespace dice::template_library {
 				off -= 1;
 
 				if (peeked_.has_value()) [[unlikely]] {
-					// we have already peaked the value
+					// we have already peeked the value
 					if (off == 0) {
 						cur_ = std::exchange(peeked_, std::nullopt);
 					} else {
@@ -328,7 +328,7 @@ namespace dice::template_library {
 		}
 
 		/**
-		 * @return the size of the range#
+		 * @return the size of the range
 		 */
 		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return make_iter_.remaining();
