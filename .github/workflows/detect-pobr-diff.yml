@@ -10,10 +10,10 @@ jobs:
   detect-pobr-diff:
     uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/abi-diff.yml@main
     with:
-      os: ubuntu-22.04
-      compiler: clang-17
+      os: ubuntu-24.04
+      compiler: clang-20
       cmake-version: 3.24.0
-      conan-version: 2.12.2
+      conan-version: 2.21.0
       base-branch: ${{ github.base_ref }}
       search-path: >
         include/dice/template-library/flex_array.hpp
