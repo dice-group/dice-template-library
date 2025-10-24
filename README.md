@@ -152,33 +152,7 @@ option `-DBUILD_EXAMPLES=ON` to be added.
 A C++20 compatible compiler. Code was only tested on x86_64.
 
 ## Include it in your projects
-
-### CMake
-
-add
-
-```cmake
-FetchContent_Declare(
-        dice-template-library
-        GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.16.0
-        GIT_SHALLOW TRUE)
-
-FetchContent_MakeAvailable(dice-template-library)
-```
-
-to your CMakeLists.txt
-
-You can now add it to your target with:
-
-```cmake
-target_link_libraries(your_target
-        dice-template-library::dice-template-library
-        )
-```
-
-### conan
-
+### Conan
 You can use it with [conan](https://conan.io/).
 To do so, you need to add `dice-template-library/1.16.0` to the `[requires]` section of your conan file.
 
@@ -188,15 +162,19 @@ To do so, you need to add `dice-template-library/1.16.0` to the `[requires]` sec
 # get it 
 git clone https://github.com/dice-group/dice-template-library.git
 cd dice-template-library
+
+wget https://raw.githubusercontent.com/conan-io/cmake-conan/refs/heads/develop2/conan_provider.cmake
+
 # build it
 mkdir build
-cd build
-cmake -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON ..
-make -j$(nproc)
-# run tests
-make run_tests
-# run examples
-./examples/examples_integral_template_tuple
-./examples/examples_switch_cases
-```
+cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -B build .
+cmake --build build --parallel $(nproc)
 
+# run tests
+cd build
+ctest
+
+# run an example
+cd build
+./examples/examples_integral_templated_tuple
+```
