@@ -115,6 +115,7 @@ namespace dice::template_library {
 					if (off == 0) {
 						cur_ = std::exchange(peeked_, std::nullopt);
 					} else {
+						peeked_.reset(); // discard peeked value
 						cur_ = nth(off - 1);
 					}
 				} else {

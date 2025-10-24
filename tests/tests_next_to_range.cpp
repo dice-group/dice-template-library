@@ -143,9 +143,13 @@ TEST_SUITE("next_to_range") {
 		auto it = ints.begin();
 
 		CHECK_EQ(*it, 0);
+		CHECK_EQ(it.peek(), 1);
 		CHECK_EQ(*(it + 1), 1);
+		CHECK_EQ(it.peek(), 1);
 		CHECK_EQ(*(it += 1), 1);
+		CHECK_EQ(it.peek(), 2);
 		CHECK_EQ(*(it += 2), 3);
+		CHECK_EQ(it.peek(), std::nullopt);
 
 		++it;
 		CHECK_EQ(it, ints.end());
