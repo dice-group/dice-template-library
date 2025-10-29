@@ -61,8 +61,49 @@ namespace dice::template_library {
 				{ std::declval<detect_nth_back>().nth_back(n) } -> std::same_as<std::optional<typename T::value_type>>;
 			};
 		};
+	} // namespace detail_next_to_iter
 
-		template<typename Iter, bool reverse>
+
+	/**
+	 * A rust-style forward iterator with next() that consumes elements from the front.
+	 *
+	  * Requirements for I (the following things must be at least protected):
+	 *		typename I::value_type;
+	 *		{ I::next() } -> std::same_as<std::optional<typename I::value_type>>;
+	 */
+	template<typename I>
+	concept next_iterator = detail_next_to_iter::detect_next<I>::value;
+
+	/**
+	 * A rust-style backwards iterator with a next_back() function that consumes elements from the back.
+	 *
+	 * Requirements for I (the following things must be at least protected):
+	 *		typename I::value_type;
+	 *		{ I::next_back() } -> std::same_as<std::optional<typename I::value_type>>;
+	 */
+	template<typename I>
+	concept next_back_iterator = detail_next_to_iter::detect_next_back<I>::value;
+
+	/**
+	 * A rust-style iterator that knows how many elements it has left.
+	 */
+	template<typename I>
+	concept sized_next_iterator = requires (I const &iter) {
+		{ iter.remaining() } -> std::convertible_to<size_t>;
+	};
+
+	namespace detail_next_to_iter {
+
+		enum struct direction : bool {
+			forward,
+			backward,
+		};
+
+		/**
+		 * @tparam Iter the underlying (rust-style) iterator
+		 * @tparam dir the walking direction of the iterator (forward uses next(), backward uses next_back())
+		 */
+		template<typename Iter, direction dir> requires (dir == direction::forward ? next_iterator<Iter> : next_back_iterator<Iter>)
 		struct next_to_iter_impl : Iter {
 			using base_iterator = Iter;
 			using sentinel = std::default_sentinel_t;
@@ -73,24 +114,24 @@ namespace dice::template_library {
 			using iterator_category = std::input_iterator_tag;
 
 		private:
-			static constexpr bool random_access = reverse ? detect_nth_back<Iter>::value : detect_nth<Iter>::value;
+			static constexpr bool efficient_skip = dir == direction::forward ? detect_nth<Iter>::value : detect_nth_back<Iter>::value;
 
 			std::optional<value_type> cur_;
 			std::optional<value_type> peeked_;
 
 			[[nodiscard]] std::optional<value_type> next() {
-				if constexpr (reverse) {
-					return Iter::next_back();
-				} else {
+				if constexpr (dir == direction::forward) {
 					return Iter::next();
+				} else {
+					return Iter::next_back();
 				}
 			}
 
-			[[nodiscard]] std::optional<value_type> nth(size_t off) requires (random_access) {
-				if constexpr (reverse) {
-					return Iter::nth_back(off);
-				} else {
+			[[nodiscard]] std::optional<value_type> nth(size_t off) requires (efficient_skip) {
+				if constexpr (dir == direction::forward) {
 					return Iter::nth(off);
+				} else {
+					return Iter::nth_back(off);
 				}
 			}
 
@@ -103,11 +144,12 @@ namespace dice::template_library {
 				}
 			}
 
-			void advance_nth(size_t off) {
+			void advance_by(size_t off) {
 				if (off == 0) {
 					return;
 				}
 
+				// "nth" advances behind the nth element. See below.
 				off -= 1;
 
 				if (peeked_.has_value()) [[unlikely]] {
@@ -171,12 +213,12 @@ namespace dice::template_library {
 				}
 			}
 
-			next_to_iter_impl &operator+=(size_t off) requires (random_access) {
-				advance_nth(off);
+			next_to_iter_impl &operator+=(size_t off) requires (efficient_skip) {
+				advance_by(off);
 				return *this;
 			}
 
-			next_to_iter_impl operator+(size_t off) const requires (random_access && std::is_copy_constructible_v<base_iterator>) {
+			next_to_iter_impl operator+(size_t off) const requires (efficient_skip && std::is_copy_constructible_v<base_iterator>) {
 				auto cpy = *this;
 				cpy += off;
 				return cpy;
@@ -208,48 +250,52 @@ namespace dice::template_library {
 	} // namespace detail_next_to_iter
 
 	/**
-	 * A rust-style forward iterator.
-	 *
-	  * Requirements for I (the following things must be at least protected):
-	 *		typename I::value_type;
-	 *		{ I::next() } -> std::same_as<std::optional<typename I::value_type>>;
-	 */
-	template<typename I>
-	concept next_iterator = detail_next_to_iter::detect_next<I>::value;
-
-	/**
-	 * A rust-style backwards iterator.
-	 *
-	 * Requirements for I (the following things must be at least protected):
-	 *		typename I::value_type;
-	 *		{ I::next_back() } -> std::same_as<std::optional<typename I::value_type>>;
-	 */
-	template<typename I>
-	concept next_back_iterator = detail_next_to_iter::detect_next_back<I>::value;
-
-	/**
-	 * A rust-style iterator that knows how many elements it has left.
-	 */
-	template<typename I>
-	concept sized_next_iterator = requires (I const &iter) {
-		{ iter.remaining() } -> std::convertible_to<size_t>;
-	};
-
-	/**
 	 * Wrapper to make a C++-style iterator out of a rust-style iterator.
 	 *
 	 * @tparam Iter base rust-style iterator
+	 *
+	 * Requirements for Iter:
+	 *   - value_type (required):
+	 *		// The value type of the iterator.
+	 *		typename Iter::value_type;
+	 *   - next() (required):
+	 *		// Return the next element of the iterator.
+	 *		{ iter.next() } -> std::optional<typename Iter::value_type>;
+	 *   - remaining() (optional):
+	 *		// Return the number of elements currently remaining in the iterator.
+	 *		// Enables sized_range for next_to_range if Iter is copy-constructible.
+	 *		{ iter.remaining() } -> std::convertible_to<size_t>;
+	 *   - nth(off) (optional):
+	 *		// Return the nth element of the iterator and advance the iterator behind it.
+	 *		// Enables operator+= (and operator+ if Iter is copy-constructible)
+	 *		{ iter.nth(size_t{off}) } -> std::optional<typename Iter::value_type>;
 	 */
 	template<next_iterator Iter>
-	using next_to_iter = detail_next_to_iter::next_to_iter_impl<Iter, false>;
+	using next_to_iter = detail_next_to_iter::next_to_iter_impl<Iter, detail_next_to_iter::direction::forward>;
 
 	/**
 	 * Wrapper to make a C++-style iterator out of a rust-style reverse iterator.
 	 *
 	 * @tparam Iter base rust-style reverse iterator
+	 *
+	 * Requirements for Iter:
+	 *   - value_type (required):
+	 *		// The value type of the iterator.
+	 *		typename Iter::value_type;
+	 *   - next_back() (required):
+	 *		// Return the next element from the back of the iterator.
+	 *		{ iter.next_back() } -> std::optional<typename Iter::value_type>;
+	 *   - remaining() (optional):
+	 *		// Return the number of elements currently remaining in the iterator.
+	 *		// Enables sized_range for next_to_range if Iter is copy-constructible.
+	 *		{ iter.remaining() } -> std::convertible_to<size_t>;
+	 *   - nth_back(off) (optional):
+	 *		// Return the nth element from the back of the iterator and advance the iterator before it.
+	 *		// Enables operator+= (and operator+ if Iter is copy-constructible)
+	 *		{ iter.nth_back(size_t{off}) } -> std::optional<typename Iter::value_type>;
 	 */
 	template<next_back_iterator Iter>
-	using next_back_to_reverse_iter = detail_next_to_iter::next_to_iter_impl<Iter, true>;
+	using next_back_to_reverse_iter = detail_next_to_iter::next_to_iter_impl<Iter, detail_next_to_iter::direction::backward>;
 
 
 	/**
@@ -258,11 +304,34 @@ namespace dice::template_library {
 	 *
 	 * @tparam Iter base rust-style iterator
 	 *
-	 * Requirements for Iter (the following things must be at least protected):
+	 * Requirements for Iter:
+	 *  Input Iterator:
+	 *   - value_type (required):
+	 *		// The value type of the iterator.
 	 *		typename Iter::value_type;
-	 *		{ Iter::next() } -> std::same_as<std::optional<typename Iter::value_type>>;
+	 *   - next() (required):
+	 *		// Return the next element of the iterator.
+	 *		{ iter.next() } -> std::optional<typename Iter::value_type>;
+	*	 - nth(off) (optional):
+	 *		// Return the nth element of the iterator and advance the iterator behind it.
+	 *		// Enables operator+= (and operator+ if Iter is copy-constructible) on the iterator.
+	 *		{ iter.nth(size_t{off}) } -> std::optional<typename Iter::value_type>;
 	 *
-	 * We are not using a concept here, because concepts require things to be public
+	 *  Reverse Input Iterator:
+	 *   - next_back() (optional):
+	 *		// Return the next element from the back of the iterator.
+	 *		// Enables rbegin, rend and reverse on next_to_range.
+	 *		{ iter.next_back() } -> std::optional<typename Iter::value_type>;
+	 *   - nth_back(off) (optional):
+	 *		// Return the nth element from the back of the iterator and advance the iterator before it.
+	 *		// Enables operator+= (and operator+ if Iter is copy-constructible) on the reverse iterator.
+	 *		{ iter.nth_back(size_t{off}) } -> std::optional<typename Iter::value_type>;
+	 *
+	 *  Sized Range:
+	 *	 - remaining() (optional):
+	 *		// Return the number of elements currently remaining in the iterator.
+	 *		// Enables sized_range for next_to_range if Iter is copy-constructible.
+	 *		{ iter.remaining() } -> std::convertible_to<size_t>;
 	 */
 	template<next_iterator Iter>
 	struct next_to_range {
