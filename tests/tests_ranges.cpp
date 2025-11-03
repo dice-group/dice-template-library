@@ -4,6 +4,7 @@
 #include <dice/template-library/ranges.hpp>
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <iterator>
 #include <list>
@@ -255,63 +256,101 @@ TEST_SUITE("unique range adaptor") {
 }
 
 TEST_SUITE("range view") {
+	static_assert(std::ranges::range<decltype(dtl::range<int>(5))>);
+	static_assert(std::ranges::sized_range<decltype(dtl::range<int>(5))>);
+
+	static_assert(std::ranges::range<decltype(dtl::range<std::chrono::seconds>(std::chrono::seconds{1}))>);
+	static_assert(!std::ranges::sized_range<decltype(dtl::range<std::chrono::seconds>(std::chrono::seconds{1}))>);
 
 	TEST_CASE("range(stop) overload") {
 		auto view1 = dtl::range<int>(5);
 		std::vector expected1{0, 1, 2, 3, 4};
+		REQUIRE_EQ(view1.size(), expected1.size());
 		REQUIRE(std::ranges::equal(view1, expected1));
 
 		auto view2 = dtl::range<size_t>(3);
 		std::vector<size_t> expected2{0, 1, 2};
+		REQUIRE_EQ(view2.size(), expected2.size());
 		REQUIRE(std::ranges::equal(view2, expected2));
 
 		// A range up to 0 should be empty
 		auto view3 = dtl::range<int>(0);
+		REQUIRE_EQ(view3.size(), 0);
 		REQUIRE(std::ranges::begin(view3) == std::ranges::end(view3));
 
 		// A range up to 1 should contain only 0
 		auto view4 = dtl::range<int>(1);
 		std::vector expected4{0};
+		REQUIRE_EQ(view4.size(), expected4.size());
 		REQUIRE(std::ranges::equal(view4, expected4));
+
+		// non-integers
+		auto view5 = dtl::range<std::chrono::seconds>(std::chrono::seconds{5});
+		auto expected5 = expected1 | std::views::transform([](auto const &val) {
+			return std::chrono::seconds{val};
+		});
+		REQUIRE(std::ranges::equal(view5, expected5));
 	}
 
 	TEST_CASE("range(start, stop) overload") {
 		auto view1 = dtl::range<int>(2, 6);
 		std::vector expected1{2, 3, 4, 5};
+		REQUIRE_EQ(view1.size(), expected1.size());
 		REQUIRE(std::ranges::equal(view1, expected1));
 
 		// Start is after stop, should be empty
 		auto view2 = dtl::range<int>(5, 2);
+		REQUIRE_EQ(view2.size(), 0);
 		REQUIRE(std::begin(view2) == std::end(view2));
 
 		// Start is equal to stop, should be empty
 		auto view3 = dtl::range<int>(5, 5);
+		REQUIRE_EQ(view3.size(), 0);
 		REQUIRE(std::begin(view3) == std::end(view3));
 
 		// negative numbers
 		auto view4 = dtl::range<int>(-2, 2);
 		std::vector expected4{-2, -1, 0, 1};
+		REQUIRE_EQ(view4.size(), expected4.size());
 		REQUIRE(std::ranges::equal(view4, expected4));
+
+		// non-integers
+		auto view5 = dtl::range<std::chrono::seconds>(std::chrono::seconds{2}, std::chrono::seconds{6});
+		auto expected5 = expected1 | std::views::transform([](auto const &val) {
+			return std::chrono::seconds{val};
+		});
+		REQUIRE(std::ranges::equal(view5, expected5));
 	}
 
 	TEST_CASE("range(start, stop, step) overload") {
 		SUBCASE("positive step") {
 			auto view = dtl::range<int>(0, 10, 2);
-			std::vector<int> expected{0, 2, 4, 6, 8};
+			std::vector<int> const expected{0, 2, 4, 6, 8};
+			REQUIRE_EQ(view.size(), expected.size());
 			REQUIRE(std::ranges::equal(view, expected));
 
 			// step overshoots the stop value
 			auto view_overshoot = dtl::range<int>(0, 9, 2);
+			REQUIRE_EQ(view_overshoot.size(), expected.size());
 			REQUIRE(std::ranges::equal(view_overshoot, expected));
 
 			// step is larger than the entire range
 			auto view_large_step = dtl::range<int>(0, 10, 20);
 			std::vector<int> expected_large{0};
+			REQUIRE_EQ(view_large_step.size(), expected_large.size());
 			REQUIRE(std::ranges::equal(view_large_step, expected_large));
 
 			// wrong direction
 			auto view_wrong_dir = dtl::range<int>(10, 0, 2);
+			REQUIRE_EQ(view_wrong_dir.size(), 0);
 			REQUIRE(std::begin(view_wrong_dir) == std::end(view_wrong_dir));
+
+			// non-integers
+			auto view5 = dtl::range<std::chrono::seconds>(std::chrono::seconds{0}, std::chrono::seconds{10}, std::chrono::seconds{2});
+			auto expected5 = expected | std::views::transform([](auto const &val) {
+				return std::chrono::seconds{val};
+			});
+			REQUIRE(std::ranges::equal(view5, expected5));
 		}
 
 		SUBCASE("negative step") {
@@ -326,6 +365,23 @@ TEST_SUITE("range view") {
 			// wrong direction
 			auto view_wrong_dir = dtl::range<int>(0, 10, -2);
 			REQUIRE(std::begin(view_wrong_dir) == std::end(view_wrong_dir));
+
+			// non-integers
+			auto view5 = dtl::range<std::chrono::seconds>(std::chrono::seconds{10}, std::chrono::seconds{0}, -std::chrono::seconds{2});
+			auto expected5 = expected | std::views::transform([](auto const &val) {
+				return std::chrono::seconds{val};
+			});
+			REQUIRE(std::ranges::equal(view5, expected5));
+		}
+
+		SUBCASE("different step type") {
+			using namespace std::chrono;
+			using namespace std::chrono_literals;
+
+			auto view = dtl::range(2025y/01/01, 2027y/01/01, years{1});
+			std::vector<year_month_day> const expected{2025y/01/01, 2026y/01/01};
+
+			REQUIRE(std::ranges::equal(view, expected));
 		}
 	}
 }
