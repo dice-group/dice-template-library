@@ -24,6 +24,7 @@ It contains:
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
 - `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
+- `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
 
 ## Usage
 
@@ -141,6 +142,12 @@ that are missing from the standard library.
 Eliminate the boilerplate required to write C++ iterators and ranges.
 To get a fully functional range, the only thing that is required is
 implementing a minimal, rust-style iterator interface.
+
+### `inplace_polymorphic`
+Similar to `std::variant`, this type allows for polymorphism without heap allocations.
+Unlike `std::variant`, it uses polymorphism based on `virtual` functions instead of `std::visit`/`std::get`.
+It is meant as variant-like stack-storage for similar types (i.e. types in an inheritance hierarchy).
+This greatly reduces the boilerplate compared to `std::visit` based on-stack polymorphism.
 
 ### Further Examples
 
