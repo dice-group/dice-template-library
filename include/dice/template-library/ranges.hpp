@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <ranges>
 #include <set>
 #include <unordered_set>
