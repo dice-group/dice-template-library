@@ -38,30 +38,66 @@ TEST_SUITE("next_to_range") {
 
 	using non_copy_iota = dtl::next_to_range<non_copy_iota_iter>;
 	static_assert(std::ranges::range<non_copy_iota>);
+	static_assert(!std::ranges::sized_range<non_copy_iota>);
 
 	struct values_yielder_iter {
 		using value_type = int;
 
 	private:
 		std::vector<int> values_;
-		size_t ix_ = 0;
+		size_t cur_;
+		size_t end_;
 
 	public:
-		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values} {
+		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values}, cur_{0}, end_{values_.size()} {
 		}
 
 	protected:
 		[[nodiscard]] std::optional<int> next() {
-			if (ix_ >= values_.size()) {
+			if (cur_ >= end_) {
 				return std::nullopt;
 			}
 
-			return values_[ix_++];
+			return values_[cur_++];
+		}
+
+		[[nodiscard]] std::optional<int> nth(size_t off) {
+			if (off > remaining()) {
+				cur_ = end_;
+				return std::nullopt;
+			}
+
+			cur_ += off;
+			return next();
+		}
+
+		[[nodiscard]] std::optional<int> next_back() {
+			if (cur_ >= end_) {
+				return std::nullopt;
+			}
+
+			return values_[--end_];
+		}
+
+		[[nodiscard]] std::optional<int> nth_back(size_t off) {
+			if (off > remaining()) {
+				end_ = cur_;
+				return std::nullopt;
+			}
+
+			end_ -= off;
+			return next_back();
+		}
+
+	public:
+		[[nodiscard]] size_t remaining() const noexcept {
+			return end_ - cur_;
 		}
 	};
 
 	using values_yielder = dtl::next_to_range<values_yielder_iter>;
 	static_assert(std::ranges::range<values_yielder>);
+	static_assert(std::ranges::sized_range<values_yielder>);
 
 
 	TEST_CASE("sanity check") {
@@ -93,6 +129,30 @@ TEST_SUITE("next_to_range") {
 		++iter;
 		CHECK_EQ(iter, ints.end());
 		CHECK_EQ(iter.peek(), std::nullopt);
+	}
+
+	TEST_CASE("reverse iterator") {
+		values_yielder ints{1, 2};
+		auto rev = ints.reversed();
+
+		CHECK(std::ranges::equal(rev, std::vector{2, 1}));
+	}
+
+	TEST_CASE("random access") {
+		values_yielder ints{0, 1, 2, 3};
+		auto it = ints.begin();
+
+		CHECK_EQ(*it, 0);
+		CHECK_EQ(it.peek(), 1);
+		CHECK_EQ(*(it + 1), 1);
+		CHECK_EQ(it.peek(), 1);
+		CHECK_EQ(*(it += 1), 1);
+		CHECK_EQ(it.peek(), 2);
+		CHECK_EQ(*(it += 2), 3);
+		CHECK_EQ(it.peek(), std::nullopt);
+
+		++it;
+		CHECK_EQ(it, ints.end());
 	}
 
 	TEST_CASE("postincrement") {

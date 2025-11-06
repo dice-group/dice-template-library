@@ -12,14 +12,14 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: ubuntu-22.04
-            compiler: clang-17
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: clang-18
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: clang-19
+          - os: ubuntu-24.04
+            compiler: clang-20
 
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: gcc-13
           - os: ubuntu-24.04
             compiler: gcc-14
@@ -30,7 +30,7 @@ jobs:
         shell: bash
 
     steps:
-      - name: Add repos for for gcc-13 and clang-16,..
+      - name: Add compiler repos
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
       - name: Install CMake
@@ -47,7 +47,7 @@ jobs:
       - name: Configure conan
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
         with:
-          conan-version: 2.12.2
+          conan-version: 2.21.0
 
       - name: add conan user
         run: |

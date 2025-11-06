@@ -24,6 +24,7 @@ It contains:
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
 - `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
+- `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
 
 ## Usage
 
@@ -142,6 +143,12 @@ Eliminate the boilerplate required to write C++ iterators and ranges.
 To get a fully functional range, the only thing that is required is
 implementing a minimal, rust-style iterator interface.
 
+### `inplace_polymorphic`
+Similar to `std::variant`, this type allows for polymorphism without heap allocations.
+Unlike `std::variant`, it uses polymorphism based on `virtual` functions instead of `std::visit`/`std::get`.
+It is meant as variant-like stack-storage for similar types (i.e. types in an inheritance hierarchy).
+This greatly reduces the boilerplate compared to `std::visit` based on-stack polymorphism.
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -152,35 +159,9 @@ option `-DBUILD_EXAMPLES=ON` to be added.
 A C++20 compatible compiler. Code was only tested on x86_64.
 
 ## Include it in your projects
-
-### CMake
-
-add
-
-```cmake
-FetchContent_Declare(
-        dice-template-library
-        GIT_REPOSITORY "https://github.com/dice-group/dice-template-library.git"
-        GIT_TAG v1.16.0
-        GIT_SHALLOW TRUE)
-
-FetchContent_MakeAvailable(dice-template-library)
-```
-
-to your CMakeLists.txt
-
-You can now add it to your target with:
-
-```cmake
-target_link_libraries(your_target
-        dice-template-library::dice-template-library
-        )
-```
-
-### conan
-
+### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.16.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.17.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
@@ -188,15 +169,19 @@ To do so, you need to add `dice-template-library/1.16.0` to the `[requires]` sec
 # get it 
 git clone https://github.com/dice-group/dice-template-library.git
 cd dice-template-library
+
+wget https://raw.githubusercontent.com/conan-io/cmake-conan/refs/heads/develop2/conan_provider.cmake
+
 # build it
 mkdir build
-cd build
-cmake -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON ..
-make -j$(nproc)
-# run tests
-make run_tests
-# run examples
-./examples/examples_integral_template_tuple
-./examples/examples_switch_cases
-```
+cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -B build .
+cmake --build build --parallel $(nproc)
 
+# run tests
+cd build
+ctest
+
+# run an example
+cd build
+./examples/examples_integral_templated_tuple
+```

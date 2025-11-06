@@ -29,7 +29,7 @@ using iota_iter = dtl::next_to_iter<iota_iter_impl>;
 static_assert(std::input_iterator<iota_iter>);
 
 // Create a C++-style range
-using iota = dtl::next_to_range<iota_iter>;
+using iota = dtl::next_to_range<iota_iter_impl>;
 static_assert(std::ranges::range<iota>);
 
 

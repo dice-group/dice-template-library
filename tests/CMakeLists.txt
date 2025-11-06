@@ -90,3 +90,7 @@ custom_add_test(tests_static_string)
 
 add_executable(tests_next_to_range tests_next_to_range.cpp)
 custom_add_test(tests_next_to_range)
+
+add_executable(tests_inplace_polymorphic tests_inplace_polymorphic.cpp)
+custom_add_test(tests_inplace_polymorphic)
+
