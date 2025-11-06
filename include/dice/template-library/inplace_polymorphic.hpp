@@ -68,7 +68,7 @@ namespace dice::template_library {
 					  "Unlike std::variant all destructors are required to be noexcept, instead of just relying on the promise that they do not throw.");
 
 	private:
-		using first_type = typename detail_inplace_polymorphic::first<Ts...>::type;
+		using first_derived_type = typename detail_inplace_polymorphic::first<Ts...>::type;
 		static constexpr bool noexcept_copy = noexcept(std::declval<inplace_polymorphic>().get_unchecked()->copy_to(std::declval<inplace_polymorphic>().get_unchecked()));
 		static constexpr bool noexcept_move = noexcept(std::declval<inplace_polymorphic>().get_unchecked()->move_to(std::declval<inplace_polymorphic>().get_unchecked()));
 
@@ -98,7 +98,7 @@ namespace dice::template_library {
 			assert(valueless_);
 
 			if (other.valueless_) {
-				// already set
+				// no value to copy and this->valueluess_ already set
 			} else {
 				DICE_TEMPLATELIBRARY_DETAIL_INPLACEPOLY_TRY(noexcept_copy, {
 					other.get_unchecked()->copy_to(get_unchecked());
@@ -110,7 +110,7 @@ namespace dice::template_library {
 			assert(valueless_);
 
 			if (other.valueless_) {
-				// already set
+				// no value to move and this->valueluess_ already set
 			} else {
 				DICE_TEMPLATELIBRARY_DETAIL_INPLACEPOLY_TRY(noexcept_move, {
 					other.get_unchecked()->move_to(get_unchecked());
@@ -123,9 +123,9 @@ namespace dice::template_library {
 		 * Default construct the first type of Ts...
 		 * This function is only enabled if the first type of Ts... is default constructible.
 		 */
-		inplace_polymorphic() noexcept(std::is_nothrow_default_constructible_v<first_type>) requires (std::is_default_constructible_v<first_type>) {
-			DICE_TEMPLATELIBRARY_DETAIL_INPLACEPOLY_TRY(std::is_nothrow_default_constructible_v<first_type>, {
-				new (&storage_) first_type{};
+		inplace_polymorphic() noexcept(std::is_nothrow_default_constructible_v<first_derived_type>) requires (std::is_default_constructible_v<first_derived_type>) {
+			DICE_TEMPLATELIBRARY_DETAIL_INPLACEPOLY_TRY(std::is_nothrow_default_constructible_v<first_derived_type>, {
+				new (&storage_) first_derived_type{};
 			});
 		}
 
