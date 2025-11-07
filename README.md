@@ -25,6 +25,7 @@ It contains:
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
 - `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
+- `type_list`: A variadic lists of types for metaprogramming.
 
 ## Usage
 
@@ -148,6 +149,11 @@ Similar to `std::variant`, this type allows for polymorphism without heap alloca
 Unlike `std::variant`, it uses polymorphism based on `virtual` functions instead of `std::visit`/`std::get`.
 It is meant as variant-like stack-storage for similar types (i.e. types in an inheritance hierarchy).
 This greatly reduces the boilerplate compared to `std::visit` based on-stack polymorphism.
+
+### `type_list`
+A variadic list of types for use in metaprogramming. Optimized to be much faster than the equivalent code
+written with `std::tuple`. It supports various operations similar to what you would use for
+`std::ranges` (e.g. `transform`, `filter`, etc.).
 
 ### Further Examples
 
