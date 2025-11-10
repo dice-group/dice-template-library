@@ -323,11 +323,10 @@ namespace dice::template_library {
 namespace dice::template_library {
 
 	template<typename S, typename T>
-	concept step_for = requires (T start, T const stop, S step) {
+	concept step_for = std::is_default_constructible_v<S> && requires (T start, T const stop, S step) {
 		{ start <= stop } -> std::convertible_to<bool>;
 		{ start >= stop } -> std::convertible_to<bool>;
 
-		S{};
 		start += step;
 	};
 
@@ -346,10 +345,14 @@ namespace dice::template_library {
 			S step_;
 
 		public:
-			explicit constexpr range_generator_view(T start, T stop, S step) noexcept
+			explicit constexpr range_generator_view(T start, T stop, S step)
 				: start_{start},
 				  stop_{stop},
 				  step_{step} {
+
+				if (step == S{}) [[unlikely]] {
+					throw std::invalid_argument{"range: step must not be the zero element/the additive identity"};
+				}
 			}
 
 			constexpr iterator begin() const noexcept {
@@ -361,16 +364,6 @@ namespace dice::template_library {
 			}
 
 			constexpr size_t size() const noexcept requires (std::integral<T> && std::integral<S>) {
-				if (step_ == 0 && start_ != stop_) [[unlikely]] {
-					if (start_ == stop_) {
-						// are already at the end
-						return 0;
-					} else {
-						// can never reach the end
-						return std::numeric_limits<size_t>::max();
-					}
-				}
-
 				// Math for calculating result: ceil(|stop_ - start_| / |step_|)
 				// For integers we need to adjust the formula to avoid overflows, conversions and inefficient operations.
 				// Note: ceil(a / b) = (a + b - 1) / b

@@ -356,14 +356,17 @@ TEST_SUITE("range view") {
 		SUBCASE("negative step") {
 			auto view = dtl::range<int>(10, 0, -2);
 			std::vector<int> expected{10, 8, 6, 4, 2};
+			REQUIRE_EQ(view.size(), expected.size());
 			REQUIRE(std::ranges::equal(view, expected));
 
 			auto view_odd = dtl::range<int>(9, 0, -2);
 			std::vector<int> expected_odd{9, 7, 5, 3, 1};
+			REQUIRE_EQ(view_odd.size(), expected_odd.size());
 			REQUIRE(std::ranges::equal(view_odd, expected_odd));
 
 			// wrong direction
 			auto view_wrong_dir = dtl::range<int>(0, 10, -2);
+			REQUIRE_EQ(view_wrong_dir.size(), 0);
 			REQUIRE(std::begin(view_wrong_dir) == std::end(view_wrong_dir));
 
 			// non-integers
@@ -371,6 +374,7 @@ TEST_SUITE("range view") {
 			auto expected5 = expected | std::views::transform([](auto const &val) {
 				return std::chrono::seconds{val};
 			});
+			static_assert(!std::ranges::sized_range<decltype(view5)>);
 			REQUIRE(std::ranges::equal(view5, expected5));
 		}
 
