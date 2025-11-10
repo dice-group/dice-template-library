@@ -131,6 +131,11 @@ TEST_SUITE("type_list") {
 		static_assert(std::is_same_v<tl::find_if_t<t1, pred3>, double>);
 
 		static_assert(std::is_same_v<tl::opt_t<tl::find_if<t1, pred4>>, tl::nullopt>);
+
+		using t2 = tl::type_list<char, float>;
+		static_assert(std::is_same_v<tl::opt_t<tl::find_if<t2, pred1>>, tl::nullopt>);
+		static_assert(std::is_same_v<tl::opt_t<tl::find_if<t2, pred2>>, tl::nullopt>);
+		static_assert(std::is_same_v<tl::opt_t<tl::find_if<t2, pred3>>, tl::nullopt>);
 	}
 
 	TEST_CASE("contains") {
@@ -177,7 +182,7 @@ TEST_SUITE("type_list") {
 		static_assert(!tl::all_same_v<t2>);
 	}
 
-	TEST_CASE("for_each/fold") {
+	TEST_CASE("for_each") {
 		using t1 = tl::type_list<int32_t, int64_t, int16_t>;
 
 		std::vector<size_t> actual;

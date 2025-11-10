@@ -85,7 +85,7 @@ namespace dice::template_library::type_list {
 
 	/**
      * Find the nth element of a type list.
-     * If the given index is not a valid index in the type list is empty there will be no member typedef; use `opt` if this is undesired.
+     * If the given index is not a valid index in the type list, or the type list is empty there will be no member typedef; use `opt` if this is undesired.
      *
      * @tparam TL type list
      * @tparam idx index of the element
@@ -154,6 +154,17 @@ namespace dice::template_library::type_list {
      * @tparam TL type list
      * @tparam func the transform function. Must be invocable as INVOKE(func, std::type_identity<T>{}) for all T in the type list
      *      and must return a type with a member typedef (called `type`).
+     *
+     * @example
+     * @code
+     * using tl = type_list<int, double>;
+     *
+     * using transformed_tl = transform_t<tl, []<typename T>(std::type_identity<T>) {
+     *     return std::add_const<T>{};
+     * }>;
+     *
+     * static_assert(std::is_same_v<transformed_tl, type_list<int const, double const>>);
+     * @endcode
      */
     template<typename TL, auto func>
     struct transform;
@@ -372,18 +383,12 @@ namespace dice::template_library::type_list {
     using opt_t = typename opt<T>::type;
 
 
-    namespace detail_for_each_fold {
+    namespace detail_for_each {
         template<typename ...Ts, typename F>
         constexpr void for_each_impl(type_list<Ts...>, F &&func) {
             (std::invoke(func, std::type_identity<Ts>{}), ...);
         }
-
-        template<typename Acc, typename ...Ts, typename F>
-        [[nodiscard]] constexpr Acc fold_impl(type_list<Ts...>, Acc init, F &&func) {
-            ((init = std::invoke(func, std::move(init), std::type_identity<Ts>{})), ...);
-            return init;
-        }
-    } // namespace detail_for_each_fold
+    } // namespace detail_for_each
 
     /**
      * Apply a function to each type in a type list.
@@ -391,8 +396,16 @@ namespace dice::template_library::type_list {
      */
     template<typename TL, typename F>
     constexpr void for_each(F &&func) {
-        detail_for_each_fold::for_each_impl(TL{}, std::forward<F>(func));
+        detail_for_each::for_each_impl(TL{}, std::forward<F>(func));
     }
+
+    namespace detail_fold {
+        template<typename Acc, typename ...Ts, typename F>
+        [[nodiscard]] constexpr Acc fold_impl(type_list<Ts...>, Acc init, F &&func) {
+            ((init = std::invoke(func, std::move(init), std::type_identity<Ts>{})), ...);
+            return init;
+        }
+    } // namespace detail_fold
 
 	/**
      * Fold over the types in a type list.
@@ -405,7 +418,7 @@ namespace dice::template_library::type_list {
      */
     template<typename TL, typename Acc, typename F>
     [[nodiscard]] constexpr Acc fold(Acc init, F &&func) {
-        return detail_for_each_fold::fold_impl(TL{}, std::move(init), std::forward<F>(func));
+        return detail_fold::fold_impl(TL{}, std::move(init), std::forward<F>(func));
     }
 
 } // namespace dice::template_library::type_list
