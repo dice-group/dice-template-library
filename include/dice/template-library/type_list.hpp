@@ -264,6 +264,35 @@ namespace dice::template_library::type_list {
     using find_if_t = typename find_if<TL, pred>::type;
 
 
+    namespace detail_position {
+        template<typename TL, auto pred, size_t ix>
+        struct position;
+
+        template<auto pred, size_t ix>
+        struct position<type_list<>, pred, ix> {
+        };
+
+        template<typename T, typename ...Ts, auto pred, size_t ix>
+        requires (!std::invoke(pred, std::type_identity<T>{}))
+        struct position<type_list<T, Ts...>, pred, ix> : position<type_list<Ts...>, pred, ix + 1> {
+        };
+
+        template<typename T, typename ...Ts, auto pred, size_t ix>
+        requires (std::invoke(pred, std::type_identity<T>{}))
+        struct position<type_list<T, Ts...>, pred, ix> : std::integral_constant<size_t, ix> {
+        };
+    } // namespace detail_position
+
+    /**
+     * Searches for an element in the type list, returning its position.
+     */
+    template<typename TL, auto pred>
+    using position = detail_position::position<TL, pred, 0>;
+
+    template<typename TL, auto pred>
+    inline constexpr size_t position_v = position<TL, pred>::value;
+
+
 	/**
      * Check if a particular type is present in the type list.
      *
@@ -356,12 +385,15 @@ namespace dice::template_library::type_list {
      * A marker type to indicate a failed operation
      * when using opt
      */
-    struct nullopt {};
+    struct nullopt {
+        constexpr bool operator==(nullopt const &other) const noexcept = default;
+    };
 
 	/**
      * Can be used in combination with any operation that may fail.
-     * By default, failing operations will not provide a `type` member typedef.
+     * By default, failing operations will not provide a `type` member typedef / a static constexpr value.
      * When using opt, the member typedef `type` will always be present. In case the operation failed the type will be `nullopt`.
+     * Additionally, the static constexpr value will always be present. In case the operation failed the static constexpr value will be `nullopt{}`
      *
      * @example
      * @code
@@ -369,18 +401,27 @@ namespace dice::template_library::type_list {
      * using X = opt_t<first<type_list<>>; // compilation success, X is nullopt
      * @endcode
      */
-    template<typename T, typename = void>
+    template<typename T>
     struct opt {
+        static constexpr auto value = nullopt{};
         using type = nullopt;
     };
 
-    template<typename T>
-    struct opt<T, std::void_t<typename T::type>> {
+    template<typename T> requires requires { typename T::type; }
+    struct opt<T> {
         using type = typename T::type;
+    };
+
+    template<typename T> requires requires { T::value; }
+    struct opt<T> {
+        static constexpr auto value = T::value;
     };
 
     template<typename T>
     using opt_t = typename opt<T>::type;
+
+    template<typename T>
+    inline constexpr auto opt_v = opt<T>::value;
 
 
     namespace detail_for_each {
