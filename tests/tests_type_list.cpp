@@ -241,4 +241,14 @@ TEST_SUITE("type_list") {
 
 		CHECK_EQ(actual, 4 + 8 + 2);
 	}
+
+	struct ambiguous {
+		using type = int;
+		static constexpr size_t value = 0;
+	};
+
+	TEST_CASE("ambiguous opt") {
+		static_assert(tl::opt_v<ambiguous> == 0);
+		static_assert(std::is_same_v<tl::opt_t<ambiguous>, int>);
+	}
 }

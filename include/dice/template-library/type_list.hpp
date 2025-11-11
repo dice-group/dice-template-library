@@ -389,6 +389,21 @@ namespace dice::template_library::type_list {
         constexpr bool operator==(nullopt const &other) const noexcept = default;
     };
 
+
+    namespace detail_opt {
+
+        template<typename T>
+        concept type_present = requires {
+            typename T::type;
+        };
+
+        template<typename T>
+        concept value_present = requires {
+            T::value;
+        };
+
+    } // namespace detail_opt
+
 	/**
      * Can be used in combination with any operation that may fail.
      * By default, failing operations will not provide a `type` member typedef / a static constexpr value.
@@ -407,13 +422,22 @@ namespace dice::template_library::type_list {
         using type = nullopt;
     };
 
-    template<typename T> requires requires { typename T::type; }
+    template<typename T>
+    requires (detail_opt::type_present<T> && !detail_opt::value_present<T>)
     struct opt<T> {
         using type = typename T::type;
     };
 
-    template<typename T> requires requires { T::value; }
+    template<typename T>
+    requires (!detail_opt::type_present<T> && detail_opt::value_present<T>)
     struct opt<T> {
+        static constexpr auto value = T::value;
+    };
+
+    template<typename T>
+    requires (detail_opt::type_present<T> && detail_opt::value_present<T>)
+    struct opt<T> {
+        using type = typename T::type;
         static constexpr auto value = T::value;
     };
 
