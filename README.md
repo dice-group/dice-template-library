@@ -25,6 +25,7 @@ It contains:
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
 - `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
+- `type_list`: A variadic lists of types for metaprogramming.
 
 ## Usage
 
@@ -149,6 +150,11 @@ Unlike `std::variant`, it uses polymorphism based on `virtual` functions instead
 It is meant as variant-like stack-storage for similar types (i.e. types in an inheritance hierarchy).
 This greatly reduces the boilerplate compared to `std::visit` based on-stack polymorphism.
 
+### `type_list`
+A variadic list of types for use in metaprogramming. Optimized to be much faster than the equivalent code
+written with `std::tuple`. It supports various operations similar to what you would use for
+`std::ranges` (e.g. `transform`, `filter`, etc.).
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -161,7 +167,7 @@ A C++20 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.17.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.18.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
