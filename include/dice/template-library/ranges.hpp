@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <ranges>
 #include <set>
 #include <unordered_set>
@@ -320,39 +321,76 @@ namespace dice::template_library {
 
 
 namespace dice::template_library {
+
+	template<typename S, typename T>
+	concept step_for = std::is_default_constructible_v<S> && requires (T start, T const stop, S step) {
+		{ start <= stop } -> std::convertible_to<bool>;
+		{ start >= stop } -> std::convertible_to<bool>;
+
+		start += step;
+	};
+
 	namespace ranges_algo_detail {
 
 		// The view that represents the generated sequence.
 		// range generator view (python-like iota with step)
-		template<std::integral T>
-		struct range_generator_view : std::ranges::view_interface<range_generator_view<T>> {
+		template<typename T, step_for<T> S>
+		struct range_generator_view : std::ranges::view_interface<range_generator_view<T, S>> {
 			struct iterator;
 			using sentinel = std::default_sentinel_t;
 
 		private:
 			T start_;
 			T stop_;
-			std::make_signed_t<T> step_;
+			S step_;
 
 		public:
-			explicit constexpr range_generator_view(T start, T stop, std::make_signed_t<T> step) noexcept
+			explicit constexpr range_generator_view(T start, T stop, S step)
 				: start_{start},
 				  stop_{stop},
 				  step_{step} {
+
+				if (step == S{}) [[unlikely]] {
+					throw std::invalid_argument{"range: step must not be the zero element/the additive identity"};
+				}
 			}
 
 			constexpr iterator begin() const noexcept {
 				return iterator{*this, start_};
 			}
 
-			constexpr sentinel end() const noexcept {
+			static constexpr sentinel end() noexcept {
 				return std::default_sentinel;
+			}
+
+			constexpr size_t size() const noexcept requires (std::integral<T> && std::integral<S>) {
+				// Math for calculating result: ceil(|stop_ - start_| / |step_|)
+				// For integers we need to adjust the formula to avoid overflows, conversions and inefficient operations.
+				// Note: ceil(a / b) = (a + b - 1) / b
+
+				if (start_ <= stop_) {
+					// forward
+					if (step_ < 0) {
+						// wrong direction
+						return 0;
+					}
+
+					return (stop_ - start_ + step_ - 1) / step_;
+				} else {
+					// backward
+					if (step_ > 0) {
+						// wrong direction
+						return 0;
+					}
+
+					return (start_ - stop_ + -step_ - 1) / -step_;
+				}
 			}
 		};
 
 		// The iterator that generates the numbers on the fly.
-		template<std::integral T>
-		struct range_generator_view<T>::iterator {
+		template<typename T, step_for<T> S>
+		struct range_generator_view<T, S>::iterator {
 			using iterator_category = std::input_iterator_tag;
 			using value_type = T;
 			using difference_type = std::ptrdiff_t;
@@ -382,7 +420,7 @@ namespace dice::template_library {
 			friend constexpr bool operator==(iterator const &self, std::default_sentinel_t) noexcept {
 				// The end is reached if the step is positive and value is >= stop,
 				// or if the step is negative and value is <= stop.
-				if (self.parent_->step_ > 0) {
+				if (self.parent_->step_ > S{}) {
 					return self.value_ >= self.parent_->stop_;
 				}
 				return self.value_ <= self.parent_->stop_;
@@ -402,20 +440,19 @@ namespace dice::template_library {
 	 * - `range<T>(start, stop)`: Generates [start,stop).
 	 * - `range<T>(start, stop, step)`: Generates numbers from start, incrementing by step, until stop is met or passed.
 	 */
-	template<std::integral T, typename S = T>
+	template<typename T, typename S>
 	constexpr auto range(T start, T stop, S step) noexcept {
-		static_assert(std::is_integral_v<S>, "Step must be an integral type.");
-		return ranges_algo_detail::range_generator_view<T>(start, stop, static_cast<std::make_signed_t<T>>(step));
+		return ranges_algo_detail::range_generator_view<T, S>(start, stop, step);
 	}
 
-	template<std::integral T>
+	template<typename T> requires (std::is_constructible_v<T, int> && step_for<T, T>)
 	constexpr auto range(T start, T stop) noexcept {
-		return ranges_algo_detail::range_generator_view<T>(start, stop, 1);
+		return ranges_algo_detail::range_generator_view<T, T>(start, stop, T(1));
 	}
 
-	template<std::integral T>
+	template<typename T> requires (std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
 	constexpr auto range(T stop) noexcept {
-		return ranges_algo_detail::range_generator_view<T>(static_cast<T>(0), stop, 1);
+		return ranges_algo_detail::range_generator_view<T, T>(T{}, stop, T(1));
 	}
 
 }// namespace dice::template_library
