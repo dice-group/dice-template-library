@@ -284,7 +284,7 @@ namespace dice::template_library::type_list {
     } // namespace detail_position
 
     /**
-     * Searches for an element in the type list, returning its position.
+     * Searches for an element in the type list, returning the first position where the predicate returns true.
      */
     template<typename TL, auto pred>
     using position = detail_position::position<TL, pred, 0>;
@@ -418,19 +418,21 @@ namespace dice::template_library::type_list {
      */
     template<typename T>
     struct opt {
-        static constexpr auto value = nullopt{};
         using type = nullopt;
+        static constexpr auto value = nullopt{};
     };
 
     template<typename T>
     requires (detail_opt::type_present<T> && !detail_opt::value_present<T>)
     struct opt<T> {
         using type = typename T::type;
+        static constexpr auto value = nullopt{};
     };
 
     template<typename T>
     requires (!detail_opt::type_present<T> && detail_opt::value_present<T>)
     struct opt<T> {
+        using type = nullopt;
         static constexpr auto value = T::value;
     };
 

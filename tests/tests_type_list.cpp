@@ -168,6 +168,9 @@ TEST_SUITE("type_list") {
 		static_assert(tl::opt_v<tl::position<t2, pred1>> == tl::nullopt{});
 		static_assert(tl::opt_v<tl::position<t2, pred2>> == tl::nullopt{});
 		static_assert(tl::opt_v<tl::position<t2, pred3>> == tl::nullopt{});
+
+		using t3 = tl::type_list<int, int>;
+		static_assert(tl::position_v<t3, pred2> == 0);
 	}
 
 	TEST_CASE("contains") {
