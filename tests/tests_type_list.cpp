@@ -138,6 +138,41 @@ TEST_SUITE("type_list") {
 		static_assert(std::is_same_v<tl::opt_t<tl::find_if<t2, pred3>>, tl::nullopt>);
 	}
 
+	TEST_CASE("position") {
+		constexpr auto pred1 = []<typename T>(std::type_identity<T>) {
+			return std::is_const_v<T>;
+		};
+
+		constexpr auto pred2 = []<typename T>(std::type_identity<T>) {
+			return std::is_same_v<T, int>;
+		};
+
+		constexpr auto pred3 = []<typename T>(std::type_identity<T>) {
+			return std::is_same_v<T, double>;
+		};
+
+		constexpr auto pred4 = []<typename T>(std::type_identity<T>) {
+			return false;
+		};
+
+		static_assert(tl::opt_v<tl::position<empty_t, pred1>> == tl::nullopt{});
+
+		using t1 = tl::type_list<int, int const, double>;
+		static_assert(tl::position_v<t1, pred1> == 1);
+		static_assert(tl::position_v<t1, pred2> == 0);
+		static_assert(tl::position_v<t1, pred3> == 2);
+
+		static_assert(tl::opt_v<tl::position<t1, pred4>> == tl::nullopt{});
+
+		using t2 = tl::type_list<char, float>;
+		static_assert(tl::opt_v<tl::position<t2, pred1>> == tl::nullopt{});
+		static_assert(tl::opt_v<tl::position<t2, pred2>> == tl::nullopt{});
+		static_assert(tl::opt_v<tl::position<t2, pred3>> == tl::nullopt{});
+
+		using t3 = tl::type_list<int, int>;
+		static_assert(tl::position_v<t3, pred2> == 0);
+	}
+
 	TEST_CASE("contains") {
 		static_assert(!tl::contains_v<empty_t, int>);
 
@@ -208,5 +243,15 @@ TEST_SUITE("type_list") {
 		actual += tl::fold<t1>(0UL, func);
 
 		CHECK_EQ(actual, 4 + 8 + 2);
+	}
+
+	struct ambiguous {
+		using type = int;
+		static constexpr size_t value = 0;
+	};
+
+	TEST_CASE("ambiguous opt") {
+		static_assert(tl::opt_v<ambiguous> == 0);
+		static_assert(std::is_same_v<tl::opt_t<ambiguous>, int>);
 	}
 }
