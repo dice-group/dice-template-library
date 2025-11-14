@@ -264,6 +264,35 @@ namespace dice::template_library::type_list {
     using find_if_t = typename find_if<TL, pred>::type;
 
 
+    namespace detail_position {
+        template<typename TL, auto pred, size_t ix>
+        struct position;
+
+        template<auto pred, size_t ix>
+        struct position<type_list<>, pred, ix> {
+        };
+
+        template<typename T, typename ...Ts, auto pred, size_t ix>
+        requires (!std::invoke(pred, std::type_identity<T>{}))
+        struct position<type_list<T, Ts...>, pred, ix> : position<type_list<Ts...>, pred, ix + 1> {
+        };
+
+        template<typename T, typename ...Ts, auto pred, size_t ix>
+        requires (std::invoke(pred, std::type_identity<T>{}))
+        struct position<type_list<T, Ts...>, pred, ix> : std::integral_constant<size_t, ix> {
+        };
+    } // namespace detail_position
+
+    /**
+     * Searches for an element in the type list, returning the first position where the predicate returns true.
+     */
+    template<typename TL, auto pred>
+    using position = detail_position::position<TL, pred, 0>;
+
+    template<typename TL, auto pred>
+    inline constexpr size_t position_v = position<TL, pred>::value;
+
+
 	/**
      * Check if a particular type is present in the type list.
      *
@@ -356,12 +385,30 @@ namespace dice::template_library::type_list {
      * A marker type to indicate a failed operation
      * when using opt
      */
-    struct nullopt {};
+    struct nullopt {
+        constexpr bool operator==(nullopt const &other) const noexcept = default;
+    };
+
+
+    namespace detail_opt {
+
+        template<typename T>
+        concept type_present = requires {
+            typename T::type;
+        };
+
+        template<typename T>
+        concept value_present = requires {
+            T::value;
+        };
+
+    } // namespace detail_opt
 
 	/**
      * Can be used in combination with any operation that may fail.
-     * By default, failing operations will not provide a `type` member typedef.
+     * By default, failing operations will not provide a `type` member typedef / a static constexpr value.
      * When using opt, the member typedef `type` will always be present. In case the operation failed the type will be `nullopt`.
+     * Additionally, the static constexpr value will always be present. In case the operation failed the static constexpr value will be `nullopt{}`
      *
      * @example
      * @code
@@ -369,18 +416,38 @@ namespace dice::template_library::type_list {
      * using X = opt_t<first<type_list<>>; // compilation success, X is nullopt
      * @endcode
      */
-    template<typename T, typename = void>
+    template<typename T>
     struct opt {
         using type = nullopt;
+        static constexpr auto value = nullopt{};
     };
 
     template<typename T>
-    struct opt<T, std::void_t<typename T::type>> {
+    requires (detail_opt::type_present<T> && !detail_opt::value_present<T>)
+    struct opt<T> {
         using type = typename T::type;
+        static constexpr auto value = nullopt{};
+    };
+
+    template<typename T>
+    requires (!detail_opt::type_present<T> && detail_opt::value_present<T>)
+    struct opt<T> {
+        using type = nullopt;
+        static constexpr auto value = T::value;
+    };
+
+    template<typename T>
+    requires (detail_opt::type_present<T> && detail_opt::value_present<T>)
+    struct opt<T> {
+        using type = typename T::type;
+        static constexpr auto value = T::value;
     };
 
     template<typename T>
     using opt_t = typename opt<T>::type;
+
+    template<typename T>
+    inline constexpr auto opt_v = opt<T>::value;
 
 
     namespace detail_for_each {
