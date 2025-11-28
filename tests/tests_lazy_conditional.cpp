@@ -49,4 +49,100 @@ namespace dice::template_library {
 			REQUIRE(std::is_same_v<result, int>);
 		}
 	}
+
+	TEST_SUITE("lazy_switch_default") {
+		template<typename T>
+		struct int_result {
+			using type = int;
+		};
+
+		template<typename T>
+		struct double_result {
+			using type = double;
+		};
+
+		template<typename T>
+		struct void_result {
+			using type = void;
+		};
+
+		template<typename T>
+		struct error_result {
+			static_assert(sizeof(T) == 0, "Should never be instantiated");
+			using type = void;
+		};
+
+		TEST_CASE("first case matches") {
+			using result = lazy_switch_default_t<
+					error_result<int>,
+					case_<true, int_result<int>>,
+					case_<true, double_result<int>>>;
+			REQUIRE(std::is_same_v<result, int>);
+		}
+
+		TEST_CASE("second case matches") {
+			using result = lazy_switch_default_t<
+					error_result<int>,
+					case_<false, int_result<int>>,
+					case_<true, double_result<int>>>;
+			REQUIRE(std::is_same_v<result, double>);
+		}
+
+		TEST_CASE("default case when no match") {
+			using result = lazy_switch_default_t<
+					void_result<int>,
+					case_<false, int_result<int>>,
+					case_<false, double_result<int>>>;
+			REQUIRE(std::is_same_v<result, void>);
+		}
+
+		template<typename T>
+		using select = lazy_switch_default_t<
+				error_result<T>,
+				case_<std::is_integral_v<T>, int_result<T>>,
+				case_<std::is_floating_point_v<T>, double_result<T>>,
+				case_<std::is_void_v<T>, void_result<T>>>;
+
+		TEST_CASE("type trait based selection") {
+			REQUIRE(std::is_same_v<select<int>, int>);
+			REQUIRE(std::is_same_v<select<float>, double>);
+			REQUIRE(std::is_same_v<select<void>, void>);
+		}
+	}
+
+	TEST_SUITE("lazy_switch") {
+		template<typename T>
+		struct int_result {
+			using type = int;
+		};
+
+		template<typename T>
+		struct double_result {
+			using type = double;
+		};
+
+		TEST_CASE("first case matches") {
+			using result = lazy_switch_t<
+					case_<true, int_result<int>>,
+					case_<false, double_result<int>>>;
+			REQUIRE(std::is_same_v<result, int>);
+		}
+
+		TEST_CASE("second case matches") {
+			using result = lazy_switch_t<
+					case_<false, int_result<int>>,
+					case_<true, double_result<int>>>;
+			REQUIRE(std::is_same_v<result, double>);
+		}
+
+		template<typename T>
+		using select_no_default = lazy_switch_t<
+				case_<std::is_integral_v<T>, int_result<T>>,
+				case_<std::is_floating_point_v<T>, double_result<T>>>;
+
+		TEST_CASE("type trait based selection without default") {
+			REQUIRE(std::is_same_v<select_no_default<int>, int>);
+			REQUIRE(std::is_same_v<select_no_default<float>, double>);
+		}
+	}
 } // namespace dice::template_library

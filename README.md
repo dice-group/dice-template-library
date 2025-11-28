@@ -161,7 +161,12 @@ A lazy alternative to `std::conditional` that only instantiates the selected bra
 Unlike `std::conditional`, which eagerly evaluates both branches, `lazy_conditional` only accesses
 the `::type` member of the branch that is selected. This prevents compilation errors when
 the non-selected branch would be ill-formed (e.g., contains a `static_assert(false)` or
-accesses invalid type members). Examples can be found [here](examples/examples_lazy_conditional.cpp).
+accesses invalid type members).
+
+Additionally, `lazy_switch` provides multi-way conditional type selection using a first-match
+approach with `case_<bool, Provider>` helpers. Only the selected case's provider is instantiated,
+allowing you to use `static_assert(false)` in default cases that should never be reached.
+Examples can be found [here](examples/examples_lazy_conditional.cpp).
 
 ### Further Examples
 
