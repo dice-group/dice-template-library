@@ -49,6 +49,7 @@ TEST_SUITE("type_list") {
 	}
 
 	TEST_CASE("concat") {
+		// binary concat
 		static_assert(std::is_same_v<tl::concat_t<empty_t, empty_t>, empty_t>);
 
 		using t1 = tl::type_list<int>;
@@ -60,6 +61,28 @@ TEST_SUITE("type_list") {
 
 		static_assert(std::is_same_v<tl::concat_t<t1, t2>, tl::type_list<int, int, double>>);
 		static_assert(std::is_same_v<tl::concat_t<t2, t1>, tl::type_list<int, double, int>>);
+
+		// zero arguments
+		static_assert(std::is_same_v<tl::concat_t<>, empty_t>);
+
+		// single argument
+		static_assert(std::is_same_v<tl::concat_t<empty_t>, empty_t>);
+		static_assert(std::is_same_v<tl::concat_t<t1>, t1>);
+		static_assert(std::is_same_v<tl::concat_t<t2>, t2>);
+
+		// three arguments
+		using t3 = tl::type_list<char>;
+		static_assert(std::is_same_v<tl::concat_t<t1, t2, t3>, tl::type_list<int, int, double, char>>);
+		static_assert(std::is_same_v<tl::concat_t<empty_t, t1, t2>, tl::type_list<int, int, double>>);
+		static_assert(std::is_same_v<tl::concat_t<t1, empty_t, t2>, tl::type_list<int, int, double>>);
+		static_assert(std::is_same_v<tl::concat_t<t1, t2, empty_t>, tl::type_list<int, int, double>>);
+
+		// four arguments
+		using t4 = tl::type_list<float, bool>;
+		static_assert(std::is_same_v<tl::concat_t<t1, t2, t3, t4>, tl::type_list<int, int, double, char, float, bool>>);
+
+		// many arguments with empties
+		static_assert(std::is_same_v<tl::concat_t<empty_t, empty_t, t1, empty_t, t2, empty_t>, tl::type_list<int, int, double>>);
 	}
 
 	TEST_CASE("apply") {
