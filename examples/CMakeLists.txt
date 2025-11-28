@@ -150,3 +150,10 @@ target_link_libraries(example_inplace_polymorphic
         dice-template-library::dice-template-library
 )
 
+add_executable(examples_lazy_conditional
+        examples_lazy_conditional.cpp)
+target_link_libraries(examples_lazy_conditional
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
