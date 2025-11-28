@@ -150,3 +150,10 @@ target_link_libraries(example_inplace_polymorphic
         dice-template-library::dice-template-library
 )
 
+add_executable(example_type_list
+        example_type_list.cpp)
+target_link_libraries(example_type_list
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
