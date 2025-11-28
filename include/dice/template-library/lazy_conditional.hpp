@@ -1,7 +1,27 @@
 #ifndef DICE_TEMPLATE_LIBRARY_LAZY_CONDITIONAL_HPP
 #define DICE_TEMPLATE_LIBRARY_LAZY_CONDITIONAL_HPP
 
+#include <concepts>
+#include <type_traits>
+
 namespace dice::template_library {
+
+	/**
+	 * Concept for type providers that have a ::type member (checks without instantiating).
+	 */
+	template<typename T>
+	concept type_provider = requires {
+		typename T::type;
+	};
+
+	/**
+	 * Concept for case_ instances used in lazy_switch (checks without instantiating).
+	 */
+	template<typename T>
+	concept lazy_case = requires {
+		{ T::condition } -> std::convertible_to<bool>;
+		typename T::provider;
+	};
 
 	/**
 	 * Lazy conditional type selection.
@@ -109,7 +129,7 @@ namespace dice::template_library {
 	 * // default_handler is never instantiated, so its static_assert doesn't fire
 	 * @endcode
 	 */
-	template<typename DefaultProvider, typename... Cases>
+	template<typename DefaultProvider, lazy_case... Cases>
 	struct lazy_switch_default;
 
 	// Base case: no cases left, use default
@@ -119,7 +139,7 @@ namespace dice::template_library {
 	};
 
 	// Recursive case: check first case, recurse if false
-	template<typename DefaultProvider, bool Cond, typename Provider, typename... Rest>
+	template<typename DefaultProvider, bool Cond, type_provider Provider, lazy_case... Rest>
 	struct lazy_switch_default<DefaultProvider, case_<Cond, Provider>, Rest...> {
 		using type = lazy_conditional_t<
 				Cond,
@@ -131,7 +151,7 @@ namespace dice::template_library {
 	 * Helper alias template for lazy_switch.
 	 * @see lazy_switch
 	 */
-	template<typename DefaultProvider, typename... Cases>
+	template<typename DefaultProvider, lazy_case... Cases>
 	using lazy_switch_default_t = typename lazy_switch_default<DefaultProvider, Cases...>::type;
 
 	/**
@@ -140,11 +160,11 @@ namespace dice::template_library {
 	 *
 	 * @tparam Cases Variadic list of case_<bool, Provider> instances
 	 */
-	template<typename... Cases>
+	template<lazy_case... Cases>
 	struct lazy_switch;
 
 	// Recursive case: check first case, recurse if false
-	template<bool Cond, typename Provider, typename... Rest>
+	template<bool Cond, type_provider Provider, lazy_case... Rest>
 	struct lazy_switch<case_<Cond, Provider>, Rest...> {
 		using type = lazy_conditional_t<
 				Cond,
@@ -159,9 +179,9 @@ namespace dice::template_library {
 	 *
 	 * @see lazy_switch_no_default
 	 */
-	template<typename... Cases>
+	template<lazy_case... Cases>
 	using lazy_switch_t = lazy_switch<Cases...>::type;
 
-} // namespace dice::template_library
+}// namespace dice::template_library
 
-#endif // DICE_TEMPLATE_LIBRARY_LAZY_CONDITIONAL_HPP
+#endif// DICE_TEMPLATE_LIBRARY_LAZY_CONDITIONAL_HPP

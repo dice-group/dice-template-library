@@ -26,8 +26,8 @@ namespace dice::template_library {
 	using extract_value_type_t = lazy_conditional_t<
 			std::is_class_v<T>,
 			get_value_type<T>,
-			unsupported_type<T>  // This branch is never instantiated when T is a class
-	>;
+			unsupported_type<T>// This branch is never instantiated when T is a class
+			>;
 
 	// This works because the unsupported_type branch is never instantiated
 	static_assert(std::is_same_v<extract_value_type_t<std::vector<int>>, int>);
@@ -88,7 +88,7 @@ namespace dice::template_library {
 
 	// No default case needed - cleaner when you know one case will always match
 
-} // namespace dice::template_library
+}// namespace dice::template_library
 
 int main() {
 	return 0;

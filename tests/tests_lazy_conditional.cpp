@@ -9,7 +9,7 @@
 namespace dice::template_library {
 	TEST_SUITE("lazy_conditional") {
 		template<typename T>
-				struct valid {
+		struct valid {
 			using type = int;
 		};
 
@@ -26,15 +26,13 @@ namespace dice::template_library {
 		}
 
 		TEST_CASE("select false branch - avoid static_assert in true branch") {
-
-
 			// Would fail with std::conditional because it instantiates both branches
 			using result = lazy_conditional_t<false, invalid<void>, valid<void>>;
 			REQUIRE(std::is_same_v<result, int>);
 		}
 
 		template<typename T>
-			struct get_value_type {
+		struct get_value_type {
 			using type = typename T::value_type;
 		};
 
@@ -145,4 +143,4 @@ namespace dice::template_library {
 			REQUIRE(std::is_same_v<select_no_default<float>, double>);
 		}
 	}
-} // namespace dice::template_library
+}// namespace dice::template_library
