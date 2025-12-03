@@ -180,7 +180,7 @@ A C++20 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.19.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.20.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
