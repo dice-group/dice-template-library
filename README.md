@@ -26,6 +26,7 @@ It contains:
 - `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
 - `type_list`: A variadic lists of types for metaprogramming.
+- `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
 
 ## Usage
 
@@ -154,6 +155,18 @@ This greatly reduces the boilerplate compared to `std::visit` based on-stack pol
 A variadic list of types for use in metaprogramming. Optimized to be much faster than the equivalent code
 written with `std::tuple`. It supports various operations similar to what you would use for
 `std::ranges` (e.g. `transform`, `filter`, etc.).
+
+### `lazy_conditional`
+A lazy alternative to `std::conditional` that only instantiates the selected branch.
+Unlike `std::conditional`, which eagerly evaluates both branches, `lazy_conditional` only accesses
+the `::type` member of the branch that is selected. This prevents compilation errors when
+the non-selected branch would be ill-formed (e.g., contains a `static_assert(false)` or
+accesses invalid type members).
+
+Additionally, `lazy_switch` provides multi-way conditional type selection using a first-match
+approach with `case_<bool, Provider>` helpers. Only the selected case's provider is instantiated,
+allowing you to use `static_assert(false)` in default cases that should never be reached.
+Examples can be found [here](examples/examples_lazy_conditional.cpp).
 
 ### Further Examples
 

@@ -96,3 +96,6 @@ custom_add_test(tests_inplace_polymorphic)
 
 add_executable(tests_type_list tests_type_list.cpp)
 custom_add_test(tests_type_list)
+
+add_executable(tests_lazy_conditional tests_lazy_conditional.cpp)
+custom_add_test(tests_lazy_conditional)
