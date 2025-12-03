@@ -111,21 +111,38 @@ namespace dice::template_library::type_list {
 
 
 	/**
-     * Concatenate two type lists.
+     * Concatenate any number of type lists.
      *
-     * @tparam TL first type list
-     * @tparam UL second type list
+     * @tparam Lists zero or more type lists to concatenate
      */
-    template<typename TL, typename UL>
+    template<typename... Lists>
     struct concat;
+
+    template<>
+    struct concat<> {
+        using type = type_list<>;
+    };
+
+    template<typename List>
+    struct concat<List> {
+        using type = List;
+    };
 
     template<typename ...Ts, typename ...Us>
     struct concat<type_list<Ts...>, type_list<Us...>> {
         using type = type_list<Ts..., Us...>;
     };
 
-    template<typename TL, typename UL>
-    using concat_t = typename concat<TL, UL>::type;
+    template<typename Head, typename... Tail>
+    struct concat<Head, Tail...> {
+        using type = typename concat<
+            Head,
+            typename concat<Tail...>::type
+        >::type;
+    };
+
+    template<typename... Lists>
+    using concat_t = typename concat<Lists...>::type;
 
 
 	/**
