@@ -1,6 +1,9 @@
 #ifndef HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 #define HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 
+#include "tuple_algorithm.hpp"
+
+
 #include <dice/template-library/standard_layout_tuple.hpp>
 #include <dice/template-library/type_list.hpp>
 #include <dice/template-library/type_traits.hpp>
@@ -79,16 +82,44 @@ namespace dice::template_library {
 	public:
 		using base::base;
 
+		/**
+		 * Get the element with the type value_type<ix>
+		 *
+		 * @tparam ix index in range [first, ..., last]
+		 * @return reference to the element of type value_type<ix>
+		 */
 		template<index_type ix, typename Self>
 		[[nodiscard]] constexpr decltype(auto) get(this Self &&self) noexcept {
 			check_ix<ix>();
 			return std::forward<Self>(self).base::template get<make_index<ix>()>();
 		}
 
-		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;
+		/**
+		 * Visits each element using visitor
+		 *
+		 * @param visitor function to be called on each element
+		 * @return whatever the last invocation (on the last element) of visitor returned
+		 * @note the order of operations is not guaranteed
+		 *
+		 * @example
+		 * A typical use case for the return value would be accumulation of some value over all elements:
+		 *
+		 * @code
+		 * integral_template_tuple<1, 5, some_container_type> tup;
+		 *
+		 * auto combined_size = tup.visit([acc = 0ul](auto const &c) mutable {
+		 *     return acc += c.size();
+		 * });
+		 * @endcode
+		 */
+		template<typename Self, typename F>
+		constexpr decltype(auto) visit(this Self &&self, F &&visitor) {
+			using base_ref_t = decltype(dice::template_library::forward_like<Self>(std::declval<base &>()));
+			return dice::template_library::tuple_for_each(static_cast<base_ref_t>(self), std::forward<F>(visitor));
+		}
 
 		/**
-		 * Returns a reference to the subtuple of this obtained by dropping every element T<IX> where IX not in first..new_last (inclusive)
+		 * Returns a reference to the subtuple of this obtained by dropping every element T<IX> where IX not in [new_first, ..., new_last] (inclusive)
 		 *
 		 * @tparam new_first new first value
 		 * @tparam new_last new last value
@@ -107,16 +138,10 @@ namespace dice::template_library {
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
 				std::forward<Self>(self).base::template subtuple<make_index<new_first>(), make_index<new_last>() + 1>());
 		}
+
+		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;
+		constexpr bool operator==(integral_template_tuple const &other) const noexcept = default;
 	};
 }// namespace dice::template_library
-
-template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-struct std::tuple_size<dice::template_library::integral_template_tuple<first, last, T>> : std::integral_constant<size_t, dice::template_library::integral_template_tuple<first, last, T>::size()> {
-};
-
-template<size_t ix, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-struct std::tuple_element<ix, dice::template_library::integral_template_tuple<first, last, T>> {
-	using type = typename dice::template_library::integral_template_tuple<first, last, T>::template value_type<ix>;
-};
 
 #endif//HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP

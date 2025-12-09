@@ -203,12 +203,26 @@ namespace dice::template_library {
 			REQUIRE(integral_template_tuple<1, 2, Data>::size() == 2);
 		}
 
-		TEST_CASE("destructuring") {
-			integral_template_tuple<0, 1, Data> tup{1, 2};
-			auto [x, y] = tup;
+		TEST_CASE("visit") {
+			integral_template_tuple<1, 2, Data> const tuple{};
 
-			REQUIRE_EQ(x.value_, 1);
-			REQUIRE_EQ(y.value_, 2);
+			SUBCASE("non-void return") {
+				auto const res = tuple.visit([acc = 0]<auto I>(Data<I> const &data) mutable {
+					acc += static_cast<int>(data);
+					return acc;
+				});
+
+				REQUIRE(res == 1 + 2);
+			}
+
+			SUBCASE("void return") {
+				int acc = 0;
+				tuple.visit([&acc]<auto I>(Data<I> const &data) {
+					acc += static_cast<int>(data);
+				});
+
+				REQUIRE(acc == 1 + 2);
+			}
 		}
 	}
 
