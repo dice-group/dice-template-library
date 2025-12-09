@@ -36,6 +36,10 @@ jobs:
         with:
           cmakeVersion: 3.29.3
 
+      - name: Install libstdc++-14
+        run: |
+          sudo apt-get install -y libstdc++-14-dev
+
       - name: Install compiler
         id: install_cc
         uses: rlalik/setup-cpp-compiler@v1.2
