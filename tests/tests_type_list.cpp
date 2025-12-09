@@ -85,6 +85,26 @@ TEST_SUITE("type_list") {
 		static_assert(std::is_same_v<tl::concat_t<empty_t, empty_t, t1, empty_t, t2, empty_t>, tl::type_list<int, int, double>>);
 	}
 
+	TEST_CASE("drop") {
+		static_assert(std::is_same_v<tl::drop_t<empty_t, 0>, empty_t>);
+
+		using t1 = tl::type_list<int, double, char>;
+		static_assert(std::is_same_v<tl::drop_t<t1, 0>, t1>);
+		static_assert(std::is_same_v<tl::drop_t<t1, 1>, tl::type_list<double, char>>);
+		static_assert(std::is_same_v<tl::drop_t<t1, 2>, tl::type_list<char>>);
+		static_assert(std::is_same_v<tl::drop_t<t1, 3>, tl::type_list<>>);
+	}
+
+	TEST_CASE("take") {
+		static_assert(std::is_same_v<tl::take_t<empty_t, 0>, empty_t>);
+
+		using t1 = tl::type_list<int, double, char>;
+		static_assert(std::is_same_v<tl::take_t<t1, 0>, tl::type_list<>>);
+		static_assert(std::is_same_v<tl::take_t<t1, 1>, tl::type_list<int>>);
+		static_assert(std::is_same_v<tl::take_t<t1, 2>, tl::type_list<int, double>>);
+		static_assert(std::is_same_v<tl::take_t<t1, 3>, tl::type_list<int, double, char>>);
+	}
+
 	TEST_CASE("apply") {
 		using t1 = tl::type_list<int>;
 		static_assert(std::is_same_v<tl::apply_t<t1, std::vector>, std::vector<int>>);
@@ -203,6 +223,15 @@ TEST_SUITE("type_list") {
 		static_assert(tl::contains_v<t1, int>);
 		static_assert(tl::contains_v<t1, double>);
 		static_assert(!tl::contains_v<t1, char>);
+	}
+
+	TEST_CASE("count") {
+		static_assert(tl::count_v<empty_t, int> == 0);
+
+		using t1 = tl::type_list<int, double, int>;
+		static_assert(tl::count_v<t1, int> == 2);
+		static_assert(tl::count_v<t1, double> == 1);
+		static_assert(tl::count_v<t1, char> == 0);
 	}
 
 	TEST_CASE("all_of/any_of/none_of") {

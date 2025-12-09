@@ -26,8 +26,7 @@ namespace dice::template_library::type_list {
     struct size;
 
     template<typename ...Ts>
-    struct size<type_list<Ts...>> {
-        static constexpr size_t value = sizeof...(Ts);
+    struct size<type_list<Ts...>> : std::integral_constant<size_t, sizeof...(Ts)> {
     };
 
     template<typename TL>
@@ -143,6 +142,52 @@ namespace dice::template_library::type_list {
 
     template<typename... Lists>
     using concat_t = typename concat<Lists...>::type;
+
+
+	/**
+     * Remove a specified number of elements from the start of the type list
+     *
+     * @tparam TL type list
+     * @tparam count number of types to drop
+     */
+    template<typename TL, size_t count>
+    struct drop;
+
+    template<typename ...Ts>
+    struct drop<type_list<Ts...>, 0> {
+        using type = type_list<Ts...>;
+    };
+
+    template<typename T, typename ...Ts, size_t count> requires (count > 0)
+    struct drop<type_list<T, Ts...>, count> {
+        using type = typename drop<type_list<Ts...>, count - 1>::type;
+    };
+
+    template<typename TL, size_t count>
+    using drop_t = typename drop<TL, count>::type;
+
+
+	/**
+     * Keep only the first count elements from the type list.
+     *
+     * @tparam TL type list
+     * @tparam count number of elements to keep
+     */
+    template<typename TL, size_t count>
+    struct take;
+
+    template<typename ...Ts>
+    struct take<type_list<Ts...>, 0> {
+        using type = type_list<>;
+    };
+
+    template<typename T, typename ...Ts, size_t count> requires (count > 0)
+    struct take<type_list<T, Ts...>, count> {
+        using type = concat_t<type_list<T>, typename take<type_list<Ts...>, count - 1>::type>;
+    };
+
+    template<typename TL, size_t count>
+    using take_t = typename take<TL, count>::type;
 
 
 	/**
@@ -311,6 +356,31 @@ namespace dice::template_library::type_list {
 
 
 	/**
+     * Count the number of occurrences of a type in the type list
+     *
+     * @tparam TL type list
+     * @tparam Needle type to count occurrences of
+     */
+    template<typename TL, typename Needle>
+	struct count;
+
+	template<typename Needle>
+	struct count<type_list<>, Needle> : std::integral_constant<size_t, 0> {
+	};
+
+	template<typename ...Ts, typename Needle>
+	struct count<type_list<Needle, Ts...>, Needle> : std::integral_constant<size_t, 1 + count<type_list<Ts...>, Needle>::value> {
+	};
+
+	template<typename T, typename ...Ts, typename Needle>
+	struct count<type_list<T, Ts...>, Needle> : std::integral_constant<size_t, count<type_list<Ts...>, Needle>::value> {
+	};
+
+	template<typename TL, typename Needle>
+	static constexpr size_t count_v = count<TL, Needle>::value;
+
+
+	/**
      * Check if a particular type is present in the type list.
      *
      * @tparam TL type list
@@ -396,6 +466,21 @@ namespace dice::template_library::type_list {
 
     template<typename TL>
     inline constexpr bool all_same_v = all_same<TL>::value;
+
+
+	/**
+     * Turn a std::integer_sequence into a type list of std::integral_constants
+     */
+    template<typename ISeq>
+    struct integer_sequence_to_type_list;
+
+    template<typename Int, Int ...ints>
+    struct integer_sequence_to_type_list<std::integer_sequence<Int, ints...>> {
+        using type = type_list<std::integral_constant<Int, ints>...>;
+    };
+
+    template<typename ISeq>
+    using integer_sequence_to_type_list_t = typename integer_sequence_to_type_list<ISeq>::type;
 
 
 	/**

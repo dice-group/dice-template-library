@@ -57,4 +57,27 @@ TEST_SUITE("type_traits") {
 		static_assert(std::is_same_v<copy_cv_t<int const volatile, double volatile>, double const volatile>);
 		static_assert(std::is_same_v<copy_cv_t<int const volatile, double const volatile>, double const volatile>);
 	}
+
+	TEST_CASE("copy_reference") {
+		static_assert(std::is_same_v<copy_reference_t<int, double>, double>);
+		static_assert(std::is_same_v<copy_reference_t<int &, double>, double &>);
+		static_assert(std::is_same_v<copy_reference_t<int const &, double>, double &>);
+		static_assert(std::is_same_v<copy_reference_t<int &&, double>, double &&>);
+		static_assert(std::is_same_v<copy_reference_t<int const &&, double>, double &&>);
+	}
+
+	TEST_CASE("copy_cvref_t") {
+		static_assert(std::is_same_v<copy_cvref_t<int, double>, double>);
+		static_assert(std::is_same_v<copy_cvref_t<int const, double>, double const>);
+		static_assert(std::is_same_v<copy_cvref_t<int volatile, double>, double volatile>);
+		static_assert(std::is_same_v<copy_cvref_t<int const volatile, double>, double const volatile>);
+		static_assert(std::is_same_v<copy_cvref_t<int &, double>, double &>);
+		static_assert(std::is_same_v<copy_cvref_t<int const &, double>, double const &>);
+		static_assert(std::is_same_v<copy_cvref_t<int volatile &, double>, double volatile &>);
+		static_assert(std::is_same_v<copy_cvref_t<int const volatile &, double>, double const volatile &>);
+		static_assert(std::is_same_v<copy_cvref_t<int &&, double>, double &&>);
+		static_assert(std::is_same_v<copy_cvref_t<int const &&, double>, double const &&>);
+		static_assert(std::is_same_v<copy_cvref_t<int volatile &&, double>, double volatile &&>);
+		static_assert(std::is_same_v<copy_cvref_t<int const volatile &&, double>, double const volatile &&>);
+	}
 }

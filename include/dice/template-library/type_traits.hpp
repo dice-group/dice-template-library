@@ -1,6 +1,7 @@
 #ifndef DICE_TEMPLATELIBRARY_ZST_HPP
 #define DICE_TEMPLATELIBRARY_ZST_HPP
 
+#include <cstdint>
 #include <type_traits>
 
 namespace dice::template_library {
@@ -86,8 +87,38 @@ namespace dice::template_library {
 		using type = To const volatile;
 	};
 
+	/**
+	 * Copy the reference qualifiers from From to To
+	 */
 	template<typename From, typename To>
 	using copy_cv_t = typename copy_cv<From, To>::type;
+
+	template<typename From, typename To>
+	struct copy_reference {
+		using type = To;
+	};
+
+	template<typename From, typename To>
+	struct copy_reference<From &, To> {
+		using type = To &;
+	};
+
+	template<typename From, typename To>
+	struct copy_reference<From &&, To> {
+		using type = To &&;
+	};
+
+	template<typename From, typename To>
+	using copy_reference_t = typename copy_reference<From, To>::type;
+
+
+	template<typename From, typename To>
+	struct copy_cvref {
+		using type = copy_reference_t<From, copy_cv_t<std::remove_reference_t<From>, To>>;
+	};
+
+	template<typename From, typename To>
+	using copy_cvref_t = typename copy_cvref<From, To>::type;
 
 } // namespace dice::template_library
 
