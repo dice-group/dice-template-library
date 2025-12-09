@@ -83,9 +83,9 @@ namespace dice::template_library {
 			static_assert(ix < size(), "Index for get must be in range");
 
 			if constexpr (ix == 0) {
-				return std::forward_like<Self>(self.first);
+				return dice::template_library::forward_like<Self>(self.first);
 			} else {
-				return std::forward_like<Self>(self.rest).template get<ix - 1>();
+				return dice::template_library::forward_like<Self>(self.rest).template get<ix - 1>();
 			}
 		}
 
@@ -117,7 +117,7 @@ namespace dice::template_library {
 				// SAFETY: ensured by being a standard layout type
 				return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(self);
 			} else {
-				return std::forward_like<Self>(self.rest).template subtuple<offset - 1, count>();
+				return dice::template_library::forward_like<Self>(self.rest).template subtuple<offset - 1, count>();
 			}
 		}
 

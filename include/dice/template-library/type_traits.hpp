@@ -120,6 +120,50 @@ namespace dice::template_library {
 	template<typename From, typename To>
 	using copy_cvref_t = typename copy_cvref<From, To>::type;
 
+	namespace detail_forward_like {
+		template<typename T, typename U>
+		struct like; // T must be a reference and U an lvalue reference
+
+		template<typename T, typename U>
+		struct like<T &, U &> {
+			using type = U &;
+		};
+
+		template<typename T, typename U>
+		struct like<T const &, U&> {
+			using type = U const &;
+		};
+
+		template<typename T, typename U>
+		struct like<T &&, U &> {
+			using type = U &&;
+		};
+
+		template<typename T, typename U>
+		struct like<T const &&, U &> {
+			using type = U const &&;
+		};
+
+		template<typename T, typename U>
+		using like_t = typename like<T &&, U &>::type;
+	} // namespace detail_forward_like
+
+	/**
+	 *  Forward with the cv-qualifiers and value category of another type.
+	 *
+	 *  @tparam T An lvalue reference or rvalue reference.
+	 *  @tparam U A lvalue reference type deduced from the function argument.
+	 *  @param val An lvalue.
+	 *  @return `val` converted to match the qualifiers of `T`.
+	 *
+	 *  @note this exists because clang<21 has a bug that prevents std::forward_like from compiling
+	 *  @note code adapted from libstdc++-15
+	 */
+	template<typename T, typename U>
+	[[nodiscard]] constexpr detail_forward_like::like_t<T, U> forward_like(U &&val) noexcept {
+		return static_cast<detail_forward_like::like_t<T, U>>(val);
+	}
+
 } // namespace dice::template_library
 
 #endif // DICE_TEMPLATELIBRARY_ZST_HPP
