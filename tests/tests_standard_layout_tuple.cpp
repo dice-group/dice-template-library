@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include <dice/template-library/standard_layout_tuple.hpp>
+#include <dice/template-library/tuple_algorithm.hpp>
 
 TEST_SUITE("standard layout tuple") {
 	using namespace dice::template_library;
@@ -140,6 +141,27 @@ TEST_SUITE("standard layout tuple") {
 			auto const &s4 = tup.template subtuple<1, 2>();
 			REQUIRE_EQ(s4.template get<0>(), 123.0);
 			REQUIRE_EQ(s4.template get<1>(), 42.0f);
+		}
+	}
+
+	TEST_CASE("visit") {
+		standard_layout_tuple<int, double, float> const tuple{1, 2.0, 3.0f};
+
+		SUBCASE("fold") {
+			auto const res = tuple_fold(tuple, 0.0, [](double acc, auto elem) {
+				return acc + elem;
+			});
+
+			REQUIRE(res == 6.0);
+		}
+
+		SUBCASE("void return") {
+			double acc = 0;
+			tuple_for_each(tuple, [&acc](auto elem) {
+				acc += elem;
+			});
+
+			REQUIRE(acc == 6.0);
 		}
 	}
 }

@@ -8,6 +8,27 @@
 
 namespace dice::template_library {
 	namespace tuple_algo_detail {
+
+		template<typename Tuple>
+		concept adl_get = requires (Tuple tup) {
+			get<0>(tup);
+		};
+
+		template<typename Tuple>
+		concept member_get = requires (Tuple tup) {
+			tup.template get<0>();
+		};
+
+		template<size_t ix, typename Tuple> requires (adl_get<Tuple> && !member_get<Tuple>)
+		[[nodiscard]] decltype(auto) get_impl(Tuple &&tuple) noexcept {
+			return get<ix>(std::forward<Tuple>(tuple));
+		}
+
+		template<size_t ix, typename Tuple> requires (member_get<Tuple>)
+		[[nodiscard]] decltype(auto) get_impl(Tuple &&tuple) noexcept {
+			return std::forward<Tuple>(tuple).template get<ix>();
+		}
+
 		template<typename Tuple, typename Acc, typename FoldF, size_t... Ixs>
 		constexpr Acc tuple_type_fold_impl(std::index_sequence<Ixs...>, Acc init, FoldF f) noexcept {
 			((init = f.template operator()<std::tuple_element_t<Ixs, Tuple>>(std::move(init))), ...);
@@ -16,14 +37,14 @@ namespace dice::template_library {
 
 		template<typename Tuple, typename Acc, typename FoldF, size_t... Ixs>
 		constexpr Acc tuple_fold_impl(std::index_sequence<Ixs...>, Tuple const &tuple, Acc init, FoldF f) noexcept {
-			((init = f(std::move(init), std::get<Ixs>(tuple))), ...);
+			((init = f(std::move(init), get_impl<Ixs>(tuple))), ...);
 			return init;
 		}
 
 		template<typename Tuple, typename F, size_t... Ixs>
 		constexpr void tuple_for_each_impl(std::index_sequence<Ixs...>, Tuple &&tuple, F f) {
 			auto &&fw_tuple = std::forward<Tuple>(tuple);
-			(f(std::get<Ixs>(fw_tuple)), ...);
+			(f(get_impl<Ixs>(fw_tuple)), ...);
 		}
 
 		template<typename Tuple, typename F, size_t... Ixs>
