@@ -175,7 +175,7 @@ option `-DBUILD_EXAMPLES=ON` to be added.
 
 ## Requirements
 
-A C++20 compatible compiler. Code was only tested on x86_64.
+A C++23 compatible compiler. Code was only tested on x86_64.
 
 ## Include it in your projects
 ### Conan

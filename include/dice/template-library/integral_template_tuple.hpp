@@ -82,7 +82,7 @@ namespace dice::template_library {
 		template<index_type ix, typename Self>
 		[[nodiscard]] constexpr decltype(auto) get(this Self &&self) noexcept {
 			check_ix<ix>();
-			return std::forward_like<Self>(self).base::template get<make_index<ix>()>();
+			return std::forward<Self>(self).base::template get<make_index<ix>()>();
 		}
 
 		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;
