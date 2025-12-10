@@ -41,7 +41,12 @@ TEST_SUITE("standard layout tuple") {
 	}
 
 	TEST_CASE("non-standard-layout-tuple") {
-		using tuple = standard_layout_tuple<std::tuple<int, int, int>>;
+		struct non_stdlayout {
+			virtual ~non_stdlayout() = default;
+		};
+		static_assert(!std::is_standard_layout_v<non_stdlayout>);
+
+		using tuple = standard_layout_tuple<non_stdlayout>;
 		static_assert(!std::is_standard_layout_v<tuple>);
 	}
 
