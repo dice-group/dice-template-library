@@ -40,6 +40,11 @@ TEST_SUITE("standard layout tuple") {
 		REQUIRE((offset(&example_struct_v, &example_struct_v.f) == offset(&example_tuple_v, &example_tuple_v.get<float>())));
 	}
 
+	TEST_CASE("non-standard-layout-tuple") {
+		using tuple = standard_layout_tuple<std::tuple<int, int, int>>;
+		static_assert(!std::is_standard_layout_v<tuple>);
+	}
+
 	TEST_CASE("ctors") {
 		standard_layout_tuple<int, double, float> tup{1, 42.0, 120.0f};
 
