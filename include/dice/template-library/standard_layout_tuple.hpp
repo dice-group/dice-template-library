@@ -11,9 +11,28 @@
 
 namespace dice::template_library {
 
+	/**
+	 * A tag type to tell a tuple to construct all fields with the same arguments.
+	 *
+	 * @example
+	 * @code
+	 * standard_layout_tuple<int, int, int> const uniform{uniform_construct, 42};
+	 * assert(uniform == standard_layout_tuple<int, int, int>{42, 42, 42});
+	 * @endcode
+	 */
 	struct uniform_construct_t {};
 	inline constexpr uniform_construct_t uniform_construct;
 
+	/**
+	 * A tag type to tell a tuple to construct each member with one of the given arguments.
+	 * This mostly exists for backwards compatibility purposes and clarity. It is the same as the regular constructor.
+	 *
+	 * @example
+	 * @code
+	 * standard_layout_tuple<int, int, int> const individual{individual_construct, 1, 2, 3};
+	 * assert(individual == standard_layout_tuple<int, int, int>{1, 2, 3});
+	 * @encode
+	 */
 	struct individual_construct_t {};
 	inline constexpr individual_construct_t individual_construct;
 

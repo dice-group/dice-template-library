@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory_resource>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 TEST_SUITE("type_list") {
@@ -267,6 +268,15 @@ TEST_SUITE("type_list") {
 
 		using t2 = tl::type_list<int, double>;
 		static_assert(!tl::all_same_v<t2>);
+	}
+
+	TEST_CASE("integer_sequence_to_type_list_t") {
+		using empty_iseq = std::integer_sequence<int>;
+		using iseq = std::integer_sequence<int, 1, 2, 3>;
+		using expected_iseq_tl = tl::type_list<std::integral_constant<int, 1>, std::integral_constant<int, 2>, std::integral_constant<int, 3>>;
+
+		static_assert(std::is_same_v<tl::integer_sequence_to_type_list_t<empty_iseq>, empty_t>);
+		static_assert(std::is_same_v<tl::integer_sequence_to_type_list_t<iseq>, expected_iseq_tl>);
 	}
 
 	TEST_CASE("for_each") {

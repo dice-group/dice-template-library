@@ -90,7 +90,7 @@ TEST_SUITE("standard layout tuple") {
 		REQUIRE_EQ(y, 123.0);
 	}
 
-	TEST_CASE("comparision") {
+	TEST_CASE("comparison") {
 		standard_layout_tuple<int, int> const a{1, 1};
 		standard_layout_tuple<int, int> const b{1, 2};
 		standard_layout_tuple<int, int> const c{2, 1};
@@ -126,25 +126,30 @@ TEST_SUITE("standard layout tuple") {
 			REQUIRE_EQ(empty.size(), 0);
 
 			auto const &noop = tup.template subtuple<0, 3>();
+			REQUIRE_EQ(noop.size(), 3);
 			REQUIRE_EQ(noop, tup);
 
 			auto const &s1 = tup.template subtuple<0, 1>();
+			REQUIRE_EQ(s1.size(), 1);
 			REQUIRE_EQ(s1.template get<0>(), 1);
 
 			auto const &s2 = tup.template subtuple<0, 2>();
+			REQUIRE_EQ(s2.size(), 2);
 			REQUIRE_EQ(s2.template get<0>(), 1);
 			REQUIRE_EQ(s2.template get<1>(), 123.0);
 
 			auto const &s3 = tup.template subtuple<1, 1>();
+			REQUIRE_EQ(s3.size(), 1);
 			REQUIRE_EQ(s3.template get<0>(), 123.0);
 
 			auto const &s4 = tup.template subtuple<1, 2>();
+			REQUIRE_EQ(s4.size(), 2);
 			REQUIRE_EQ(s4.template get<0>(), 123.0);
 			REQUIRE_EQ(s4.template get<1>(), 42.0f);
 		}
 	}
 
-	TEST_CASE("visit") {
+	TEST_CASE("tuple algorithms") {
 		standard_layout_tuple<int, double, float> const tuple{1, 2.0, 3.0f};
 
 		SUBCASE("fold") {
