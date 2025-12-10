@@ -1,15 +1,13 @@
 #ifndef HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 #define HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 
-#include "tuple_algorithm.hpp"
-
-
 #include <dice/template-library/standard_layout_tuple.hpp>
+#include <dice/template-library/tuple_algorithm.hpp>
 #include <dice/template-library/type_list.hpp>
 #include <dice/template-library/type_traits.hpp>
 
-#include <cstddef>
 #include <concepts>
+#include <cstddef>
 #include <type_traits>
 #include <utility>
 
