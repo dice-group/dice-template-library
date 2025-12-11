@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -99,3 +99,6 @@ custom_add_test(tests_type_list)
 
 add_executable(tests_lazy_conditional tests_lazy_conditional.cpp)
 custom_add_test(tests_lazy_conditional)
+
+add_executable(tests_standard_layout_tuple tests_standard_layout_tuple.cpp)
+custom_add_test(tests_standard_layout_tuple)
