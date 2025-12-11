@@ -87,12 +87,13 @@ namespace dice::template_library {
 		using type = To const volatile;
 	};
 
-	/**
-	 * Copy the reference qualifiers from From to To
-	 */
 	template<typename From, typename To>
 	using copy_cv_t = typename copy_cv<From, To>::type;
 
+
+	/**
+	 * Copy the reference qualifiers from From to To
+	 */
 	template<typename From, typename To>
 	struct copy_reference {
 		using type = To;
@@ -111,7 +112,9 @@ namespace dice::template_library {
 	template<typename From, typename To>
 	using copy_reference_t = typename copy_reference<From, To>::type;
 
-
+	/**
+	 * Copy cv and reference qualifiers from From to To
+	 */
 	template<typename From, typename To>
 	struct copy_cvref {
 		using type = copy_reference_t<From, copy_cv_t<std::remove_reference_t<From>, To>>;

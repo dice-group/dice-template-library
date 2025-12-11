@@ -80,4 +80,20 @@ TEST_SUITE("type_traits") {
 		static_assert(std::is_same_v<copy_cvref_t<int volatile &&, double>, double volatile &&>);
 		static_assert(std::is_same_v<copy_cvref_t<int const volatile &&, double>, double const volatile &&>);
 	}
+
+	struct forward_like_tester {
+		int x;
+
+		template<typename Self>
+		decltype(auto) get(this Self &&self) {
+			return forward_like<Self>(self.x);
+		}
+	};
+
+	TEST_CASE("forward_like") {
+		static_assert(std::is_same_v<decltype(std::declval<forward_like_tester const &>().get()), int const &>);
+		static_assert(std::is_same_v<decltype(std::declval<forward_like_tester &>().get()), int &>);
+		static_assert(std::is_same_v<decltype(std::declval<forward_like_tester &&>().get()), int &&>);
+		static_assert(std::is_same_v<decltype(std::declval<forward_like_tester const &&>().get()), int const &&>);
+	}
 }
