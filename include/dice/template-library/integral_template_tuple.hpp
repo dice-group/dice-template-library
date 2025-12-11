@@ -35,6 +35,11 @@ namespace dice::template_library {
 			}
 		}
 
+		/**
+		 * Generates a type_list<T<first>, ..., T<last>>
+		 * from a type_list<std::integral_constant<first>, ..., std::integral_constant<last>>
+		 * which is generated from a std::integer_sequence<first, ..., last>
+		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_type_list = type_list::transform_t<
 			type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence<decltype(first), first, last>())>,
@@ -43,6 +48,10 @@ namespace dice::template_library {
 			}
 		>;
 
+		/**
+		 * Generates a standard_layout_tuple<T<first>, ..., T<last>>
+		 * from a type_list<T<first>, ..., T<last>>
+		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_tuple = type_list::apply_t<make_type_list<first, last, T>, standard_layout_tuple>;
 
