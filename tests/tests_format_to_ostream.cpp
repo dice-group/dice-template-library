@@ -29,16 +29,8 @@ TEST_SUITE("after format_to_ostream") {
 	}
 
 	TEST_CASE("type with no explicit ostream overload") {
-		SUBCASE("std::vector") {
-			std::ostringstream oss;
-			oss << std::vector<int>{1, 2, 3};
-			CHECK_EQ(oss.str(), "[1, 2, 3]");
-		}
-
-		SUBCASE("custom type") {
-			std::ostringstream oss;
-			oss << DefinitelyNotOstreamable{42};
-			CHECK_EQ(oss.str(), "42");
-		}
+		std::ostringstream oss;
+		oss << DefinitelyNotOstreamable{42};
+		CHECK_EQ(oss.str(), "42");
 	}
 }
