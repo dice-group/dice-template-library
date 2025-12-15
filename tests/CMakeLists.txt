@@ -102,3 +102,6 @@ custom_add_test(tests_lazy_conditional)
 
 add_executable(tests_standard_layout_tuple tests_standard_layout_tuple.cpp)
 custom_add_test(tests_standard_layout_tuple)
+
+add_executable(tests_format_to_ostream tests_format_to_ostream.cpp)
+custom_add_test(tests_format_to_ostream)
