@@ -27,6 +27,7 @@ It contains:
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
 - `type_list`: A variadic lists of types for metaprogramming.
 - `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
+- `format_to_ostream`: Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
 
 ## Usage
 
@@ -167,6 +168,14 @@ Additionally, `lazy_switch` provides multi-way conditional type selection using 
 approach with `case_<bool, Provider>` helpers. Only the selected case's provider is instantiated,
 allowing you to use `static_assert(false)` in default cases that should never be reached.
 Examples can be found [here](examples/examples_lazy_conditional.cpp).
+
+
+### `format_to_ostream`
+Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
+Does not override preexisting `operator<<` implementations.
+
+The primary usage for this is for doctest tests, because doctest only supports output via `std::ostream` (not `std::format`).
+
 
 ### Further Examples
 
