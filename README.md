@@ -175,6 +175,7 @@ Provide an ostream `operator<<` overload for any type that is formattable with `
 Does not override preexisting `operator<<` implementations.
 
 The primary usage for this is for doctest tests, because doctest only supports output via `std::ostream` (not `std::format`).
+Note: for this to work it needs to be included **before** `<doctest/doctest.h>`.
 
 
 ### Further Examples
