@@ -163,3 +163,10 @@ target_link_libraries(examples_lazy_conditional
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_format_to_ostream
+        example_format_to_ostream.cpp)
+target_link_libraries(example_format_to_ostream
+        PRIVATE
+        dice-template-library::dice-template-library
+)
