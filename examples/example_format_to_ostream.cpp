@@ -7,19 +7,19 @@
 #include <string>
 
 // A type that has no std::ostream operator<< defined
-struct NotOStreamable {
+struct not_ostreamable {
 	int value;
 };
 
 template<>
-struct std::formatter<NotOStreamable> {
+struct std::formatter<not_ostreamable> {
 	template<typename Ctx>
 	constexpr auto parse(Ctx &ctx) {
 		return ctx.begin();
 	}
 
 	template<typename Ctx>
-	auto format(NotOStreamable const &nos, Ctx &ctx) const {
+	auto format(not_ostreamable const &nos, Ctx &ctx) const {
 		// careful to pass `nos.value` instead of `nos` to the formatter to avoid infinite recursions.
 		return std::format_to(ctx.out(), "{}", nos.value);
 	}
@@ -27,7 +27,7 @@ struct std::formatter<NotOStreamable> {
 
 
 int main() {
-	NotOStreamable e{1};
+	not_ostreamable e{1};
 	std::cout << e;
 }
 
