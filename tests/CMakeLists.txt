@@ -105,3 +105,6 @@ custom_add_test(tests_standard_layout_tuple)
 
 add_executable(tests_format_to_ostream tests_format_to_ostream.cpp)
 custom_add_test(tests_format_to_ostream)
+
+add_executable(tests_stdint tests_stdint.cpp)
+custom_add_test(tests_stdint)
