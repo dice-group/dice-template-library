@@ -1,5 +1,6 @@
 #include <dice/template-library/stdint.hpp>
 
+#include <cassert>
 #include <cstdint>
 #include <type_traits>
 
@@ -8,6 +9,5 @@ int main() {
 
 	auto value = 123_u64;
 	static_assert(std::is_same_v<decltype(value), uint64_t>);
-
-	return static_cast<int>(value);
+	assert(value == 123);
 }
