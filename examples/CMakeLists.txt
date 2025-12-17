@@ -170,3 +170,10 @@ target_link_libraries(example_format_to_ostream
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_stdint
+        example_stdint.cpp)
+target_link_libraries(example_stdint
+        PRIVATE
+        dice-template-library::dice-template-library
+)
