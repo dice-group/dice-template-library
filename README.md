@@ -27,6 +27,8 @@ It contains:
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
 - `type_list`: A variadic lists of types for metaprogramming.
 - `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
+- `format_to_ostream`: Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
+- `stdint`: User defined literals for fixed size integers.
 
 ## Usage
 
@@ -168,6 +170,23 @@ approach with `case_<bool, Provider>` helpers. Only the selected case's provider
 allowing you to use `static_assert(false)` in default cases that should never be reached.
 Examples can be found [here](examples/examples_lazy_conditional.cpp).
 
+
+### `format_to_ostream`
+Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
+Does not override preexisting `operator<<` implementations.
+
+The primary usage for this is for doctest tests, because doctest only supports output via `std::ostream` (not `std::format`).
+Note: for this to work it needs to be included **before** `<doctest/doctest.h>`.
+
+
+### `stdint`
+User defined literals for fixed size integers (e.g. `123_u64`).
+This is mainly useful for cross-platform applications where the common `123ul` is not always the same as `uint64_t{123}`.
+For instance, on macOS `uint64_t` is defined as `unsigned long long`, whereas on Linux it is defined as `unsigned long`.
+Even if both `unsigned long` and `unsigned long long` have the same size, they are still distinct types which can cause issues
+when a type is being deduced.
+
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -175,12 +194,12 @@ option `-DBUILD_EXAMPLES=ON` to be added.
 
 ## Requirements
 
-A C++20 compatible compiler. Code was only tested on x86_64.
+A C++23 compatible compiler. Code was only tested on x86_64.
 
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.20.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.21.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

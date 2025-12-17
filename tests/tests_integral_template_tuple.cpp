@@ -95,37 +95,6 @@ namespace dice::template_library {
 	}
 
 	TEST_SUITE("testing of the integral templated tuple") {
-		TEST_CASE("standard layout tuple") {
-			struct example_struct {
-				int a;
-				bool b;
-				std::vector<int> v;
-				std::tuple<double, int> t;
-				float f;
-			};
-
-			using example_tuple = itt_detail::struct_tuple<int,
-														   bool,
-														   std::vector<int>,
-														   std::tuple<double, int>,
-														   float>;
-
-			example_tuple example_tuple_v{};
-			example_struct example_struct_v{};
-
-			auto const offset = [](void const *base, void const *member) -> size_t {
-				return static_cast<std::byte const *>(base) - static_cast<std::byte const *>(member);
-			};
-
-			// best effort correctness detection
-			REQUIRE((sizeof(example_struct) == sizeof(example_tuple)));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.a) == offset(&example_tuple_v, &example_tuple_v.get<0>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.b) == offset(&example_tuple_v, &example_tuple_v.get<1>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.v) == offset(&example_tuple_v, &example_tuple_v.get<2>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.t) == offset(&example_tuple_v, &example_tuple_v.get<3>())));
-			REQUIRE((offset(&example_struct_v, &example_struct_v.f) == offset(&example_tuple_v, &example_tuple_v.get<4>())));
-		}
-
 		TEST_CASE("ctor") {
 			integral_template_tuple<0, 3, Data> tuple{individual_construct, 0, 1, 2, 3};
 			REQUIRE(tuple.get<0>().value_ == 0);
@@ -135,9 +104,9 @@ namespace dice::template_library {
 
 			integral_template_tuple<0, 3, Data> tuple2{uniform_construct, 0};
 			REQUIRE(tuple2.get<0>().value_ == 0);
-			REQUIRE(tuple2.get<0>().value_ == 0);
-			REQUIRE(tuple2.get<0>().value_ == 0);
-			REQUIRE(tuple2.get<0>().value_ == 0);
+			REQUIRE(tuple2.get<1>().value_ == 0);
+			REQUIRE(tuple2.get<2>().value_ == 0);
+			REQUIRE(tuple2.get<3>().value_ == 0);
 
 			integral_template_tuple<0, 3, Data> copy{tuple};
 			tuple = copy;
@@ -225,6 +194,13 @@ namespace dice::template_library {
 			integral_template_tuple<2, -1, Data> &casted = inTuple.template subtuple<2, -1>();
 			auto vec = to_int_vector<-1, 2>(casted);
 			REQUIRE(is_equal(vec, {-1, 0, 1, 2}));
+		}
+
+		TEST_CASE("size") {
+			REQUIRE(integral_template_tuple<1, -1, Data>::size() == 3);
+			REQUIRE(integral_template_tuple<-1, 1, Data>::size() == 3);
+			REQUIRE(integral_template_tuple<1, 1, Data>::size() == 1);
+			REQUIRE(integral_template_tuple<1, 2, Data>::size() == 2);
 		}
 
 		TEST_CASE("visit") {

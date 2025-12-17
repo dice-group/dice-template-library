@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -160,6 +160,20 @@ target_link_libraries(example_type_list
 add_executable(examples_lazy_conditional
         examples_lazy_conditional.cpp)
 target_link_libraries(examples_lazy_conditional
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
+add_executable(example_format_to_ostream
+        example_format_to_ostream.cpp)
+target_link_libraries(example_format_to_ostream
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
+add_executable(example_stdint
+        example_stdint.cpp)
+target_link_libraries(example_stdint
         PRIVATE
         dice-template-library::dice-template-library
 )

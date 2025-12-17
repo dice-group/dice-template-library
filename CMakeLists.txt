@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   dice-template-library
-  VERSION 1.20.0
+  VERSION 1.21.0
   DESCRIPTION
     "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains: `switch_cases` (Use runtime values in compile-time context), `integral_template_tuple` (Create a tuple-like structure that instantiates a template for a range of values), `integral_template_variant` (A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>` and `for_{types,values,range}` (Compile time for loops for types, values or ranges))."
   HOMEPAGE_URL "https://dice-research.org/")
-set(POBR_VERSION 1)  # Persisted Object Binary Representation
+set(POBR_VERSION 2)  # Persisted Object Binary Representation
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/include/dice/template-library/version.hpp)
 
@@ -54,7 +54,7 @@ if (WITH_BOOST)
 endif ()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        CXX_STANDARD 20
+        CXX_STANDARD 23
         CXX_EXTENSIONS OFF
         CXX_STANDARD_REQUIRED ON
         )
