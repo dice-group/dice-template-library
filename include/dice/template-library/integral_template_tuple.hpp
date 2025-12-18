@@ -22,7 +22,7 @@ namespace dice::template_library {
 		 * @tparam first the starting integer
 		 * @tparam last the end integer
 		 */
-		template<std::integral Int, Int first, Int last, Int ...ixs>
+		template<std::integral Int, Int first, Int last, Int... ixs>
 		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
 			std::integer_sequence<Int, ixs..., first> const acc;
 
@@ -42,11 +42,10 @@ namespace dice::template_library {
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_type_list = type_list::transform_t<
-			type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence<decltype(first), first, last>())>,
-			[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
-				return std::type_identity<T<ix>>{};
-			}
-		>;
+				type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence<decltype(first), first, last>())>,
+				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
+					return std::type_identity<T<ix>>{};
+				}>;
 
 		/**
 		 * Generates a standard_layout_tuple<T<first>, ..., T<last>>
@@ -55,7 +54,7 @@ namespace dice::template_library {
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_tuple = type_list::apply_t<make_type_list<first, last, T>, standard_layout_tuple>;
 
-	} // namespace itt_detail
+	}// namespace itt_detail
 
 	/**
 	 * A std::tuple-like type holding elements T<first> .. T<last> (inclusive).
@@ -98,7 +97,7 @@ namespace dice::template_library {
 		template<index_type ix, typename Self>
 		[[nodiscard]] constexpr decltype(auto) get(this Self &&self) noexcept {
 			check_ix<ix>();
-			return std::forward<Self>(self).base::template get<make_index<ix>()>();
+			return dice::template_library::forward_like<Self>(self.base::template get<make_index<ix>()>());
 		}
 
 		/**
@@ -143,7 +142,7 @@ namespace dice::template_library {
 
 			// SAFETY: integral_template_tuple has the exact same layout as standard_layout_tuple (and is standard layout)
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
-				std::forward<Self>(self).base::template subtuple<make_index<new_first>(), make_index<new_last>() + 1>());
+					dice::template_library::forward_like<Self>(self.base::template subtuple<make_index<new_first>(), make_index<new_last>() + 1>()));
 		}
 
 		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;

@@ -2,6 +2,7 @@
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
 
 #include <dice/template-library/integral_template_common.hpp>
+#include <dice/template-library/type_traits.hpp>
 
 #include <algorithm>
 #include <concepts>
@@ -99,17 +100,17 @@ namespace dice::template_library {
 		template<index_type ix, typename Self>
 		constexpr decltype(auto) get(this Self &&self) {
 			(void) check_ix_v<ix>;
-			return std::get<T<ix>>(std::forward<Self>(self).repr_);
+			return std::get<T<ix>>(dice::template_library::forward_like<Self>(self.repr_));
 		}
 
 		template<typename Self, typename Visitor>
 		constexpr decltype(auto) visit(this Self &&self, Visitor &&visitor) {
-			return std::visit(std::forward<Visitor>(visitor), std::forward<Self>(self).repr_);
+			return std::visit(std::forward<Visitor>(visitor), dice::template_library::forward_like<Self>(self.repr_));
 		}
 
 		template<typename Self>
 		[[nodiscard]] constexpr decltype(auto) to_underlying(this Self &&self) noexcept {
-			return std::forward<Self>(self).repr_;
+			return dice::template_library::forward_like<Self>(self.repr_);
 		}
 
 		constexpr auto operator<=>(integral_template_variant_v2 const &other) const noexcept = default;
