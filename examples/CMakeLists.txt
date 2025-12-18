@@ -73,6 +73,13 @@ target_link_libraries(example_generator
         dice-template-library::dice-template-library
 )
 
+add_executable(example_graph
+        example_graph.cpp)
+target_link_libraries(example_graph
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
 add_executable(example_channel
         example_channel.cpp)
 target_link_libraries(example_channel
