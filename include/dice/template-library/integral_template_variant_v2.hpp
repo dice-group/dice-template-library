@@ -16,15 +16,19 @@ namespace dice::template_library {
 
 	namespace itv_detail_v2 {
 		using namespace it_detail_v2;
+
+		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+		using variant_provider = type_list::apply<make_type_list<Dir, first, last, T>, std::variant>;
+		/**
+		 * Empty variants are std::variant<std::monostate>.
+		 */
+		struct empty_variant_provider {
+			using type = std::variant<std::monostate>;
+		};
 		/**
 		 * Generates a std::variant<T<ix>...> based on direction
 		 * from a type_list<T<ix>...>
 		 */
-		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using variant_provider = type_list::apply<make_type_list<Dir, first, last, T>, std::variant>;
-		struct empty_variant_provider {
-			using type = std::variant<std::monostate>;
-		};
 		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_variant = lazy_conditional<sequence_empty_v<Dir, first, last>, empty_variant_provider, variant_provider<Dir, first, last, T>>::type;
 	}// namespace itv_detail_v2
