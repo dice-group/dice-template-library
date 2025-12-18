@@ -170,8 +170,10 @@ namespace dice::template_library {
 
 		TEST_CASE("size") {
 			REQUIRE(integral_template_tuple_v2<-1, 2, Data>::size() == 3);
-			REQUIRE(integral_template_tuple_v2<1, 2, Data>::size() == 1);
 			REQUIRE(integral_template_tuple_v2<1, 3, Data>::size() == 2);
+			REQUIRE(integral_template_tuple_v2<1, 2, Data>::size() == 1);
+			REQUIRE(integral_template_tuple_v2<2, 2, Data>::size() == 0);
+
 		}
 
 		TEST_CASE("visit") {

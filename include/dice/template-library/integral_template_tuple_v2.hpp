@@ -38,8 +38,8 @@ namespace dice::template_library {
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T,
 			 direction Dir = direction::ascending>
 	struct integral_template_tuple_v2 : itt_detail_v2::make_tuple<Dir, first, last, T> {
-		static_assert((Dir == direction::ascending && first < last) ||
-							  (Dir == direction::descending && first > last),
+		static_assert((Dir == direction::ascending && first <= last) ||
+							  (Dir == direction::descending && first >= last),
 					  "Invalid first/last combination for direction");
 
 		using index_type = decltype(first);

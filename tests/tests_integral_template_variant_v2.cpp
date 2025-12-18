@@ -38,6 +38,7 @@ namespace dice::template_library {
 
 	TEST_SUITE("integral_template_variant_v2") {
 		TEST_CASE("asc pos") {
+			(void)integral_template_variant_v2<2, 2, Data>{};
 			integral_template_variant_v2<2, 8, Data> itv{Data<5>{}};
 			integral_template_variant_v2<2, 8, Data> lower{Data<2>{}};
 			integral_template_variant_v2<2, 8, Data> upper{Data<7>{}};

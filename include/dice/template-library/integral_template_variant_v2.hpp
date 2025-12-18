@@ -1,6 +1,9 @@
 #ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
 
+#include "lazy_conditional.hpp"
+
+
 #include <dice/template-library/integral_template_common.hpp>
 #include <dice/template-library/type_traits.hpp>
 
@@ -18,7 +21,12 @@ namespace dice::template_library {
 		 * from a type_list<T<ix>...>
 		 */
 		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using make_variant = type_list::apply_t<make_type_list<Dir, first, last, T>, std::variant>;
+		using variant_provider = type_list::apply<make_type_list<Dir, first, last, T>, std::variant>;
+		struct empty_variant_provider {
+			using type = std::variant<std::monostate>;
+		};
+		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+		using make_variant = lazy_conditional<sequence_empty_v<Dir, first, last>, empty_variant_provider, variant_provider<Dir, first, last, T>>::type;
 	}// namespace itv_detail_v2
 
 	/**
@@ -36,8 +44,8 @@ namespace dice::template_library {
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T,
 			 direction Dir = direction::ascending>
 	struct integral_template_variant_v2 {
-		static_assert((Dir == direction::ascending && first < last) ||
-							  (Dir == direction::descending && first > last),
+		static_assert((Dir == direction::ascending && first <= last) ||
+							  (Dir == direction::descending && first >= last),
 					  "Invalid first/last combination for direction");
 
 		using index_type = decltype(first);
@@ -94,7 +102,7 @@ namespace dice::template_library {
 		}
 
 		[[nodiscard]] constexpr index_type index() const noexcept {
-			return static_cast<index_type>(first + (repr_.index() * static_cast<int8_t>(Dir)));
+			return static_cast<index_type>(first + (repr_.index() * static_cast<int64_t>(Dir)));
 		}
 
 		template<index_type ix, typename Self>

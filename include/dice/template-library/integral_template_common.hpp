@@ -19,26 +19,10 @@ namespace dice::template_library {
 
 	namespace it_detail_v2 {
 		/**
-		 * generates the std::integer_sequence based on direction
-		 * - ascending: std::integer_sequence<Int, first, ..., last-1> (exclusive upper bound)
-		 * - descending: std::integer_sequence<Int, first, ..., last+1> (exclusive lower bound)
-		 *
-		 * @tparam Dir direction of the sequence
-		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer (inclusive)
-		 * @tparam last the end integer (exclusive)
+		 * Compile-time constant that determines if a sequence will be empty.
 		 */
-		template<direction Dir, std::integral Int, Int first, Int last, Int... ixs>
-		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
-			std::integer_sequence<Int, ixs..., first> const acc;
-
-			static constexpr auto next = static_cast<Int>(first + static_cast<int64_t>(Dir));
-			if constexpr (next == last) {
-				return acc;
-			} else {
-				return make_integer_sequence<Dir, Int, next, last>(acc);
-			}
-		}
+		template<direction Dir, std::integral auto first, decltype(first) last>
+		constexpr bool sequence_empty_v = Dir == direction::ascending ? first >= last : first <= last;
 
 		/**
 		 * Variable template to check if an index is in the valid range
@@ -54,6 +38,33 @@ namespace dice::template_library {
 			}
 			return true;
 		}();
+
+		/**
+		 * generates the std::integer_sequence based on direction
+		 * - ascending: std::integer_sequence<Int, first, ..., last-1> (exclusive upper bound)
+		 * - descending: std::integer_sequence<Int, first, ..., last+1> (exclusive lower bound)
+		 *
+		 * @tparam Dir direction of the sequence
+		 * @tparam Int the integral type of the std::integer_sequence
+		 * @tparam first the starting integer (inclusive)
+		 * @tparam last the end integer (exclusive)
+		 */
+		template<direction Dir, std::integral Int, Int first, Int last, Int... ixs>
+		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
+			auto static constexpr non_empty = !sequence_empty_v<Dir, first, last>;
+			if constexpr (non_empty) {
+				std::integer_sequence<Int, ixs..., first> const acc;
+
+				static constexpr auto next = static_cast<Int>(first + static_cast<int64_t>(Dir));
+				if constexpr (next == last) {
+					return acc;
+				} else {
+					return make_integer_sequence<Dir, Int, next, last>(acc);
+				}
+			} else {
+				return std::integer_sequence<Int, ixs...>{};
+			}
+		}
 
 		/**
 		 * Helper to convert logical index to physical index (offset in underlying storage)
