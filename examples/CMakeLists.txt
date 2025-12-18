@@ -15,9 +15,19 @@ add_executable(examples_integral_templated_tuple
 target_link_libraries(examples_integral_templated_tuple
                       PRIVATE dice-template-library::dice-template-library)
 
+add_executable(examples_integral_templated_tuple_v2
+               examples_integral_template_tuple_v2.cpp)
+target_link_libraries(examples_integral_templated_tuple_v2
+                      PRIVATE dice-template-library::dice-template-library)
+
 add_executable(examples_integral_template_variant
         examples_integral_template_variant.cpp)
 target_link_libraries(examples_integral_template_variant
+        PRIVATE dice-template-library::dice-template-library)
+
+add_executable(examples_integral_template_variant_v2
+        examples_integral_template_variant_v2.cpp)
+target_link_libraries(examples_integral_template_variant_v2
         PRIVATE dice-template-library::dice-template-library)
 
 
