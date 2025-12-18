@@ -1,83 +1,84 @@
 #ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_COMMON_HPP
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_COMMON_HPP
 
+#include <dice/template-library/type_list.hpp>
+
+
 #include <concepts>
+#include <cstdint>
 #include <utility>
 
 namespace dice::template_library {
+	/**
+	 * Direction for integral template sequences
+	 */
+	enum struct direction : int8_t {
+		ascending = +1,
+		descending = -1
+	};
 
-	namespace integral_template_detail {
+	namespace it_detail_v2 {
 		/**
-		 * generates the std::integer_sequence<Int, first, ..., last-1> (counting up, exclusive upper bound)
+		 * generates the std::integer_sequence based on direction
+		 * - ascending: std::integer_sequence<Int, first, ..., last-1> (exclusive upper bound)
+		 * - descending: std::integer_sequence<Int, first, ..., last+1> (exclusive lower bound)
 		 *
+		 * @tparam Dir direction of the sequence
 		 * @tparam Int the integral type of the std::integer_sequence
 		 * @tparam first the starting integer (inclusive)
 		 * @tparam last the end integer (exclusive)
 		 */
-		template<std::integral Int, Int first, Int last, Int... ixs>
-		constexpr auto make_integer_sequence_asc(std::integer_sequence<Int, ixs...> = {}) {
+		template<direction Dir, std::integral Int, Int first, Int last, Int... ixs>
+		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
 			std::integer_sequence<Int, ixs..., first> const acc;
 
-			if constexpr (first + 1 == last) {
+			if constexpr (first + static_cast<Int>(Dir) == last) {
 				return acc;
 			} else {
-				return make_integer_sequence_asc<Int, first + 1, last>(acc);
+				return make_integer_sequence<Dir, Int, first + static_cast<Int>(Dir), last>(acc);
 			}
 		}
 
 		/**
-		 * generates the std::integer_sequence<Int, first, ..., last+1> (counting down, exclusive lower bound)
-		 *
-		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer (inclusive)
-		 * @tparam last the end integer (exclusive)
+		 * Variable template to check if an index is in the valid range
+		 * - ascending: [first, last)
+		 * - descending: (last, first]
 		 */
-		template<std::integral Int, Int first, Int last, Int... ixs>
-		constexpr auto make_integer_sequence_desc(std::integer_sequence<Int, ixs...> = {}) {
-			std::integer_sequence<Int, ixs..., first> const acc;
-
-			if constexpr (first - 1 == last) {
-				return acc;
+		template<direction Dir, std::integral auto first, decltype(first) last, decltype(first) ix>
+		constexpr bool valid_index_v = []() consteval {
+			if constexpr (Dir == direction::ascending) {
+				static_assert(ix >= first && ix < last, "Index out of range for ascending sequence [first, last)");
 			} else {
-				return make_integer_sequence_desc<Int, first - 1, last>(acc);
+				static_assert(ix <= first && ix > last, "Index out of range for descending sequence (last, first]");
+			}
+			return true;
+		}();
+
+		/**
+		 * Helper to convert logical index to physical index (offset in underlying storage)
+		 * - ascending: ix - first
+		 * - descending: first - ix
+		 */
+		template<direction Dir, std::integral auto first, decltype(first) last>
+		constexpr auto make_index(decltype(first) ix) {
+			if constexpr (Dir == direction::ascending) {
+				return ix - first;
+			} else {
+				return first - ix;
 			}
 		}
 
 		/**
-		 * Helper to check if an index is in the valid range [first, last) for ascending sequences
+		 * Generates a type_list<T<ix>...> based on direction
+		 * from a type_list<std::integral_constant<ix>...>
+		 * which is generated from a std::integer_sequence<first, ..., last-1>
 		 */
-		template<std::integral auto first, decltype(first) last, decltype(first) ix>
-		consteval bool check_index_asc() {
-			static_assert(ix >= first && ix < last, "Index out of range for ascending sequence [first, last)");
-			return true;
-		}
-
-		/**
-		 * Helper to check if an index is in the valid range (last, first] for descending sequences
-		 */
-		template<std::integral auto first, decltype(first) last, decltype(first) ix>
-		consteval bool check_index_desc() {
-			static_assert(ix <= first && ix > last, "Index out of range for descending sequence (last, first]");
-			return true;
-		}
-
-		/**
-		 * Helper to convert runtime index to compile-time index for ascending sequences
-		 * Returns the offset from first
-		 */
-		template<std::integral auto first, decltype(first) last>
-		constexpr auto make_index_asc(decltype(first) ix) {
-			return ix - first;
-		}
-
-		/**
-		 * Helper to convert runtime index to compile-time index for descending sequences
-		 * Returns the offset from first
-		 */
-		template<std::integral auto first, decltype(first) last>
-		constexpr auto make_index_desc(decltype(first) ix) {
-			return first - ix;
-		}
+		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+		using make_type_list = type_list::transform_t<
+				type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence<Dir, decltype(first), first, last>())>,
+				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
+					return std::type_identity<T<ix>>{};
+				}>;
 	}// namespace integral_template_detail
 
 }// namespace dice::template_library
