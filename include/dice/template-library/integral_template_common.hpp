@@ -79,7 +79,7 @@ namespace dice::template_library {
 				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
 					return std::type_identity<T<ix>>{};
 				}>;
-	}// namespace integral_template_detail
+	}// namespace it_detail_v2
 
 }// namespace dice::template_library
 
