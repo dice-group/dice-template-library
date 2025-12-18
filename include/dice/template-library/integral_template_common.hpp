@@ -32,10 +32,11 @@ namespace dice::template_library {
 		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
 			std::integer_sequence<Int, ixs..., first> const acc;
 
-			if constexpr (first + static_cast<Int>(Dir) == last) {
+			static constexpr auto next = static_cast<Int>(first + static_cast<int64_t>(Dir));
+			if constexpr (next == last) {
 				return acc;
 			} else {
-				return make_integer_sequence<Dir, Int, first + static_cast<Int>(Dir), last>(acc);
+				return make_integer_sequence<Dir, Int, next, last>(acc);
 			}
 		}
 
