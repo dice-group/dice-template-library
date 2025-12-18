@@ -77,10 +77,10 @@ found [here](examples/examples_integral_template_variant.cpp).
 
 ### `integral_template_variant_v2` (New)
 
-The v2 version uses **exclusive upper bounds** and only supports ascending ranges:
+The v2 version uses **exclusive boundaries** and provides separate types for ascending and descending ranges:
 
-- `integral_template_variant_v2<i, j, my_type>` creates a variant of `my_type<i>, my_type<i+1>, ..., my_type<j-1>` for `i<j`
-- Only ascending ranges are supported (`i` must be less than `j`)
+- `integral_template_variant_v2<i, j, my_type>` creates a variant of `my_type<i>, my_type<i+1>, ..., my_type<j-1>` for `i<j` (ascending only, exclusive upper bound)
+- `integral_template_variant_rev_v2<j, i, my_type>` creates a variant of `my_type<j>, my_type<j-1>, ..., my_type<i+1>` for `j>i` (descending only, exclusive lower bound)
 
 Examples can be found [here](examples/examples_integral_template_variant_v2.cpp).
 

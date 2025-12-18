@@ -46,6 +46,24 @@ int main() {
 	{
 		std::cout << "in-place construction:\n";
 		integral_template_variant_v2<1UL, 10, int_array> itv{std::in_place_type<int_array<7>>, 78};
-		std::cout << itv.template get<7>() << '\n';
+		std::cout << itv.template get<7>() << "\n\n";
+	}
+
+	{
+		std::cout << "reverse variant (descending):\n";
+		integral_template_variant_rev_v2<8UL, 4, int_array> itv{int_array<6>{99}};
+		std::cout << "  " << itv.template get<6>() << '\n';
+
+		itv = integral_template_variant_rev_v2<8UL, 4, int_array>{int_array<8>{42}};
+		std::cout << "  " << itv.template get<8>() << "\n\n";
+	}
+
+	{
+		std::cout << "reverse variant visit:\n";
+		integral_template_variant_rev_v2<10UL, 5, int_array> itv{int_array<7>{123}};
+
+		itv.visit([](auto const &array) {
+			std::cout << array << '\n';
+		});
 	}
 }

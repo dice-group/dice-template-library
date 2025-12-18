@@ -1,6 +1,7 @@
 #ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP
 
+#include <dice/template-library/integral_template_common.hpp>
 #include <dice/template-library/standard_layout_tuple.hpp>
 #include <dice/template-library/tuple_algorithm.hpp>
 #include <dice/template-library/type_list.hpp>
@@ -14,41 +15,7 @@
 namespace dice::template_library {
 
 	namespace itt_detail_v2 {
-		/**
-		 * generates the std::integer_sequence<Int, first, ..., last-1> (counting up, exclusive upper bound)
-		 *
-		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer (inclusive)
-		 * @tparam last the end integer (exclusive)
-		 */
-		template<std::integral Int, Int first, Int last, Int ...ixs>
-		constexpr auto make_integer_sequence_asc(std::integer_sequence<Int, ixs...> = {}) {
-			std::integer_sequence<Int, ixs..., first> const acc;
-
-			if constexpr (first + 1 == last) {
-				return acc;
-			} else {
-				return make_integer_sequence_asc<Int, first + 1, last>(acc);
-			}
-		}
-
-		/**
-		 * generates the std::integer_sequence<Int, first, ..., last+1> (counting down, exclusive lower bound)
-		 *
-		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer (inclusive)
-		 * @tparam last the end integer (exclusive)
-		 */
-		template<std::integral Int, Int first, Int last, Int ...ixs>
-		constexpr auto make_integer_sequence_desc(std::integer_sequence<Int, ixs...> = {}) {
-			std::integer_sequence<Int, ixs..., first> const acc;
-
-			if constexpr (first - 1 == last) {
-				return acc;
-			} else {
-				return make_integer_sequence_desc<Int, first - 1, last>(acc);
-			}
-		}
+		using namespace integral_template_detail;
 
 		/**
 		 * Generates a type_list<T<first>, ..., T<last-1>> (ascending, exclusive upper bound)
@@ -57,11 +24,10 @@ namespace dice::template_library {
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_type_list_asc = type_list::transform_t<
-			type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence_asc<decltype(first), first, last>())>,
-			[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
-				return std::type_identity<T<ix>>{};
-			}
-		>;
+				type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence_asc<decltype(first), first, last>())>,
+				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
+					return std::type_identity<T<ix>>{};
+				}>;
 
 		/**
 		 * Generates a type_list<T<first>, ..., T<last+1>> (descending, exclusive lower bound)
@@ -70,11 +36,10 @@ namespace dice::template_library {
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_type_list_desc = type_list::transform_t<
-			type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence_desc<decltype(first), first, last>())>,
-			[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
-				return std::type_identity<T<ix>>{};
-			}
-		>;
+				type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence_desc<decltype(first), first, last>())>,
+				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
+					return std::type_identity<T<ix>>{};
+				}>;
 
 		/**
 		 * Generates a standard_layout_tuple<T<first>, ..., T<last-1>> (ascending)
@@ -90,7 +55,7 @@ namespace dice::template_library {
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_tuple_desc = type_list::apply_t<make_type_list_desc<first, last, T>, standard_layout_tuple>;
 
-	} // namespace itt_detail_v2
+	}// namespace itt_detail_v2
 
 	/**
 	 * A std::tuple-like type holding elements T<first> .. T<last-1> (exclusive upper bound).
@@ -182,7 +147,7 @@ namespace dice::template_library {
 
 			// SAFETY: integral_template_tuple_v2 has the exact same layout as standard_layout_tuple (and is standard layout)
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
-				std::forward<Self>(self).base::template subtuple<make_index<new_first>(), new_last - new_first>());
+					std::forward<Self>(self).base::template subtuple<make_index<new_first>(), new_last - new_first>());
 		}
 
 		constexpr auto operator<=>(integral_template_tuple_v2 const &other) const noexcept = default;
@@ -277,7 +242,7 @@ namespace dice::template_library {
 
 			// SAFETY: integral_template_tuple_rev_v2 has the exact same layout as standard_layout_tuple (and is standard layout)
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
-				std::forward<Self>(self).base::template subtuple<make_index<new_first>(), new_first - new_last>());
+					std::forward<Self>(self).base::template subtuple<make_index<new_first>(), new_first - new_last>());
 		}
 
 		constexpr auto operator<=>(integral_template_tuple_rev_v2 const &other) const noexcept = default;

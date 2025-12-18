@@ -114,4 +114,74 @@ namespace dice::template_library {
 		}
 	}
 
-} // dice::template_library
+	TEST_SUITE("integral_template_variant_rev_v2") {
+		TEST_CASE("desc pos") {
+			integral_template_variant_rev_v2<7, 1, Data> itv{Data<5>{}};
+			integral_template_variant_rev_v2<7, 1, Data> upper{Data<7>{}};
+			integral_template_variant_rev_v2<7, 1, Data> lower{Data<2>{}};
+
+			REQUIRE(itv.index() == 5);
+			REQUIRE(upper.index() == 7);
+			REQUIRE(lower.index() == 2);
+
+			REQUIRE(itv.template get<5>() == 5);
+			REQUIRE(upper.template get<7>() == 7);
+			REQUIRE(lower.template get<2>() == 2);
+		}
+
+		TEST_CASE("desc neg") {
+			integral_template_variant_rev_v2<-2, -8, Data> itv{Data<-5>{}};
+			integral_template_variant_rev_v2<-2, -8, Data> upper{Data<-2>{}};
+			integral_template_variant_rev_v2<-2, -8, Data> lower{Data<-7>{}};
+
+			REQUIRE(itv.index() == -5);
+			REQUIRE(upper.index() == -2);
+			REQUIRE(lower.index() == -7);
+
+			REQUIRE(itv.template get<-5>() == -5);
+			REQUIRE(upper.template get<-2>() == -2);
+			REQUIRE(lower.template get<-7>() == -7);
+		}
+
+		TEST_CASE("emplace") {
+			integral_template_variant_rev_v2<10, 5, CompoundData> itv{std::in_place_type<CompoundData<7>>, 1.0, 2.0f, 3};
+			REQUIRE(itv.index() == 7);
+			REQUIRE(itv.template get<7>() == 13);
+
+			itv.template emplace<9>(2.0, 3.0f, 4);
+			REQUIRE(itv.index() == 9);
+			REQUIRE(itv.template get<9>() == 18);
+		}
+
+		TEST_CASE("visit") {
+			integral_template_variant_rev_v2<10, 5, Data> itv{Data<7>{}};
+
+			int result = itv.visit([]<typename T>(T &&x) -> int {
+				return std::forward<T>(x);
+			});
+
+			REQUIRE(result == 7);
+		}
+
+		TEST_CASE("holds_alternative") {
+			integral_template_variant_rev_v2<10, 5, Data> itv{Data<7>{}};
+
+			REQUIRE(holds_alternative<7>(itv));
+			REQUIRE_FALSE(holds_alternative<6>(itv));
+			REQUIRE_FALSE(holds_alternative<10>(itv));
+
+			REQUIRE(holds_alternative<Data<7>>(itv));
+			REQUIRE_FALSE(holds_alternative<Data<6>>(itv));
+		}
+
+		TEST_CASE("comparison") {
+			integral_template_variant_rev_v2<10, 5, Data> itv1{Data<7>{}};
+			integral_template_variant_rev_v2<10, 5, Data> itv2{Data<7>{}};
+			integral_template_variant_rev_v2<10, 5, Data> itv3{Data<8>{}};
+
+			REQUIRE(itv1 == itv2);
+			REQUIRE(itv1 != itv3);
+		}
+	}
+
+}// namespace dice::template_library
