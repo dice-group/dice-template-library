@@ -10,30 +10,27 @@ namespace dice::template_library {
 
 	namespace itv_detail {
 		/**
-		 * generates the std::integer_sequence<Int, first, ..., last>
-		 * @note first is allowed to be greater than last
+		 * generates the std::integer_sequence<Int, first, ..., last-1> (exclusive upper bound)
 		 *
 		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer
-		 * @tparam last the end integer
+		 * @tparam first the starting integer (inclusive)
+		 * @tparam last the end integer (exclusive)
 		 */
 		template<std::integral Int, Int first, Int last, Int ... ixs>
 		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
 			std::integer_sequence<Int, ixs..., first> const acc;
 
-			if constexpr (first == last) {
+			if constexpr (first + 1 == last) {
 				return acc;
-			} else if constexpr (first < last) {
-				return make_integer_sequence<Int, first + 1, last>(acc);
 			} else {
-				return make_integer_sequence<Int, first - 1, last>(acc);
+				return make_integer_sequence<Int, first + 1, last>(acc);
 			}
 		}
 
 		/**
 		 * Generates the actual std::variant type
-		 * for an integral_template_variant<first, last, T> where Ixs = 0, 1, ..., last - first
-		 * aka std::variant<T<first + 0>, T<first + 1>, ...>.
+		 * for an integral_template_variant<first, last, T> where Ixs = first, first+1, ..., last-1
+		 * aka std::variant<T<first>, T<first + 1>, ..., T<last-1>>.
 		 *
 		 * Note: This function does not have an implementation because it is only used in decltype context.
 		 */
@@ -56,28 +53,30 @@ namespace dice::template_library {
 	} // namespace itv_detail
 
 	/**
-	 * A std::variant-like type that holds variants of T<first> .. T<last> (inclusive)
+	 * A std::variant-like type that holds variants of T<first> .. T<last-1> (exclusive upper bound)
 	 *
-	 * @tparam first the first ix for T<ix>
-	 * @tparam last the last ix for T<ix>
-	 * @tparam T the template that gets instantiated with T<ix> for ix in first..last (inclusive)
+	 * @tparam first the first ix for T<ix> (inclusive)
+	 * @tparam last the last ix (exclusive, not included in the variant)
+	 * @tparam T the template that gets instantiated with T<ix> for ix in [first, last)
 	 *
-	 * @note first is allowed to be smaller than last.
+	 * @note first must be less than last.
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 	struct integral_template_variant {
+		static_assert(first < last, "integral_template_variant requires first < last.");
+
 		using index_type = decltype(first);
+		using underlying_type = itv_detail::itv_type_t<index_type, first, last, T>;
 
 		template<index_type ix>
 		using value_type = T<ix>;
 
 	private:
-		using underlying_type = itv_detail::itv_type_t<index_type, first, last, T>;
 		underlying_type repr_;
 
 		template<index_type ix>
 		static consteval void check_ix() {
-			static_assert(ix >= std::min(first, last) && ix <= std::max(first, last), "Index out of range");
+			static_assert(ix >= first && ix < last, "Index out of range");
 		}
 
 	public:
@@ -110,11 +109,7 @@ namespace dice::template_library {
 		}
 
 		[[nodiscard]] constexpr index_type index() const noexcept {
-			if constexpr (first < last) {
-				return first + static_cast<index_type>(repr_.index());
-			} else {
-				return first - static_cast<index_type>(repr_.index());
-			}
+			return first + static_cast<index_type>(repr_.index());
 		}
 
 		template<index_type ix>
@@ -159,6 +154,22 @@ namespace dice::template_library {
 		template<typename Visitor>
 		constexpr decltype(auto) visit(Visitor &&visitor) const && {
 			return std::visit(std::forward<Visitor>(visitor), std::move(repr_));
+		}
+
+		[[nodiscard]] constexpr underlying_type const &to_underlying() const & noexcept {
+			return repr_;
+		}
+
+		[[nodiscard]] constexpr underlying_type &to_underlying() & noexcept {
+			return repr_;
+		}
+
+		[[nodiscard]] constexpr underlying_type const &&to_underlying() const && noexcept {
+			return std::move(repr_);
+		}
+
+		[[nodiscard]] constexpr underlying_type &&to_underlying() && noexcept {
+			return std::move(repr_);
 		}
 
 		constexpr auto operator<=>(integral_template_variant const &other) const noexcept = default;

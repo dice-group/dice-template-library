@@ -47,9 +47,12 @@ Create a tuple-like structure that instantiates a template for a range of values
 template <std::size_t N> struct my_type{...};
 ```
 
-Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to `my_type<j>` for `i<=j` with this code.
-Negative indices, recasting to fewer values and non-default construction are also possible. Examples can be
-found [here](examples/examples_integral_template_tuple.cpp).
+Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to `my_type<j-1>` for `i<j` with this code.
+The upper bound is **exclusive**. Negative indices, recasting to fewer values and non-default construction are also possible.
+
+For counting down, use `integral_template_tuple_rev<j, i, my_type>` which creates `my_type<j>, my_type<j-1>, ...` down to `my_type<i+1>` for `j>i` (lower bound exclusive).
+
+Examples can be found [here](examples/examples_integral_template_tuple.cpp).
 
 ### `integral_template_variant`
 
@@ -58,8 +61,8 @@ Creates a variant-like structure that instantiates a template for a range of val
 template <std::size_t N> struct my_type{...};
 ```
 
-Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of `integral_template_variant<my_type, i, j>`.
-Negative indices and `j <= i` are also possible. Examples can be
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j-1>` with the help of `integral_template_variant<i, j, my_type>`.
+The upper bound is **exclusive** and `i` must be less than `j`. Negative indices are also possible. Examples can be
 found [here](examples/examples_integral_template_variant.cpp).
 
 ### `for_{types,values,range}`
