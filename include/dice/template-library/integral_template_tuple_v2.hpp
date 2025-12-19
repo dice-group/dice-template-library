@@ -43,7 +43,9 @@ namespace dice::template_library {
 
 	private:
 		template<index_type ix>
-		static constexpr bool check_ix_v = integral_sequence::valid_index_v<first, last, ix>;
+		static constexpr void check_ix() {
+			static_assert(integral_sequence::valid_index_v<first, last, ix>, "Index out of range");
+		}
 
 		using base = itt_detail_v2::make_tuple<first, last, T>;
 
@@ -63,7 +65,7 @@ namespace dice::template_library {
 		 */
 		template<index_type ix, typename Self>
 		[[nodiscard]] constexpr decltype(auto) get(this Self &&self) noexcept {
-			(void) check_ix_v<ix>;
+			check_ix<ix>();
 			return dice::template_library::forward_like<Self>(self.base::template get<make_index<ix>()>());
 		}
 

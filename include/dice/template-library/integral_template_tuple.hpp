@@ -97,7 +97,7 @@ namespace dice::template_library {
 		template<index_type ix, typename Self>
 		[[nodiscard]] constexpr decltype(auto) get(this Self &&self) noexcept {
 			check_ix<ix>();
-			return dice::template_library::forward_like<Self>(self.base::template get<make_index<ix>()>());
+			return std::forward<Self>(self).base::template get<make_index<ix>()>();
 		}
 
 		/**
@@ -142,7 +142,7 @@ namespace dice::template_library {
 
 			// SAFETY: integral_template_tuple has the exact same layout as standard_layout_tuple (and is standard layout)
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
-					dice::template_library::forward_like<Self>(self.base::template subtuple<make_index<new_first>(), make_index<new_last>() + 1>()));
+					std::forward<Self>(self).base::template subtuple<make_index<new_first>(), make_index<new_last>() + 1>());
 		}
 
 		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;

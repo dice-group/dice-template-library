@@ -154,6 +154,14 @@ namespace dice::template_library {
 			REQUIRE(itv.template get<9>() == 18);
 		}
 
+		TEST_CASE("in_place_type with non-zero-based index") {
+			integral_template_variant_v2<10, 5, Data> itv{std::in_place_type<Data<7>>};
+			// std::in_place_index<0> would construct Data<10>
+			// std::in_place_index<2> would construct Data<8>
+			REQUIRE(itv.index() == 7);
+			REQUIRE(itv.template get<7>() == 7);
+		}
+
 		TEST_CASE("visit") {
 			integral_template_variant_v2<10, 5, Data> itv{Data<7>{}};
 
@@ -165,14 +173,14 @@ namespace dice::template_library {
 		}
 
 		TEST_CASE("holds_alternative") {
-			integral_template_variant_v2<10, 5, Data> itv{Data<7>{}};
+			integral_template_variant_v2<10, 5, Data> const itv{Data<7>{}};
 
-			REQUIRE(holds_alternative<7>(itv));
-			REQUIRE_FALSE(holds_alternative<6>(itv));
-			REQUIRE_FALSE(holds_alternative<10>(itv));
+			REQUIRE(itv.template holds_alternative<7>());
+			REQUIRE_FALSE(itv.template holds_alternative<6>());
+			REQUIRE_FALSE(itv.template holds_alternative<10>());
 
-			REQUIRE(holds_alternative<Data<7>>(itv));
-			REQUIRE_FALSE(holds_alternative<Data<6>>(itv));
+			REQUIRE(itv.template holds_alternative<Data<7>>());
+			REQUIRE_FALSE(itv.template holds_alternative<Data<6>>());
 		}
 
 		TEST_CASE("comparison") {

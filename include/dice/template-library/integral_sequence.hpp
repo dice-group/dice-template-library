@@ -95,17 +95,14 @@ namespace dice::template_library {
 		constexpr bool valid_index_v = []() consteval {
 			if constexpr (first < last) {
 				// Ascending [first, last)
-				static_assert(ix >= first && ix < last,
-							  "Index out of range for ascending sequence [first, last)");
+				return ix >= first && ix < last;
 			} else if constexpr (first > last) {
 				// Descending (last, first]
-				static_assert(ix <= first && ix > last,
-							  "Index out of range for descending sequence (last, first]");
+				return ix <= first && ix > last;
 			} else {
 				// Empty sequence
-				static_assert(first != last, "Index invalid for empty sequence");
+				return false;
 			}
-			return true;
 		}();
 
 		/**

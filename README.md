@@ -52,7 +52,8 @@ Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to 
 Negative indices, recasting to fewer values and non-default construction are also possible. Examples can be
 found [here](examples/examples_integral_template_tuple.cpp).
 
-**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`) ranges.
+**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`)
+ranges.
 
 ### `integral_template_tuple_v2` (New)
 
@@ -62,21 +63,23 @@ The v2 version uses **automatic direction detection** based on the relationship 
   - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
   - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
   - Empty tuple when `i == j`
-
-Examples can be found [here](examples/examples_integral_template_tuple_v2.cpp).
+    Examples can be found [here](examples/examples_integral_template_tuple_v2.cpp).
 
 ### `integral_template_variant` (Deprecated)
 
 Creates a variant-like structure that instantiates a template for a range of values. Let's say you have a type like
+
 ```cpp
 template <std::size_t N> struct my_type{...};
 ```
 
-Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of `integral_template_variant<i, j, my_type>`.
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of
+`integral_template_variant<i, j, my_type>`.
 Negative indices and both ascending and descending ranges are supported. Examples can be
 found [here](examples/examples_integral_template_variant.cpp).
 
-**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`) ranges.
+**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`)
+ranges.
 
 ### `integral_template_variant_v2` (New)
 
@@ -91,13 +94,15 @@ Examples can be found [here](examples/examples_integral_template_variant_v2.cpp)
 
 ### `integral_sequence`
 
-Provides utilities for working with compile-time integer sequences. This is the foundation for `integral_template_tuple_v2` and `integral_template_variant_v2`.
+Provides utilities for working with compile-time integer sequences. This is the foundation for
+`integral_template_tuple_v2` and `integral_template_variant_v2`.
 
 - `make_integer_sequence<Int, first, last>()`: Generate `std::integer_sequence` with automatic direction detection
 - `make_index_sequence<first, last>()`: Convenience wrapper for `std::size_t` sequences
 - `make_integral_constant_list<Int, first, last>`: Generate `type_list` of `std::integral_constant<Int, ix>`
 
 All utilities automatically determine direction:
+
 - `first == last`: empty sequence
 - `first < last`: ascending `[first, last)` (exclusive upper bound)
 - `first > last`: descending `(last, first]` (exclusive lower bound)

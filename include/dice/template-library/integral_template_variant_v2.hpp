@@ -1,10 +1,8 @@
 #ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
 
-#include "lazy_conditional.hpp"
-
-
 #include <dice/template-library/integral_sequence.hpp>
+#include <dice/template-library/lazy_conditional.hpp>
 #include <dice/template-library/type_traits.hpp>
 
 #include <algorithm>
@@ -55,7 +53,9 @@ namespace dice::template_library {
 
 	private:
 		template<index_type ix>
-		static constexpr bool check_ix_v = integral_sequence::valid_index_v<first, last, ix>;
+		static constexpr void check_ix() {
+			static_assert(integral_sequence::valid_index_v<first, last, ix>, "Index out of range");
+		}
 
 		underlying_type repr_;
 
@@ -70,13 +70,13 @@ namespace dice::template_library {
 		template<index_type ix>
 		constexpr integral_template_variant_v2(T<ix> const &value) noexcept(std::is_nothrow_copy_constructible_v<T<ix>>)
 			: repr_{value} {
-			(void) check_ix_v<ix>;
+			check_ix<ix>();
 		}
 
 		template<index_type ix>
 		constexpr integral_template_variant_v2(T<ix> &&value) noexcept(std::is_nothrow_move_constructible_v<T<ix>>)
 			: repr_{std::move(value)} {
-			(void) check_ix_v<ix>;
+			check_ix<ix>();
 		}
 
 		template<typename U, typename... Args>
@@ -85,19 +85,9 @@ namespace dice::template_library {
 		}
 
 		template<index_type ix, typename... Args>
-		constexpr explicit integral_template_variant_v2(std::in_place_index_t<ix>, Args &&...args)
-			: repr_(std::in_place_type<T<ix>>, std::forward<Args>(args)...) {
-			(void) check_ix_v<ix>;
-		}
-
-		template<index_type ix, typename... Args>
 		constexpr value_type<ix> &emplace(Args &&...args) {
-			(void) check_ix_v<ix>;
+			check_ix<ix>();
 			return repr_.template emplace<T<ix>>(std::forward<Args>(args)...);
-		}
-
-		[[nodiscard]] static constexpr size_t size() noexcept {
-			return std::variant_size_v<underlying_type>;
 		}
 
 		[[nodiscard]] constexpr index_type index() const noexcept {
@@ -112,7 +102,7 @@ namespace dice::template_library {
 
 		template<index_type ix, typename Self>
 		constexpr decltype(auto) get(this Self &&self) {
-			(void) check_ix_v<ix>;
+			check_ix<ix>();
 			return std::get<T<ix>>(dice::template_library::forward_like<Self>(self.repr_));
 		}
 
@@ -126,18 +116,21 @@ namespace dice::template_library {
 			return dice::template_library::forward_like<Self>(self.repr_);
 		}
 
+		template<index_type ix>
+		[[nodiscard]] constexpr bool holds_alternative() const noexcept {
+			check_ix<ix>();
+			return std::holds_alternative<T<ix>>(repr_);
+		}
+
+		template<typename U>
+		[[nodiscard]] constexpr bool holds_alternative() const noexcept {
+			return std::holds_alternative<U>(repr_);
+		}
+
 		constexpr auto operator<=>(integral_template_variant_v2 const &other) const noexcept = default;
+		constexpr bool operator==(integral_template_variant_v2 const &other) const noexcept = default;
 	};
 
-	template<std::integral auto index, decltype(index) first, decltype(index) last, template<decltype(index)> typename T>
-	constexpr bool holds_alternative(integral_template_variant_v2<first, last, T> const &variant) noexcept {
-		return std::holds_alternative<T<index>>(variant.to_underlying());
-	}
-
-	template<typename U, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	constexpr bool holds_alternative(integral_template_variant_v2<first, last, T> const &variant) noexcept {
-		return std::holds_alternative<U>(variant.to_underlying());
-	}
 }// namespace dice::template_library
 
 namespace std {
