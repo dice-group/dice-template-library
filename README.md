@@ -7,6 +7,7 @@ It contains:
 - `switch_cases`: Use runtime values in compile-time context.
 - `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
 - `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
+- `integral_sequence`: Utilities for generating compile-time integer sequences with automatic direction detection.
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
@@ -55,10 +56,12 @@ found [here](examples/examples_integral_template_tuple.cpp).
 
 ### `integral_template_tuple_v2` (New)
 
-The v2 version uses **exclusive upper bounds** for more intuitive range semantics:
+The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
 
-- `integral_template_tuple_v2<i, j, my_type>` creates `my_type<i>, my_type<i+1>, ..., my_type<j-1>` for `i<j` (ascending only)
-- For descending ranges, use `integral_template_tuple_rev_v2<j, i, my_type>` which creates `my_type<j>, my_type<j-1>, ..., my_type<i+1>` for `j>i`
+- `integral_template_tuple_v2<i, j, my_type>` creates:
+  - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
+  - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
+  - Empty tuple when `i == j`
 
 Examples can be found [here](examples/examples_integral_template_tuple_v2.cpp).
 
@@ -77,12 +80,29 @@ found [here](examples/examples_integral_template_variant.cpp).
 
 ### `integral_template_variant_v2` (New)
 
-The v2 version uses **exclusive boundaries** and provides separate types for ascending and descending ranges:
+The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
 
-- `integral_template_variant_v2<i, j, my_type>` creates a variant of `my_type<i>, my_type<i+1>, ..., my_type<j-1>` for `i<j` (ascending only, exclusive upper bound)
-- `integral_template_variant_rev_v2<j, i, my_type>` creates a variant of `my_type<j>, my_type<j-1>, ..., my_type<i+1>` for `j>i` (descending only, exclusive lower bound)
+- `integral_template_variant_v2<i, j, my_type>` creates a variant of:
+  - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
+  - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
+  - Empty variant when `i == j`
 
 Examples can be found [here](examples/examples_integral_template_variant_v2.cpp).
+
+### `integral_sequence`
+
+Provides utilities for working with compile-time integer sequences. This is the foundation for `integral_template_tuple_v2` and `integral_template_variant_v2`.
+
+- `make_integer_sequence<Int, first, last>()`: Generate `std::integer_sequence` with automatic direction detection
+- `make_index_sequence<first, last>()`: Convenience wrapper for `std::size_t` sequences
+- `make_integral_constant_list<Int, first, last>`: Generate `type_list` of `std::integral_constant<Int, ix>`
+
+All utilities automatically determine direction:
+- `first == last`: empty sequence
+- `first < last`: ascending `[first, last)` (exclusive upper bound)
+- `first > last`: descending `(last, first]` (exclusive lower bound)
+
+Examples can be found [here](examples/example_integral_sequence.cpp).
 
 ### `for_{types,values,range}`
 

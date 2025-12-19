@@ -30,6 +30,11 @@ add_executable(examples_integral_template_variant_v2
 target_link_libraries(examples_integral_template_variant_v2
         PRIVATE dice-template-library::dice-template-library)
 
+add_executable(example_integral_sequence
+        example_integral_sequence.cpp)
+target_link_libraries(example_integral_sequence
+        PRIVATE dice-template-library::dice-template-library)
+
 
 find_package(Boost REQUIRED COMPONENTS)
 

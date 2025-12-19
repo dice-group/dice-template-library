@@ -1,7 +1,7 @@
 #ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP
 
-#include <dice/template-library/integral_template_common.hpp>
+#include <dice/template-library/integral_sequence.hpp>
 #include <dice/template-library/standard_layout_tuple.hpp>
 #include <dice/template-library/tuple_algorithm.hpp>
 #include <dice/template-library/type_list.hpp>
@@ -16,32 +16,26 @@ namespace dice::template_library {
 
 	namespace itt_detail_v2 {
 		/**
-		 * Generates a standard_layout_tuple<T<ix>...> based on direction
-		 * from a type_list<T<ix>...>
+		 * Generates a standard_layout_tuple<T<ix>...> from a type_list<T<ix>...>
 		 */
-		template<direction Dir, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using make_tuple = type_list::apply_t<it_detail_v2::make_type_list<Dir, first, last, T>, standard_layout_tuple>;
+		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+		using make_tuple = type_list::apply_t<integral_sequence::make_type_list<first, last, T>, standard_layout_tuple>;
 	}// namespace itt_detail_v2
 
 	/**
-	 * A std::tuple-like type holding elements based on direction
-	 * - ascending: T<first> .. T<last-1> (exclusive upper bound)
-	 * - descending: T<first> .. T<last+1> (exclusive lower bound)
+	 * A std::tuple-like type holding elements T<ix> for each ix in the sequence
+	 *
+	 * Direction is automatic:
+	 * - first < last: ascending [first, last) → T<first> .. T<last-1>
+	 * - first > last: descending (last, first] → T<first> .. T<last+1>
+	 * - first == last: empty tuple
 	 *
 	 * @tparam first first ix to provide to T<ix> (inclusive)
 	 * @tparam last last ix (exclusive, not included in the tuple)
 	 * @tparam T the template that gets instantiated with T<ix>
-	 * @tparam Dir direction of the sequence (ascending or descending)
-	 *
-	 * @note For ascending: first must be less than last. For descending: first must be greater than last.
 	 */
-	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T,
-			 direction Dir = direction::ascending>
-	struct integral_template_tuple_v2 : itt_detail_v2::make_tuple<Dir, first, last, T> {
-		static_assert((Dir == direction::ascending && first <= last) ||
-							  (Dir == direction::descending && first >= last),
-					  "Invalid first/last combination for direction");
-
+	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+	struct integral_template_tuple_v2 : itt_detail_v2::make_tuple<first, last, T> {
 		using index_type = decltype(first);
 
 		template<index_type ix>
@@ -49,13 +43,13 @@ namespace dice::template_library {
 
 	private:
 		template<index_type ix>
-		static constexpr bool check_ix_v = it_detail_v2::valid_index_v<Dir, first, last, ix>;
+		static constexpr bool check_ix_v = integral_sequence::valid_index_v<first, last, ix>;
 
-		using base = itt_detail_v2::make_tuple<Dir, first, last, T>;
+		using base = itt_detail_v2::make_tuple<first, last, T>;
 
 		template<index_type ix>
 		static consteval size_t make_index() {
-			return static_cast<size_t>(it_detail_v2::make_index<Dir, first, last>(ix));
+			return static_cast<size_t>(integral_sequence::to_offset<first, last>(ix));
 		}
 
 	public:
@@ -110,15 +104,17 @@ namespace dice::template_library {
 						  "Types inhabiting the integral_template_tuple_impl must be standard layout for subtuple to work correctly.");
 
 			auto static constexpr sub_last = [] {
-				if constexpr (Dir == direction::ascending) {
+				if constexpr (first < last) {
+					// Ascending
 					static_assert(new_first >= first && new_last <= last, "Indices for subtuple must be in range.");
 					return new_last - new_first;
 				} else {
+					// Descending
 					static_assert(new_first <= first && new_last >= last, "Indices for subtuple must be in range.");
 					return new_first - new_last;
 				}
 			}();
-			using new_tuple = integral_template_tuple_v2<new_first, new_last, T, Dir>;
+			using new_tuple = integral_template_tuple_v2<new_first, new_last, T>;
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
 					dice::template_library::forward_like<Self>(self.base::template subtuple<make_index<new_first>(), sub_last>()));
 		}
@@ -127,17 +123,6 @@ namespace dice::template_library {
 		constexpr bool operator==(integral_template_tuple_v2 const &other) const noexcept = default;
 	};
 
-	/**
-	 * A std::tuple-like type holding elements T<first> .. T<last+1> (exclusive lower bound, counting down).
-	 *
-	 * @tparam first first ix to provide to T<ix> (inclusive)
-	 * @tparam last last ix (exclusive, not included in the tuple)
-	 * @tparam T the template that gets instantiated with T<ix> for ix in (last, first]
-	 *
-	 * @note first must be greater than last.
-	 */
-	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	using integral_template_tuple_rev_v2 = integral_template_tuple_v2<first, last, T, direction::descending>;
 }// namespace dice::template_library
 
 #endif//DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP

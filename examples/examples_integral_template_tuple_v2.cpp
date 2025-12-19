@@ -53,7 +53,7 @@ int main() {
 
 	{
 		std::cout << "reverse tuple of integer arrays, size 8 down to 5 (exclusive), default constructor:\n";
-		integral_template_tuple_rev_v2<8UL, 4, int_array> itt;
+		integral_template_tuple_v2<8UL, 4, int_array> itt;
 		std::cout << "  " << itt.template get<8>() << '\n';
 		std::cout << "  " << itt.template get<7>() << '\n';
 		std::cout << "  " << itt.template get<6>() << '\n';
