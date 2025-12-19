@@ -25,6 +25,19 @@ struct myclass {
 	}
 };
 
+struct only_movable {
+	only_movable() noexcept = default;
+	only_movable(only_movable const &) = delete;
+	only_movable &operator=(only_movable const &) = delete;
+	only_movable(only_movable &&) noexcept = default;
+	only_movable &operator=(only_movable &&) noexcept = default;
+	~only_movable() noexcept = default;
+};
+
+std::array<only_movable, 2> move_test_func(only_movable a, only_movable b) noexcept {
+	return {std::move(a), std::move(b)};
+}
+
 TEST_CASE("bind_front") {
 	using namespace dice::template_library;
 
@@ -40,14 +53,21 @@ TEST_CASE("bind_front") {
 	}
 
 	SUBCASE("member func") {
-		static constexpr myclass s{42};
-		constexpr auto bound_memfn = bind_front<&myclass::func>(&s);
-		constexpr auto bound_nothrow_memfn = bind_front<&myclass::nothrow_func>(&s);
+		static constexpr myclass obj{42};
+		constexpr auto bound_memfn = bind_front<&myclass::func>(&obj);
+		constexpr auto bound_nothrow_memfn = bind_front<&myclass::nothrow_func>(&obj);
 
 		static_assert(!std::is_nothrow_invocable_v<decltype(bound_memfn), int>);
 		CHECK_EQ(bound_memfn(1), 43);
 
 		static_assert(std::is_nothrow_invocable_v<decltype(bound_nothrow_memfn), int>);
 		CHECK_EQ(bound_nothrow_memfn(1), 43);
+	}
+
+	SUBCASE("forwarding") {
+		auto bound_func = bind_front<move_test_func>(only_movable{});
+
+		static_assert(std::is_nothrow_invocable_v<decltype(bound_func), only_movable &&>);
+		std::move(bound_func)(only_movable{});
 	}
 }

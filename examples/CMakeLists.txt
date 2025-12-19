@@ -177,3 +177,10 @@ target_link_libraries(example_stdint
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(examples_functional
+        examples_functional.cpp)
+target_link_libraries(examples_functional
+        PRIVATE
+        dice-template-library::dice-template-library
+)
