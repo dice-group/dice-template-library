@@ -4,8 +4,8 @@
 #include <dice/template-library/type_traits.hpp>
 
 #include <functional>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 namespace dice::template_library {
 
@@ -34,8 +34,6 @@ namespace dice::template_library {
 	template<auto func, typename... BindArgs>
 	[[nodiscard]] constexpr auto bind_front(BindArgs &&...bind_args) {
 		using func_t = decltype(func);
-		static_assert(!(std::is_pointer_v<func_t> || std::is_member_pointer_v<func_t>) || func != nullptr,
-					  "Cannot bind arguments to nullptr");
 
 		return [...bound_args(std::forward<BindArgs>(bind_args))]<typename Self, typename ...RestArgs>([[maybe_unused]] this Self &&self, RestArgs &&...rest_args)
 				noexcept(std::is_nothrow_invocable_v<func_t, detail_bind_front::type_forward_like_t<Self, std::decay_t<BindArgs>>..., decltype(std::forward<RestArgs>(rest_args))...>) -> decltype(auto) {
