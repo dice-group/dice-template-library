@@ -108,3 +108,6 @@ custom_add_test(tests_format_to_ostream)
 
 add_executable(tests_stdint tests_stdint.cpp)
 custom_add_test(tests_stdint)
+
+add_executable(tests_functional tests_functional.cpp)
+custom_add_test(tests_functional)
