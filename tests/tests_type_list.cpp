@@ -339,4 +339,36 @@ TEST_SUITE("type_list") {
 		static_assert(tl::opt_v<ambiguous> == 0);
 		static_assert(std::is_same_v<tl::opt_t<ambiguous>, int>);
 	}
+
+	TEST_CASE("distinct") {
+		// Empty list
+		static_assert(std::is_same_v<tl::distinct_t<empty_t>, empty_t>);
+
+		// No duplicates
+		using no_dups = tl::type_list<int, double, char>;
+		static_assert(std::is_same_v<tl::distinct_t<no_dups>, no_dups>);
+
+		// With duplicates - keeps first occurrence
+		using with_dups = tl::type_list<int, double, int, char, double, int>;
+		static_assert(std::is_same_v<tl::distinct_t<with_dups>, tl::type_list<int, double, char>>);
+
+		// All same type
+		using all_same = tl::type_list<int, int, int>;
+		static_assert(std::is_same_v<tl::distinct_t<all_same>, tl::type_list<int>>);
+	}
+
+	TEST_CASE("is_set") {
+		// Empty list is a set
+		static_assert(tl::is_set_v<empty_t>);
+
+		// Single element is a set
+		static_assert(tl::is_set_v<tl::type_list<int>>);
+
+		// All unique types
+		static_assert(tl::is_set_v<tl::type_list<int, double, char>>);
+
+		// Has duplicates
+		static_assert(!tl::is_set_v<tl::type_list<int, double, int>>);
+		static_assert(!tl::is_set_v<tl::type_list<int, int, int>>);
+	}
 }
