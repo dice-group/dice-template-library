@@ -590,6 +590,39 @@ namespace dice::template_library::type_list {
         return detail_fold::fold_impl(TL{}, std::move(init), std::forward<F>(func));
     }
 
+	/**
+	 * Extract template arguments from a type and wrap them in a type_list.
+	 * This is the inverse of apply - it takes a template instantiation and
+	 * extracts its type parameters into a type_list.
+	 *
+	 * @tparam T A template instantiation of the form Container<Ts...>
+	 *
+	 * Works with any variadic template including std::tuple, std::variant,
+	 * std::pair, and custom templates.
+	 *
+	 * @example
+	 * @code
+	 * using tuple_types = unpack_t<std::tuple<int, double, char>>;
+	 * static_assert(std::is_same_v<tuple_types, type_list<int, double, char>>);
+	 *
+	 * using variant_types = unpack_t<std::variant<float, bool>>;
+	 * static_assert(std::is_same_v<variant_types, type_list<float, bool>>);
+	 * @endcode
+	 */
+	template<typename T>
+	struct unpack;
+
+	template<template<typename...> typename Container, typename... Ts>
+	struct unpack<Container<Ts...>> {
+		using type = type_list<Ts...>;
+	};
+
+	/**
+	 * @brief Convenient alias for unpacking types into a type_list.
+	 */
+	template<typename T>
+	using unpack_t = typename unpack<T>::type;
+
 } // namespace dice::template_library::type_list
 
 #endif // DICE_TEMPLATELIBRARY_TYPELIST_HPP

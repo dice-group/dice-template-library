@@ -48,6 +48,10 @@ int main() {
 	assert(std::get<0>(t) == 42);
 	assert(std::get<1>(t) > 2.7 && std::get<1>(t) < 2.8);
 
+	// unpack - Extract types from std::tuple, std::variant, etc. (inverse of apply)
+	using unpacked_variant = tl::unpack_t<std::variant<int, double, char>>;
+	static_assert(std::is_same_v<unpacked_variant, tl::type_list<int, double, char>>);
+
 	// transform
 	constexpr auto add_const = []<typename T>(std::type_identity<T>) {
 		return std::add_const<T>{};

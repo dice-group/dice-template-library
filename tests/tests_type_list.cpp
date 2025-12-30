@@ -6,8 +6,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory_resource>
+#include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 TEST_SUITE("type_list") {
@@ -112,6 +115,26 @@ TEST_SUITE("type_list") {
 
 		using t2 = tl::type_list<int, std::pmr::polymorphic_allocator<int>>;
 		static_assert(std::is_same_v<tl::apply_t<t2, std::vector>, std::vector<int, std::pmr::polymorphic_allocator<int>>>);
+	}
+
+	TEST_CASE("unpack") {
+		// Unpack std::tuple
+		using tuple_types = tl::unpack_t<std::tuple<int, double, char>>;
+		static_assert(std::is_same_v<tuple_types, tl::type_list<int, double, char>>);
+
+		// Unpack std::variant
+		using variant_types = tl::unpack_t<std::variant<float, bool>>;
+		static_assert(std::is_same_v<variant_types, tl::type_list<float, bool>>);
+
+		// Unpack std::pair
+		using pair_types = tl::unpack_t<std::pair<int, std::string>>;
+		static_assert(std::is_same_v<pair_types, tl::type_list<int, std::string>>);
+
+		// Verify unpack is inverse of apply
+		using original = tl::type_list<int, double, char>;
+		using applied = tl::apply_t<original, std::tuple>;
+		using unpacked = tl::unpack_t<applied>;
+		static_assert(std::is_same_v<original, unpacked>);
 	}
 
 	TEST_CASE("transform") {
