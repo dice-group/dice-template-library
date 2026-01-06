@@ -1,6 +1,11 @@
 #ifndef DICE_TEMPLATELIBRARY_GENERATOR_HPP
 #define DICE_TEMPLATELIBRARY_GENERATOR_HPP
 
+/**
+ * dice::template_library::generator is **DEPRECATED**.
+ * It will be removed in next major release.
+ */
+
 ////////////////////////////////////////////////////////////////
 // Reference implementation of std::generator proposal P2502R2
 // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf

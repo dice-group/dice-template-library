@@ -1,9 +1,10 @@
+/**
+ * dice::template_library::generator is **DEPRECATED**.
+ * It will be removed in next major release.
+ */
+
 #include <iostream>
 #include <string>
-
-/**
- * DEPRECATED, will be removed in next major release
- */
 
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <dice/template-library/generator.hpp>
