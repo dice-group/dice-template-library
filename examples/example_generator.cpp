@@ -1,11 +1,14 @@
 /**
  * dice::template_library::generator is **DEPRECATED**.
  * It will be removed in next major release.
+ *
+ * Use std::generator instead.
  */
 
 #include <iostream>
 #include <string>
 
+// disable deprecation warnings because we run CI with -Werror
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <dice/template-library/generator.hpp>
 
