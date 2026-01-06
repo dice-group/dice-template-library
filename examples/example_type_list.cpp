@@ -112,12 +112,12 @@ int main() {
 
 	// distinct - Remove duplicate types
 	using duplicates = tl::type_list<int, double, int, char, double, float, int>;
-	using unique_types = tl::distinct_t<duplicates>;
+	using unique_types = tl::unique_t<duplicates>;
 	static_assert(tl::size_v<unique_types> == 4);  // int, double, char, float
 
 	// is_set - Check if all types are unique
-	static_assert(tl::is_set_v<numbers>);  // int, double, float - all unique
-	static_assert(!tl::is_set_v<duplicates>);  // has duplicates
+	static_assert(tl::all_distinct_v<numbers>);  // int, double, float - all unique
+	static_assert(!tl::all_distinct_v<duplicates>);  // has duplicates
 
 	// for_each - runtime iteration
 	std::vector<size_t> sizes;

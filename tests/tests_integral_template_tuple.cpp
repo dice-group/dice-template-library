@@ -1,11 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-#include <dice/template-library/integral_template_tuple.hpp>
-
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <iostream>
+
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <dice/template-library/integral_template_tuple.hpp>
 
 namespace dice::template_library {
 
@@ -36,7 +36,7 @@ namespace dice::template_library {
 	}
 
 	//Needed to unify the access to a std::tuple and our integral version
-	template<auto I, typename... Args>
+	template<auto I, typename ...Args>
 	decltype(auto) get(std::tuple<Args...> &t) {
 		return std::get<I>(t);
 	}

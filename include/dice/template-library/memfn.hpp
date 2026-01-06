@@ -12,7 +12,7 @@
  *
  */
 #define DICE_MEMFN(member_func, ...)                                                                     \
-	([&, this]<typename... RuntimeArgs>(RuntimeArgs &&...runtime_args) -> decltype(auto) {               \
+	([&, this]<typename ...RuntimeArgs>(RuntimeArgs &&...runtime_args) -> decltype(auto) {               \
 		return this->member_func(__VA_ARGS__ __VA_OPT__(, ) std::forward<RuntimeArgs>(runtime_args)...); \
 	})
 #endif// DICE_TEMPLATE_LIBRARY_MEMFN_HPP

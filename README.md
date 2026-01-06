@@ -5,8 +5,8 @@ handy.
 It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
-- `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
-- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
+- `integral_template_tuple`/`integral_template_tuple_v2`: Create a tuple-like structure that instantiates a template for a range of values.
+- `integral_template_variant`/`integral_template_variant_v2`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
 - `integral_sequence`: Utilities for generating compile-time integer sequences with automatic direction detection.
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
@@ -97,8 +97,8 @@ Examples can be found [here](examples/examples_integral_template_variant_v2.cpp)
 Provides utilities for working with compile-time integer sequences. This is the foundation for
 `integral_template_tuple_v2` and `integral_template_variant_v2`.
 
-- `make_integer_sequence<Int, first, last>()`: Generate `std::integer_sequence` with automatic direction detection
-- `make_index_sequence<first, last>()`: Convenience wrapper for `std::size_t` sequences
+- `make_integer_sequence<Int, first, last>`: Generate `std::integer_sequence` with automatic direction detection
+- `make_index_sequence<first, last>`: Convenience wrapper for `std::integer_sequence<size_t, X, Y>`
 - `make_integral_constant_list<Int, first, last>`: Generate `type_list` of `std::integral_constant<Int, ix>`
 
 All utilities automatically determine direction:
@@ -268,5 +268,5 @@ ctest
 
 # run an example
 cd build
-./examples/examples_integral_templated_tuple
+./examples/examples_integral_template_tuple
 ```

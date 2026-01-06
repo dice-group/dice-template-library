@@ -1,7 +1,9 @@
-#include <dice/template-library/integral_template_variant.hpp>
-
 #include <array>
 #include <iostream>
+
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <dice/template-library/integral_template_variant.hpp>
+
 
 using namespace dice::template_library;
 

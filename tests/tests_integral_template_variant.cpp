@@ -1,10 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-#include <dice/template-library/integral_template_variant.hpp>
-
 #include <doctest/doctest.h>
 
 #include <algorithm>
+
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <dice/template-library/integral_template_variant.hpp>
 
 namespace dice::template_library {
 

@@ -65,7 +65,7 @@ namespace dice::template_library {
 	 * @note first is allowed to be smaller than last.
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct integral_template_variant {
+	struct [[deprecated("use integral_template_variant_v2 instead")]] integral_template_variant {
 		using index_type = decltype(first);
 
 		template<index_type ix>

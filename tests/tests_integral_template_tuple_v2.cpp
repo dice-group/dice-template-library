@@ -36,7 +36,7 @@ namespace dice::template_library {
 	}
 
 	//Needed to unify the access to a std::tuple and our integral version
-	template<auto I, typename... Args>
+	template<auto I, typename ...Args>
 	decltype(auto) get(std::tuple<Args...> &t) {
 		return std::get<I>(t);
 	}

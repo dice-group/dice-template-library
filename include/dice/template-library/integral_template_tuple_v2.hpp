@@ -14,13 +14,13 @@
 
 namespace dice::template_library {
 
-	namespace itt_detail_v2 {
+	namespace detail_itt2 {
 		/**
 		 * Generates a standard_layout_tuple<T<ix>...> from a type_list<T<ix>...>
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using make_tuple = type_list::apply_t<integral_sequence::make_type_list<first, last, T>, standard_layout_tuple>;
-	}// namespace itt_detail_v2
+		using make_tuple = type_list::apply_t<detail_integral_template_util::make_type_list<first, last, T>, standard_layout_tuple>;
+	} // namespace detail_itt2
 
 	/**
 	 * A std::tuple-like type holding elements T<ix> for each ix in the sequence
@@ -35,7 +35,7 @@ namespace dice::template_library {
 	 * @tparam T the template that gets instantiated with T<ix>
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct integral_template_tuple_v2 : itt_detail_v2::make_tuple<first, last, T> {
+	struct integral_template_tuple_v2 : detail_itt2::make_tuple<first, last, T> {
 		using index_type = decltype(first);
 
 		template<index_type ix>
@@ -44,14 +44,14 @@ namespace dice::template_library {
 	private:
 		template<index_type ix>
 		static constexpr void check_ix() {
-			static_assert(integral_sequence::valid_index_v<first, last, ix>, "Index out of range");
+			static_assert(detail_integral_template_util::valid_index_v<first, last, ix>, "Index out of range");
 		}
 
-		using base = itt_detail_v2::make_tuple<first, last, T>;
+		using base = detail_itt2::make_tuple<first, last, T>;
 
 		template<index_type ix>
 		static consteval size_t make_index() {
-			return static_cast<size_t>(integral_sequence::to_offset<first, last>(ix));
+			return static_cast<size_t>(detail_integral_template_util::to_offset<first, last>(ix));
 		}
 
 	public:

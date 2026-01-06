@@ -1,4 +1,3 @@
-#include <dice/template-library/for.hpp>
 #include <dice/template-library/integral_sequence.hpp>
 
 #include <array>
@@ -6,7 +5,6 @@
 #include <variant>
 
 using namespace dice::template_library;
-using namespace dice::template_library::integral_sequence;
 
 // Example template that takes an integral value
 template<int N>
@@ -19,7 +17,7 @@ int main() {
 	std::cout << "1. Generate integer_sequence:\n";
 	{
 		// Ascending [3, 7)
-		auto seq_asc = make_integer_sequence<int, 3, 7>();
+		auto seq_asc = make_integer_sequence<int, 3, 7>{};
 		std::cout << "  Ascending [3, 7): ";
 		[&]<int... xs>(std::integer_sequence<int, xs...>) {
 			((std::cout << xs << " "), ...);
@@ -27,7 +25,7 @@ int main() {
 		std::cout << "\n";
 
 		// Descending (2, 7]
-		auto seq_desc = make_integer_sequence<int, 7, 2>();
+		auto seq_desc = make_integer_sequence<int, 7, 2>{};
 		std::cout << "  Descending (2, 7]: ";
 		[&]<int... xs>(std::integer_sequence<int, xs...>) {
 			((std::cout << xs << " "), ...);

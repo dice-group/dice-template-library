@@ -114,7 +114,7 @@ namespace dice::template_library::type_list {
      *
      * @tparam Lists zero or more type lists to concatenate
      */
-    template<typename... Lists>
+    template<typename ...Lists>
     struct concat;
 
     template<>
@@ -132,7 +132,7 @@ namespace dice::template_library::type_list {
         using type = type_list<Ts..., Us...>;
     };
 
-    template<typename Head, typename... Tail>
+    template<typename Head, typename ...Tail>
     struct concat<Head, Tail...> {
         using type = typename concat<
             Head,
@@ -140,7 +140,7 @@ namespace dice::template_library::type_list {
         >::type;
     };
 
-    template<typename... Lists>
+    template<typename ...Lists>
     using concat_t = typename concat<Lists...>::type;
 
 
@@ -612,34 +612,32 @@ namespace dice::template_library::type_list {
 	template<typename T>
 	struct unpack;
 
-	template<template<typename...> typename Container, typename... Ts>
+	template<template<typename ...> typename Container, typename ...Ts>
 	struct unpack<Container<Ts...>> {
 		using type = type_list<Ts...>;
 	};
 
-	/**
-	 * @brief Convenient alias for unpacking types into a type_list.
-	 */
 	template<typename T>
 	using unpack_t = typename unpack<T>::type;
 
+
 	namespace detail {
-		template<typename Seen, typename... Remaining>
-		struct distinct_impl;
+		template<typename Seen, typename ...Remaining>
+		struct unique_impl;
 
 		// Base case: return the accumulated list
-		template<typename... Seen>
-		struct distinct_impl<type_list<Seen...>> {
+		template<typename ...Seen>
+		struct unique_impl<type_list<Seen...>> {
 			using type = type_list<Seen...>;
 		};
 
 		// Recursive step
-		template<typename... Seen, typename T, typename... Remaining>
-		struct distinct_impl<type_list<Seen...>, T, Remaining...> {
+		template<typename ...Seen, typename T, typename ...Remaining>
+		struct unique_impl<type_list<Seen...>, T, Remaining...> {
 			using type = std::conditional_t<
 					contains_v<type_list<Seen...>, T>,
-					typename distinct_impl<type_list<Seen...>, Remaining...>::type,
-					typename distinct_impl<type_list<Seen..., T>, Remaining...>::type>;
+					typename unique_impl<type_list<Seen...>, Remaining...>::type,
+					typename unique_impl<type_list<Seen..., T>, Remaining...>::type>;
 		};
 	}// namespace detail
 
@@ -651,20 +649,20 @@ namespace dice::template_library::type_list {
 	 * @example
 	 * @code
 	 * using duplicates = type_list<int, double, int, char, double>;
-	 * using unique = distinct_t<duplicates>;
+	 * using unique = unique_t<duplicates>;
 	 * static_assert(std::is_same_v<unique, type_list<int, double, char>>);
 	 * @endcode
 	 */
 	template<typename TL>
-	struct distinct;
+	struct unique;
 
-	template<typename... Ts>
-	struct distinct<type_list<Ts...>> {
-		using type = typename detail::distinct_impl<type_list<>, Ts...>::type;
+	template<typename ...Ts>
+	struct unique<type_list<Ts...>> {
+		using type = typename detail::unique_impl<type_list<>, Ts...>::type;
 	};
 
 	template<typename TL>
-	using distinct_t = typename distinct<TL>::type;
+	using unique_t = typename unique<TL>::type;
 
 
 	/**
@@ -681,7 +679,11 @@ namespace dice::template_library::type_list {
 	 * @endcode
 	 */
 	template<typename TL>
-	inline constexpr bool is_set_v = size_v<TL> == size_v<distinct_t<TL>>;
+	struct all_distinct : std::bool_constant<size_v<TL> == size_v<unique_t<TL>>> {
+	};
+
+	template<typename TL>
+	inline constexpr bool all_distinct_v = all_distinct<TL>::value;
 
 } // namespace dice::template_library::type_list
 
