@@ -1,6 +1,13 @@
 #ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
 #define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
 
+/**
+ * dice::template_library::integral_template_variant is **DEPRECATED**.
+ * It will be removed in next major release.
+ *
+ * Use dice::template_library::integral_template_variant_v2 instead.
+ */
+
 #include <algorithm>
 #include <concepts>
 #include <utility>

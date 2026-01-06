@@ -1,6 +1,13 @@
 #ifndef HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 #define HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
 
+/**
+ * dice::template_library::integral_template_tuple is **DEPRECATED**.
+ * It will be removed in next major release.
+ *
+ * Use dice::template_library::integral_template_tuple_v2 instead.
+ */
+
 #include <dice/template-library/standard_layout_tuple.hpp>
 #include <dice/template-library/tuple_algorithm.hpp>
 #include <dice/template-library/type_list.hpp>
