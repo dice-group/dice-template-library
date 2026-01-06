@@ -1,9 +1,17 @@
+/**
+ * dice::template_library::integral_template_tuple is **DEPRECATED**.
+ * It will be removed in next major release.
+ *
+ * Use dice::template_library::integral_template_tuple_v2 instead.
+ */
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <iostream>
 
+// disabling deprecated warnings because we run CI with -Werror
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <dice/template-library/integral_template_tuple.hpp>
 
