@@ -621,7 +621,7 @@ namespace dice::template_library::type_list {
 	using unpack_t = typename unpack<T>::type;
 
 
-	namespace detail {
+	namespace detail_unique {
 		template<typename Seen, typename ...Remaining>
 		struct unique_impl;
 
@@ -639,7 +639,7 @@ namespace dice::template_library::type_list {
 					typename unique_impl<type_list<Seen...>, Remaining...>::type,
 					typename unique_impl<type_list<Seen..., T>, Remaining...>::type>;
 		};
-	}// namespace detail
+	}// namespace detail_unique
 
 	/**
 	 * Remove duplicate types from a type_list, keeping only the first occurrence of each type.
@@ -658,7 +658,7 @@ namespace dice::template_library::type_list {
 
 	template<typename ...Ts>
 	struct unique<type_list<Ts...>> {
-		using type = typename detail::unique_impl<type_list<>, Ts...>::type;
+		using type = typename detail_unique::unique_impl<type_list<>, Ts...>::type;
 	};
 
 	template<typename TL>
