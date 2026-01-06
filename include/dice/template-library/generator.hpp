@@ -4,6 +4,8 @@
 /**
  * dice::template_library::generator is **DEPRECATED**.
  * It will be removed in next major release.
+ *
+ * Use std::generator instead.
  */
 
 ////////////////////////////////////////////////////////////////
