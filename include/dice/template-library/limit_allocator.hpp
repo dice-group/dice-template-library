@@ -130,7 +130,7 @@ namespace dice::template_library {
 			  inner_{std::move(upstream)} {
 		}
 
-		template<typename... Args>
+		template<typename ...Args>
 		explicit constexpr limit_allocator(size_t bytes_limit, std::in_place_t, Args &&...args)
 			: control_block_{std::make_shared<control_block_type>(bytes_limit)},
 			  inner_{std::forward<Args>(args)...} {

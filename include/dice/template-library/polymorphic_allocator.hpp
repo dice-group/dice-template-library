@@ -24,12 +24,12 @@ namespace dice::template_library {
 		template<typename T>
 		struct variant_index<T, std::variant<>>;
 
-		template<typename T, typename... Ts>
+		template<typename T, typename ...Ts>
 		struct variant_index<T, std::variant<T, Ts...>> {
 			static constexpr size_t value = 0;
 		};
 
-		template<typename T, typename T1, typename... Ts>
+		template<typename T, typename T1, typename ...Ts>
 		struct variant_index<T, std::variant<T1, Ts...>> {
 			static constexpr size_t value = 1 + variant_index<T, std::variant<Ts...>>::value;
 		};
