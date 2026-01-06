@@ -5,8 +5,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/generator.hpp>
-
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -14,6 +12,9 @@
 #include <tuple>
 #include <vector>
 #include <type_traits>
+
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <dice/template-library/generator.hpp>
 
 TEST_SUITE("generator") {
 	using namespace DICE_TEMPLATELIBRARY_GENERATOR_NAMESPACE;
