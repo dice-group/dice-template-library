@@ -1,11 +1,16 @@
+/**
+ * dice::template_library::generator is **DEPRECATED**.
+ * It will be removed in next major release.
+ *
+ * Use std::generator instead.
+ */
+
 ////////////////////////////////////////////////////////////////
 // Tests adapted from reference implementation of std::generator proposal P2502R2
 // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
-
-#include <dice/template-library/generator.hpp>
 
 #include <array>
 #include <cstdint>
@@ -14,6 +19,10 @@
 #include <tuple>
 #include <vector>
 #include <type_traits>
+
+// disable deprecation warning because we run CI with -Werror
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <dice/template-library/generator.hpp>
 
 TEST_SUITE("generator") {
 	using namespace DICE_TEMPLATELIBRARY_GENERATOR_NAMESPACE;

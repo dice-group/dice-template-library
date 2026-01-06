@@ -1,6 +1,13 @@
 #ifndef DICE_TEMPLATELIBRARY_GENERATOR_HPP
 #define DICE_TEMPLATELIBRARY_GENERATOR_HPP
 
+/**
+ * dice::template_library::generator is **DEPRECATED**.
+ * It will be removed in next major release.
+ *
+ * Use std::generator instead.
+ */
+
 ////////////////////////////////////////////////////////////////
 // Reference implementation of std::generator proposal P2502R2
 // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf
@@ -215,7 +222,7 @@ namespace DICE_TEMPLATELIBRARY_GENERATOR_NAMESPACE {
 
     namespace ranges {
         template <::std::ranges::range _Rng, class _Alloc = ::std::allocator<::std::byte>>
-        struct elements_of {
+        struct [[deprecated("use std::ranges::elements_of instead")]] elements_of {
             NO_UNIQUE_ADDRESS _Rng range;
             NO_UNIQUE_ADDRESS _Alloc allocator{};
         };
@@ -225,7 +232,7 @@ namespace DICE_TEMPLATELIBRARY_GENERATOR_NAMESPACE {
     } // namespace ranges
 
     template <class _Rty, class _Vty = void, class _Alloc = void>
-    class generator;
+    class [[deprecated("use std::generator instead")]] generator;
 
     template <class _Rty, class _Vty>
     using _Gen_value_t = ::std::conditional_t<::std::is_void_v<_Vty>, ::std::remove_cvref_t<_Rty>, _Vty>;
