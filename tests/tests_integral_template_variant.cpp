@@ -1,10 +1,18 @@
+/**
+ * dice::template_library::integral_template_variant is **DEPRECATED**.
+ * It will be removed in next major release.
+ *
+ * Use dice::template_library::integral_template_variant_v2 instead.
+ */
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-#include <dice/template-library/integral_template_variant.hpp>
-
 #include <doctest/doctest.h>
 
 #include <algorithm>
+
+// disabling deprecated warnings because we run CI with -Werror
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <dice/template-library/integral_template_variant.hpp>
 
 namespace dice::template_library {
 

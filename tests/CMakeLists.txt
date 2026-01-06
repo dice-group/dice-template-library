@@ -28,9 +28,17 @@ add_executable(tests_integral_templated_tuple
         tests_integral_template_tuple.cpp)
 custom_add_test(tests_integral_templated_tuple)
 
+add_executable(tests_integral_templated_tuple_v2
+        tests_integral_template_tuple_v2.cpp)
+custom_add_test(tests_integral_templated_tuple_v2)
+
 add_executable(tests_integral_template_variant
         tests_integral_template_variant.cpp)
 custom_add_test(tests_integral_template_variant)
+
+add_executable(tests_integral_template_variant_v2
+        tests_integral_template_variant_v2.cpp)
+custom_add_test(tests_integral_template_variant_v2)
 
 add_executable(tests_for tests_for.cpp)
 custom_add_test(tests_for)
@@ -108,3 +116,6 @@ custom_add_test(tests_format_to_ostream)
 
 add_executable(tests_stdint tests_stdint.cpp)
 custom_add_test(tests_stdint)
+
+add_executable(tests_functional tests_functional.cpp)
+custom_add_test(tests_functional)

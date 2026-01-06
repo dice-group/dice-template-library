@@ -1,17 +1,7 @@
-/**
- * dice::template_library::integral_template_variant is **DEPRECATED**.
- * It will be removed in next major release.
- *
- * Use dice::template_library::integral_template_variant_v2 instead.
- */
+#include <dice/template-library/integral_template_variant_v2.hpp>
 
 #include <array>
 #include <iostream>
-
-// disabling deprecated warnings because we run CI with -Werror
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include <dice/template-library/integral_template_variant.hpp>
-
 
 using namespace dice::template_library;
 
@@ -37,16 +27,16 @@ std::ostream &operator<<(std::ostream &os, int_array<N> const &arr) {
 int main() {
 	{
 		std::cout << "get:\n";
-		integral_template_variant<5UL, 8, int_array> itv{int_array<6>{1}};
+		integral_template_variant_v2<5UL, 9, int_array> itv{int_array<6>{1}};
 		std::cout << "  " << itv.template get<6>() << '\n';
 
-		itv = integral_template_variant<5UL, 8, int_array>{int_array<7>{2}};
+		itv = integral_template_variant_v2<5UL, 9, int_array>{int_array<7>{2}};
 		std::cout << "  " << itv.template get<7>() << "\n\n";
 	}
 
 	{
 		std::cout << "visit:\n";
-		integral_template_variant<5UL, 8, int_array> itv{int_array<6>{3}};
+		integral_template_variant_v2<5UL, 9, int_array> itv{int_array<6>{3}};
 
 		itv.visit([](auto const &array) {
 			std::cout << array << "\n\n";
@@ -55,7 +45,25 @@ int main() {
 
 	{
 		std::cout << "in-place construction:\n";
-		integral_template_variant<1UL, 9, int_array> itv{std::in_place_type<int_array<7>>, 78};
-		std::cout << itv.template get<7>() << '\n';
+		integral_template_variant_v2<1UL, 10, int_array> itv{std::in_place_type<int_array<7>>, 78};
+		std::cout << itv.template get<7>() << "\n\n";
+	}
+
+	{
+		std::cout << "reverse variant (descending):\n";
+		integral_template_variant_v2<8UL, 4, int_array> itv{int_array<6>{99}};
+		std::cout << "  " << itv.template get<6>() << '\n';
+
+		itv = integral_template_variant_v2<8UL, 4, int_array>{int_array<8>{42}};
+		std::cout << "  " << itv.template get<8>() << "\n\n";
+	}
+
+	{
+		std::cout << "reverse variant visit:\n";
+		integral_template_variant_v2<10UL, 5, int_array> itv{int_array<7>{123}};
+
+		itv.visit([](auto const &array) {
+			std::cout << array << '\n';
+		});
 	}
 }

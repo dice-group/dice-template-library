@@ -15,9 +15,24 @@ add_executable(examples_integral_templated_tuple
 target_link_libraries(examples_integral_templated_tuple
                       PRIVATE dice-template-library::dice-template-library)
 
+add_executable(examples_integral_templated_tuple_v2
+               examples_integral_template_tuple_v2.cpp)
+target_link_libraries(examples_integral_templated_tuple_v2
+                      PRIVATE dice-template-library::dice-template-library)
+
 add_executable(examples_integral_template_variant
         examples_integral_template_variant.cpp)
 target_link_libraries(examples_integral_template_variant
+        PRIVATE dice-template-library::dice-template-library)
+
+add_executable(examples_integral_template_variant_v2
+        examples_integral_template_variant_v2.cpp)
+target_link_libraries(examples_integral_template_variant_v2
+        PRIVATE dice-template-library::dice-template-library)
+
+add_executable(example_integral_sequence
+        example_integral_sequence.cpp)
+target_link_libraries(example_integral_sequence
         PRIVATE dice-template-library::dice-template-library)
 
 
@@ -174,6 +189,13 @@ target_link_libraries(example_format_to_ostream
 add_executable(example_stdint
         example_stdint.cpp)
 target_link_libraries(example_stdint
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
+add_executable(examples_functional
+        examples_functional.cpp)
+target_link_libraries(examples_functional
         PRIVATE
         dice-template-library::dice-template-library
 )

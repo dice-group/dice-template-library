@@ -5,8 +5,9 @@ handy.
 It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
-- `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
-- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
+- `integral_template_tuple`/`integral_template_tuple_v2`: Create a tuple-like structure that instantiates a template for a range of values.
+- `integral_template_variant`/`integral_template_variant_v2`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
+- `integral_sequence`: Utilities for generating compile-time integer sequences with automatic direction detection.
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
 - `limit_allocator`: Allocator wrapper that limits the amount of memory that is allowed to be allocated
@@ -29,6 +30,7 @@ It contains:
 - `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
 - `format_to_ostream`: Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
 - `stdint`: User defined literals for fixed size integers.
+- `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
 
 ## Usage
 
@@ -39,7 +41,7 @@ dispatching to the correct version at runtime. You can add fallbacks for when th
 defined. By using `switch_cases` inside of `switch_cases` multidimensional ranges can be handled as well. Examples can
 be found [here](examples/examples_switch_cases.cpp).
 
-### `integral_template_tuple`
+### `integral_template_tuple` (Deprecated)
 
 Create a tuple-like structure that instantiates a template for a range of values. Let's say you have a type like
 
@@ -51,16 +53,62 @@ Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to 
 Negative indices, recasting to fewer values and non-default construction are also possible. Examples can be
 found [here](examples/examples_integral_template_tuple.cpp).
 
-### `integral_template_variant`
+**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`)
+ranges.
+
+### `integral_template_tuple_v2` (New)
+
+The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
+
+- `integral_template_tuple_v2<i, j, my_type>` creates:
+  - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
+  - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
+  - Empty tuple when `i == j`
+    Examples can be found [here](examples/examples_integral_template_tuple_v2.cpp).
+
+### `integral_template_variant` (Deprecated)
 
 Creates a variant-like structure that instantiates a template for a range of values. Let's say you have a type like
+
 ```cpp
 template <std::size_t N> struct my_type{...};
 ```
 
-Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of `integral_template_variant<my_type, i, j>`.
-Negative indices and `j <= i` are also possible. Examples can be
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of
+`integral_template_variant<i, j, my_type>`.
+Negative indices and both ascending and descending ranges are supported. Examples can be
 found [here](examples/examples_integral_template_variant.cpp).
+
+**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`)
+ranges.
+
+### `integral_template_variant_v2` (New)
+
+The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
+
+- `integral_template_variant_v2<i, j, my_type>` creates a variant of:
+  - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
+  - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
+  - Empty variant when `i == j`
+
+Examples can be found [here](examples/examples_integral_template_variant_v2.cpp).
+
+### `integral_sequence`
+
+Provides utilities for working with compile-time integer sequences. This is the foundation for
+`integral_template_tuple_v2` and `integral_template_variant_v2`.
+
+- `make_integer_sequence<Int, first, last>`: Generate `std::integer_sequence` with automatic direction detection
+- `make_index_sequence<first, last>`: Convenience wrapper for `std::integer_sequence<size_t, X, Y>`
+- `make_integral_constant_list<Int, first, last>`: Generate `type_list` of `std::integral_constant<Int, ix>`
+
+All utilities automatically determine direction:
+
+- `first == last`: empty sequence
+- `first < last`: ascending `[first, last)` (exclusive upper bound)
+- `first > last`: descending `(last, first]` (exclusive lower bound)
+
+Examples can be found [here](examples/example_integral_sequence.cpp).
 
 ### `for_{types,values,range}`
 
@@ -186,6 +234,11 @@ For instance, on macOS `uint64_t` is defined as `unsigned long long`, whereas on
 Even if both `unsigned long` and `unsigned long long` have the same size, they are still distinct types which can cause issues
 when a type is being deduced.
 
+### `functional`
+Extensions for `<functional>`.
+Currently, contains an implementation of bind_front with constexpr function argument (`bind_front<constexpr_func>(args...)`)
+that is only available from C++26 onwards.
+
 
 ### Further Examples
 
@@ -199,7 +252,7 @@ A C++23 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.21.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/1.22.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
@@ -221,5 +274,5 @@ ctest
 
 # run an example
 cd build
-./examples/examples_integral_templated_tuple
+./examples/examples_integral_template_tuple
 ```

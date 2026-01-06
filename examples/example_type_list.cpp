@@ -48,6 +48,10 @@ int main() {
 	assert(std::get<0>(t) == 42);
 	assert(std::get<1>(t) > 2.7 && std::get<1>(t) < 2.8);
 
+	// unpack - Extract types from std::tuple, std::variant, etc. (inverse of apply)
+	using unpacked_variant = tl::unpack_t<std::variant<int, double, char>>;
+	static_assert(std::is_same_v<unpacked_variant, tl::type_list<int, double, char>>);
+
 	// transform
 	constexpr auto add_const = []<typename T>(std::type_identity<T>) {
 		return std::add_const<T>{};
@@ -105,6 +109,15 @@ int main() {
 	using all_ints = tl::type_list<int, int, int>;
 	static_assert(tl::all_same_v<all_ints>);
 	static_assert(!tl::all_same_v<numbers>);
+
+	// distinct - Remove duplicate types
+	using duplicates = tl::type_list<int, double, int, char, double, float, int>;
+	using unique_types = tl::unique_t<duplicates>;
+	static_assert(tl::size_v<unique_types> == 4);  // int, double, char, float
+
+	// is_set - Check if all types are unique
+	static_assert(tl::all_distinct_v<numbers>);  // int, double, float - all unique
+	static_assert(!tl::all_distinct_v<duplicates>);  // has duplicates
 
 	// for_each - runtime iteration
 	std::vector<size_t> sizes;

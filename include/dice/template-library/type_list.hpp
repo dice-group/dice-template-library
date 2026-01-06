@@ -114,7 +114,7 @@ namespace dice::template_library::type_list {
      *
      * @tparam Lists zero or more type lists to concatenate
      */
-    template<typename... Lists>
+    template<typename ...Lists>
     struct concat;
 
     template<>
@@ -132,7 +132,7 @@ namespace dice::template_library::type_list {
         using type = type_list<Ts..., Us...>;
     };
 
-    template<typename Head, typename... Tail>
+    template<typename Head, typename ...Tail>
     struct concat<Head, Tail...> {
         using type = typename concat<
             Head,
@@ -140,7 +140,7 @@ namespace dice::template_library::type_list {
         >::type;
     };
 
-    template<typename... Lists>
+    template<typename ...Lists>
     using concat_t = typename concat<Lists...>::type;
 
 
@@ -589,6 +589,101 @@ namespace dice::template_library::type_list {
     [[nodiscard]] constexpr Acc fold(Acc init, F &&func) {
         return detail_fold::fold_impl(TL{}, std::move(init), std::forward<F>(func));
     }
+
+	/**
+	 * Extract template arguments from a type and wrap them in a type_list.
+	 * This is the inverse of apply - it takes a template instantiation and
+	 * extracts its type parameters into a type_list.
+	 *
+	 * @tparam T A template instantiation of the form Container<Ts...>
+	 *
+	 * Works with any variadic template including std::tuple, std::variant,
+	 * std::pair, and custom templates.
+	 *
+	 * @example
+	 * @code
+	 * using tuple_types = unpack_t<std::tuple<int, double, char>>;
+	 * static_assert(std::is_same_v<tuple_types, type_list<int, double, char>>);
+	 *
+	 * using variant_types = unpack_t<std::variant<float, bool>>;
+	 * static_assert(std::is_same_v<variant_types, type_list<float, bool>>);
+	 * @endcode
+	 */
+	template<typename T>
+	struct unpack;
+
+	template<template<typename ...> typename Container, typename ...Ts>
+	struct unpack<Container<Ts...>> {
+		using type = type_list<Ts...>;
+	};
+
+	template<typename T>
+	using unpack_t = typename unpack<T>::type;
+
+
+	namespace detail_unique {
+		template<typename Seen, typename ...Remaining>
+		struct unique_impl;
+
+		// Base case: return the accumulated list
+		template<typename ...Seen>
+		struct unique_impl<type_list<Seen...>> {
+			using type = type_list<Seen...>;
+		};
+
+		// Recursive step
+		template<typename ...Seen, typename T, typename ...Remaining>
+		struct unique_impl<type_list<Seen...>, T, Remaining...> {
+			using type = std::conditional_t<
+					contains_v<type_list<Seen...>, T>,
+					typename unique_impl<type_list<Seen...>, Remaining...>::type,
+					typename unique_impl<type_list<Seen..., T>, Remaining...>::type>;
+		};
+	}// namespace detail_unique
+
+	/**
+	 * Remove duplicate types from a type_list, keeping only the first occurrence of each type.
+	 *
+	 * @tparam TL type list
+	 *
+	 * @example
+	 * @code
+	 * using duplicates = type_list<int, double, int, char, double>;
+	 * using unique = unique_t<duplicates>;
+	 * static_assert(std::is_same_v<unique, type_list<int, double, char>>);
+	 * @endcode
+	 */
+	template<typename TL>
+	struct unique;
+
+	template<typename ...Ts>
+	struct unique<type_list<Ts...>> {
+		using type = typename detail_unique::unique_impl<type_list<>, Ts...>::type;
+	};
+
+	template<typename TL>
+	using unique_t = typename unique<TL>::type;
+
+
+	/**
+	 * Check if a type_list contains only unique types (i.e., is a set).
+	 *
+	 * @tparam TL type list
+	 *
+	 * Returns true if all types in the list are distinct, false if there are duplicates.
+	 *
+	 * @example
+	 * @code
+	 * static_assert(is_set_v<type_list<int, double, char>>);
+	 * static_assert(!is_set_v<type_list<int, double, int>>);
+	 * @endcode
+	 */
+	template<typename TL>
+	struct all_distinct : std::bool_constant<size_v<TL> == size_v<unique_t<TL>>> {
+	};
+
+	template<typename TL>
+	inline constexpr bool all_distinct_v = all_distinct<TL>::value;
 
 } // namespace dice::template_library::type_list
 
