@@ -30,6 +30,7 @@ It contains:
 - `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
 - `format_to_ostream`: Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
 - `stdint`: User defined literals for fixed size integers.
+- `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
 
 ## Usage
 
@@ -232,6 +233,11 @@ This is mainly useful for cross-platform applications where the common `123ul` i
 For instance, on macOS `uint64_t` is defined as `unsigned long long`, whereas on Linux it is defined as `unsigned long`.
 Even if both `unsigned long` and `unsigned long long` have the same size, they are still distinct types which can cause issues
 when a type is being deduced.
+
+### `functional`
+Extensions for `<functional>`.
+Currently, contains an implementation of bind_front with constexpr function argument (`bind_front<constexpr_func>(args...)`)
+that is only available from C++26 onwards.
 
 
 ### Further Examples
