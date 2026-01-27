@@ -1,0 +1,11 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
+
+#include <dice/template-library/macro_util.hpp>
+
+TEST_SUITE("macro_util") {
+	TEST_CASE("concat idents") {
+		int const DICE_IDENT_CONCAT(hello_, world) = 42;
+		CHECK_EQ(hello_world, 42);
+	}
+}

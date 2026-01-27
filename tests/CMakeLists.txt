@@ -119,3 +119,6 @@ custom_add_test(tests_stdint)
 
 add_executable(tests_functional tests_functional.cpp)
 custom_add_test(tests_functional)
+
+add_executable(tests_macro_util tests_macro_util.cpp)
+custom_add_test(tests_macro_util)
