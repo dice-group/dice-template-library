@@ -26,4 +26,18 @@
  */
 #define DICE_IDENT_CONCAT(a, b) DICE_IMPL_IDENT_CONCAT(a, b)
 
+
+#ifdef __FILE_NAME__
+/**
+ * The name of the current file.
+ */
+#define DICE_FILENAME __FILE_NAME__
+#else // __FILE_NAME__
+/**
+ * The name of the current file.
+ * Fallback implementation. Uses __FILE__ instead of the unavailable __FILE_NAME__.
+ */
+#define DICE_FILENAME __FILE__
+#endif // __FILE_NAME__
+
 #endif // DICE_TEMPLATELIBRARY_MACROUTIL_HPP

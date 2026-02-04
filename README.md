@@ -31,6 +31,7 @@ It contains:
 - `format_to_ostream`: Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
 - `stdint`: User defined literals for fixed size integers.
 - `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
+- `DICE_DBG`: Prints and returns the value of a given expression for quick and dirty debugging.
 
 ## Usage
 
@@ -238,6 +239,10 @@ when a type is being deduced.
 Extensions for `<functional>`.
 Currently, contains an implementation of bind_front with constexpr function argument (`bind_front<constexpr_func>(args...)`)
 that is only available from C++26 onwards.
+
+### `DICE_DBG`
+A macro for debugging inspired by rust's `dbg!` macro.
+It prints and returns the value of a given expression.
 
 
 ### Further Examples

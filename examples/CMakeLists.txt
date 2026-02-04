@@ -199,3 +199,11 @@ target_link_libraries(examples_functional
         PRIVATE
         dice-template-library::dice-template-library
 )
+
+add_executable(example_dbg
+        example_dbg.cpp)
+target_link_libraries(example_dbg
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
