@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATELIBRARY_TYPELIST_HPP
 #define DICE_TEMPLATELIBRARY_TYPELIST_HPP
 
+#include <dice/template-library/macro_util.hpp>
+
 #include <cstddef>
 #include <functional>
 #include <type_traits>
@@ -62,21 +64,31 @@ namespace dice::template_library::type_list {
      * @tparam TL type list
      */
     template<typename TL>
-    struct last {
-    };
+    struct last;
 
-    template<>
+#if DICE_COMPILER_HAS_BUILTIN(__type_pack_element)
+	template<>
     struct last<type_list<>> {
-    };
+	};
 
-    template<typename T, typename ...Ts>
-    struct last<type_list<T, Ts...>> : last<type_list<Ts...>> {
-    };
+	template<typename T, typename ...Ts>
+	struct last<type_list<T, Ts...>> {
+		using type = __type_pack_element<sizeof...(Ts), T, Ts...>;
+	};
+#else // DICE_COMPILER_HAS_BUILTIN
+	template<>
+    struct last<type_list<>> {
+	};
 
-    template<typename T>
-    struct last<type_list<T>> {
-        using type = T;
-    };
+	template<typename T, typename ...Ts>
+	struct last<type_list<T, Ts...>> : last<type_list<Ts...>> {
+	};
+
+	template<typename T>
+	struct last<type_list<T>> {
+		using type = T;
+	};
+#endif // DICE_COMPILER_HAS_BUILTIN
 
     template<typename TL>
     using last_t = typename last<TL>::type;
@@ -92,18 +104,29 @@ namespace dice::template_library::type_list {
     template<typename TL, size_t idx>
     struct nth;
 
-    template<size_t idx>
-    struct nth<type_list<>, idx> {
-    };
+#if DICE_COMPILER_HAS_BUILTIN(__type_pack_element)
+	template<typename ...Ts, size_t idx> requires (idx < sizeof...(Ts))
+	struct nth<type_list<Ts...>, idx> {
+		using type = __type_pack_element<idx, Ts...>;
+	};
 
-    template<typename T, typename ...Ts>
-    struct nth<type_list<T, Ts...>, 0> {
-        using type = T;
-    };
+	template<typename ...Ts, size_t idx>
+	struct nth<type_list<Ts...>, idx> {
+	};
+#else // DICE_COMPILER_HAS_BUILTIN
+	template<size_t idx>
+	struct nth<type_list<>, idx> {
+	};
 
-    template<typename T, typename ...Ts, size_t idx>
-    struct nth<type_list<T, Ts...>, idx> : nth<type_list<Ts...>, idx - 1> {
-    };
+	template<typename T, typename ...Ts>
+	struct nth<type_list<T, Ts...>, 0> {
+		using type = T;
+	};
+
+	template<typename T, typename ...Ts, size_t idx>
+	struct nth<type_list<T, Ts...>, idx> : nth<type_list<Ts...>, idx - 1> {
+	};
+#endif // DICE_COMPILER_HAS_BUILTIN
 
     template<typename TL, size_t idx>
     using nth_t = typename nth<TL, idx>::type;

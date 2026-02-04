@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATE_LIBRARY_DEFER_HPP
 #define DICE_TEMPLATE_LIBRARY_DEFER_HPP
 
+#include <dice/template-library/macro_util.hpp>
+
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -130,9 +132,7 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
-#define DICE_TEMPLATE_LIBRARY_DETAIL_CONCAT_IMPL(a, b) a ## b
-#define DICE_TEMPLATE_LIBRARY_DETAIL_CONCAT(a, b) DICE_TEMPLATE_LIBRARY_DETAIL_CONCAT_IMPL(a, b)
-#define DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR DICE_TEMPLATE_LIBRARY_DETAIL_CONCAT(_scope_guard, __LINE__)
+#define DICE_TEMPLATE_LIBRARY_DETAIL_SCOPEGUARD_VAR DICE_IDENT_CONCAT(_scope_guard, __LINE__)
 
 /**
  * Execute the given expression on scope exit.
