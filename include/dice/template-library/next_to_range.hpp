@@ -92,6 +92,24 @@ namespace dice::template_library {
 		{ iter.remaining() } -> std::convertible_to<size_t>;
 	};
 
+	/**
+	 * A rust-style forward iterator with nth(off) that consumes elements from the front.
+	 *
+	 * Requirements for I (the following things must be at least protected):
+	 *		{ I::nth(off) } -> std::same_as<std::optional<typename I::value_type>>;
+	 */
+	template<typename I>
+	concept nth_iterator = detail_next_to_iter::detect_nth<I>::value;
+
+	/**
+	 * A rust-style backwards iterator with nth_back(off) that consumes elements from the front.
+	 *
+	 * Requirements for I (the following things must be at least protected):
+	 *		{ I::nth_back(off) } -> std::same_as<std::optional<typename I::value_type>>;
+	 */
+	template<typename I>
+	concept nth_back_iterator = detail_next_to_iter::detect_nth_back<I>::value;
+
 	namespace detail_next_to_iter {
 
 		enum struct direction : bool {
@@ -114,7 +132,7 @@ namespace dice::template_library {
 			using iterator_category = std::input_iterator_tag;
 
 		private:
-			static constexpr bool efficient_skip = dir == direction::forward ? detect_nth<Iter>::value : detect_nth_back<Iter>::value;
+			static constexpr bool efficient_skip = dir == direction::forward ? nth_iterator<Iter> : nth_back_iterator<Iter>;
 
 			std::optional<value_type> cur_;
 			std::optional<value_type> peeked_;
@@ -369,8 +387,16 @@ namespace dice::template_library {
 			}
 		}
 
+		[[nodiscard]] iterator cbegin() const {
+			return begin();
+		}
+
 		static constexpr sentinel end() noexcept {
 			return sentinel{};
+		}
+
+		static constexpr sentinel cend() noexcept {
+			return end();
 		}
 
 		/**
@@ -385,8 +411,16 @@ namespace dice::template_library {
 			}
 		}
 
+		[[nodiscard]] auto crbegin() const requires (nth_back_iterator<Iter>) {
+			return rbegin();
+		}
+
 		static constexpr sentinel rend() noexcept requires (next_back_iterator<Iter>) {
 			return sentinel{};
+		}
+
+		static constexpr sentinel crend() noexcept requires (next_back_iterator<Iter>) {
+			return end();
 		}
 
 		/**
@@ -398,14 +432,46 @@ namespace dice::template_library {
 		}
 
 		/**
+		 * @return the first element of the range
+		 */
+		[[nodiscard]] value_type front() const {
+			return *begin();
+		}
+
+		/**
+		 * @return the last element of the range
+		 */
+		[[nodiscard]] value_type back() const requires (next_back_iterator<Iter>) {
+			return *rbegin();
+		}
+
+		/**
+		 * @param off element index
+		 * @return the element at the given position
+		 */
+		[[nodiscard]] value_type operator[](size_t off) const requires (nth_iterator<Iter>) {
+			return *(begin() + off);
+		}
+
+		/**
 		 * @return the size of the range
 		 */
 		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return make_iter_.remaining();
 		}
 
+		/**
+		 * @return true iff the range is empty
+		 */
 		[[nodiscard]] bool empty() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return size() == 0;
+		}
+
+		/**
+		 * @return true iff the range is non-empty
+		 */
+		[[nodiscard]] explicit operator bool() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+			return !empty();
 		}
 	};
 

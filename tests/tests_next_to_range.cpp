@@ -115,6 +115,12 @@ TEST_SUITE("next_to_range") {
 	TEST_CASE("peeking") {
 		values_yielder ints{1, 2};
 
+		CHECK_FALSE(ints.empty());
+		CHECK_EQ(ints.size(), 2);
+		CHECK(ints);
+
+		CHECK_EQ(ints.front(), 1);
+
 		auto iter = ints.begin();
 		CHECK_NE(iter, ints.end());
 		CHECK_EQ(*iter, 1);
@@ -136,6 +142,17 @@ TEST_SUITE("next_to_range") {
 		auto rev = ints.reversed();
 
 		CHECK(std::ranges::equal(rev, std::vector{2, 1}));
+
+		CHECK_EQ(ints.front(), 1);
+		CHECK_EQ(ints.back(), 2);
+	}
+
+	TEST_CASE("empty") {
+		values_yielder empty{};
+
+		CHECK_EQ(empty.size(), 0);
+		CHECK(empty.empty());
+		CHECK_FALSE(empty);
 	}
 
 	TEST_CASE("random access") {
@@ -153,6 +170,11 @@ TEST_SUITE("next_to_range") {
 
 		++it;
 		CHECK_EQ(it, ints.end());
+
+		CHECK_EQ(ints[0], 0);
+		CHECK_EQ(ints[1], 1);
+		CHECK_EQ(ints[2], 2);
+		CHECK_EQ(ints[3], 3);
 	}
 
 	TEST_CASE("postincrement") {
