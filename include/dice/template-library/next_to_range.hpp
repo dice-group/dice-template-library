@@ -403,6 +403,10 @@ namespace dice::template_library {
 		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return make_iter_.remaining();
 		}
+
+		[[nodiscard]] bool empty() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+			return size() == 0;
+		}
 	};
 
 } // namespace dice::template_library
