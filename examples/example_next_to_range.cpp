@@ -18,7 +18,6 @@ public:
 	explicit iota_iter_impl(int start = 0) noexcept : cur_{start} {
 	}
 
-protected:
 	[[nodiscard]] std::optional<int> next() {
 		return cur_++;
 	}

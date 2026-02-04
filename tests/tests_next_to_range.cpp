@@ -30,7 +30,6 @@ TEST_SUITE("next_to_range") {
 		non_copy_iota_iter &operator=(non_copy_iota_iter const &other) = delete;
 		~non_copy_iota_iter() = default;
 
-	protected:
 		[[nodiscard]] std::optional<int> next() {
 			return cur_++;
 		}
@@ -52,7 +51,6 @@ TEST_SUITE("next_to_range") {
 		explicit values_yielder_iter(std::initializer_list<int> values) : values_{values}, cur_{0}, end_{values_.size()} {
 		}
 
-	protected:
 		[[nodiscard]] std::optional<int> next() {
 			if (cur_ >= end_) {
 				return std::nullopt;
@@ -89,7 +87,6 @@ TEST_SUITE("next_to_range") {
 			return next_back();
 		}
 
-	public:
 		[[nodiscard]] size_t remaining() const noexcept {
 			return end_ - cur_;
 		}
@@ -175,6 +172,20 @@ TEST_SUITE("next_to_range") {
 		CHECK_EQ(ints[1], 1);
 		CHECK_EQ(ints[2], 2);
 		CHECK_EQ(ints[3], 3);
+
+		std::ranges::equal(ints, std::vector{0, 1, 2, 3});
+
+		ints.advance(0);
+		CHECK(std::ranges::equal(ints, std::vector{0, 1, 2, 3}));
+
+		ints.advance(2);
+		CHECK(std::ranges::equal(ints, std::vector{2, 3}));
+
+		ints.advance(1);
+		CHECK(std::ranges::equal(ints, std::vector{3}));
+
+		ints.advance(1);
+		CHECK(std::ranges::equal(ints, std::vector<int>{}));
 	}
 
 	TEST_CASE("postincrement") {

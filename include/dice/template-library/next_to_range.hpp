@@ -12,77 +12,23 @@
 #include <utility>
 
 namespace dice::template_library {
-
-	namespace detail_next_to_iter {
-		template<typename T>
-		struct detect_next : std::false_type {
-		};
-
-		template<typename T> requires (std::is_class_v<T>)
-		struct detect_next<T> : T {
-			static constexpr bool value = requires {
-				typename T::value_type;
-				{ std::declval<detect_next>().next() } -> std::same_as<std::optional<typename T::value_type>>;
-			};
-		};
-
-		template<typename T>
-		struct detect_next_back : std::false_type {
-		};
-
-		template<typename T> requires (std::is_class_v<T>)
-		struct detect_next_back<T> : T {
-			static constexpr bool value = requires {
-				typename T::value_type;
-				{ std::declval<detect_next_back>().next_back() } -> std::same_as<std::optional<typename T::value_type>>;
-			};
-		};
-
-		template<typename T>
-		struct detect_nth : std::false_type {
-		};
-
-		template<typename T> requires (std::is_class_v<T>)
-		struct detect_nth<T> : T {
-			static constexpr bool value = requires (size_t n) {
-				typename T::value_type;
-				{ std::declval<detect_nth>().nth(n) } -> std::same_as<std::optional<typename T::value_type>>;
-			};
-		};
-
-		template<typename T>
-		struct detect_nth_back : std::false_type {
-		};
-
-		template<typename T> requires (std::is_class_v<T>)
-		struct detect_nth_back<T> : T {
-			static constexpr bool value = requires (size_t n) {
-				typename T::value_type;
-				{ std::declval<detect_nth_back>().nth_back(n) } -> std::same_as<std::optional<typename T::value_type>>;
-			};
-		};
-	} // namespace detail_next_to_iter
-
-
 	/**
 	 * A rust-style forward iterator with next() that consumes elements from the front.
-	 *
-	  * Requirements for I (the following things must be at least protected):
-	 *		typename I::value_type;
-	 *		{ I::next() } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept next_iterator = detail_next_to_iter::detect_next<I>::value;
+	concept next_iterator = requires (I &iter) {
+		typename I::value_type;
+		{ iter.next() } -> std::same_as<std::optional<typename I::value_type>>;
+	};
 
 	/**
 	 * A rust-style backwards iterator with a next_back() function that consumes elements from the back.
-	 *
-	 * Requirements for I (the following things must be at least protected):
-	 *		typename I::value_type;
-	 *		{ I::next_back() } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept next_back_iterator = detail_next_to_iter::detect_next_back<I>::value;
+	concept next_back_iterator = requires (I &iter) {
+		typename I::value_type;
+		{ iter.next_back() } -> std::same_as<std::optional<typename I::value_type>>;
+	};
 
 	/**
 	 * A rust-style iterator that knows how many elements it has left.
@@ -94,12 +40,12 @@ namespace dice::template_library {
 
 	/**
 	 * A rust-style forward iterator with nth(off) that consumes elements from the front.
-	 *
-	 * Requirements for I (the following things must be at least protected):
-	 *		{ I::nth(off) } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept nth_iterator = detail_next_to_iter::detect_nth<I>::value;
+	concept nth_iterator = requires (I &iter, size_t off) {
+		typename I::value_type;
+		{ iter.nth(off) } -> std::same_as<std::optional<typename I::value_type>>;
+	};
 
 	/**
 	 * A rust-style backwards iterator with nth_back(off) that consumes elements from the front.
@@ -108,10 +54,13 @@ namespace dice::template_library {
 	 *		{ I::nth_back(off) } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept nth_back_iterator = detail_next_to_iter::detect_nth_back<I>::value;
+	concept nth_back_iterator = requires (I &iter, size_t off) {
+		typename I::value_type;
+		{ iter.nth_back(off) } -> std::same_as<std::optional<typename I::value_type>>;
+	};
+
 
 	namespace detail_next_to_iter {
-
 		enum struct direction : bool {
 			forward,
 			backward,
@@ -364,6 +313,14 @@ namespace dice::template_library {
 			std::function<Iter()>
 		> make_iter_;
 
+		[[nodiscard]] Iter iter() const {
+			if constexpr (std::is_copy_constructible_v<Iter>) {
+				return make_iter_;
+			} else {
+				return make_iter_();
+			}
+		}
+
 	public:
 		template<typename ...Args> requires (!std::is_copy_constructible_v<Iter>)
 		explicit next_to_range(Args &&...args)
@@ -380,11 +337,7 @@ namespace dice::template_library {
 		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
 		 */
 		[[nodiscard]] iterator begin() const {
-			if constexpr (std::is_copy_constructible_v<Iter>) {
-				return iterator{make_iter_};
-			} else {
-				return iterator{make_iter_()};
-			}
+			return iterator{iter()};
 		}
 
 		[[nodiscard]] iterator cbegin() const {
@@ -404,11 +357,7 @@ namespace dice::template_library {
 		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
 		 */
 		[[nodiscard]] auto rbegin() const requires (next_back_iterator<Iter>) {
-			if constexpr (std::is_copy_constructible_v<Iter>) {
-				return next_back_to_reverse_iter<Iter>{make_iter_};
-			} else {
-				return next_back_to_reverse_iter<Iter>{make_iter_()};
-			}
+			return next_back_to_reverse_iter<Iter>{iter()};
 		}
 
 		[[nodiscard]] auto crbegin() const requires (nth_back_iterator<Iter>) {
@@ -434,23 +383,23 @@ namespace dice::template_library {
 		/**
 		 * @return the first element of the range
 		 */
-		[[nodiscard]] value_type front() const {
-			return *begin();
+		[[nodiscard]] value_type front() const requires (std::is_copy_constructible_v<Iter>) {
+			return *auto{make_iter_}.next();
 		}
 
 		/**
 		 * @return the last element of the range
 		 */
-		[[nodiscard]] value_type back() const requires (next_back_iterator<Iter>) {
-			return *rbegin();
+		[[nodiscard]] value_type back() const requires (std::is_copy_constructible_v<Iter> && next_back_iterator<Iter>) {
+			return *auto{make_iter_}.next_back();
 		}
 
 		/**
 		 * @param off element index
 		 * @return the element at the given position
 		 */
-		[[nodiscard]] value_type operator[](size_t off) const requires (nth_iterator<Iter>) {
-			return *(begin() + off);
+		[[nodiscard]] value_type operator[](size_t off) const requires (std::is_copy_constructible_v<Iter> && nth_iterator<Iter>) {
+			return *auto{make_iter_}.nth(off);
 		}
 
 		/**
@@ -472,6 +421,23 @@ namespace dice::template_library {
 		 */
 		[[nodiscard]] explicit operator bool() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return !empty();
+		}
+
+		/**
+		 * Similar to std::ranges::subrange::advance, drops the first n elements off the start of the range.
+		 *
+		 * @note does not support re-adding the elements with negative offsets.
+		 * @param off number of elements to drop
+		 * @return *this
+		 */
+		next_to_range &advance(size_t off) requires (std::is_copy_constructible_v<Iter> && nth_iterator<Iter>) {
+			if (off != 0) {
+				// "nth" advances behind the nth element
+				off -= 1;
+				(void) make_iter_.nth(off);
+			}
+
+			return *this;
 		}
 	};
 
