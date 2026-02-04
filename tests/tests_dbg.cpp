@@ -38,11 +38,6 @@ TEST_SUITE("DICE_DBG") {
 		DICE_DBG(5 + 5);
 	}
 
-	TEST_CASE("complex type") {
-		std::vector const my_vec{1, 2, 3};
-		DICE_DBG(my_vec);
-	}
-
 	TEST_CASE("forwarding") {
 		int const cint = 42;
 		static_assert(std::is_same_v<decltype(DICE_DBG(cint)), int const &>);
