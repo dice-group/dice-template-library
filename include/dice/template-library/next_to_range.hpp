@@ -168,15 +168,15 @@ namespace dice::template_library {
 			using base_iterator = Iter;
 			using sentinel = std::default_sentinel_t;
 			using value_type = typename Iter::value_type;
-			using reference = value_type const &;
-			using pointer = value_type const *;
+			using reference = value_type &;
+			using pointer = value_type *;
 			using difference_type = std::ptrdiff_t;
 			using iterator_category = std::input_iterator_tag;
 
 		private:
 			static constexpr bool efficient_skip = dir == direction::forward ? nth_iterator<Iter> : nth_back_iterator<Iter>;
 
-			std::optional<value_type> cur_;
+			mutable std::optional<value_type> cur_;
 			std::optional<value_type> peeked_;
 
 			[[nodiscard]] std::optional<value_type> next() {
@@ -241,19 +241,12 @@ namespace dice::template_library {
 				return &*cur_;
 			}
 
-			/**
-			 * Access the current value of the iterator mutably.
-			 * This is required because in ranges, iterators must have the same reference type for const and non-const access of operator*.
-			 * This means a non-const overload of operator* that returns a non-const reference is not allowed.
-			 *
-			 * @return reference to current value
-			 */
-			[[nodiscard]] value_type &value() noexcept {
+			[[nodiscard]] [[deprecated("Use operator*")]] value_type &value() noexcept {
 				assert(cur_.has_value());
 				return *cur_;
 			}
 
-			[[nodiscard]] value_type const &value() const noexcept {
+			[[nodiscard]] [[deprecated("Use operator*")]] value_type const &value() const noexcept {
 				assert(cur_.has_value());
 				return *cur_;
 			}

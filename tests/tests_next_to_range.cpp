@@ -243,4 +243,14 @@ TEST_SUITE("next_to_range") {
 
 		CHECK(std::ranges::equal(ints, std::vector<int>{2, 3, 4}));
 	}
+
+	TEST_CASE_TEMPLATE("non-const element references", R, values_range, values_view) {
+		std::vector<int> vec{1, 2, 3};
+		R const ints{vec};
+
+		for (int &x : ints) {
+			// just testing if this compiles with non-const reference
+			CHECK(x > 0);
+		}
+	}
 }
