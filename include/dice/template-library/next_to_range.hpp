@@ -12,23 +12,76 @@
 #include <utility>
 
 namespace dice::template_library {
+	namespace detail_next_to_iter {
+		template<typename T>
+		struct detect_next : std::false_type {
+		};
+
+		template<typename T> requires (std::is_class_v<T>)
+		struct detect_next<T> : T {
+			static constexpr bool value = requires {
+				typename T::value_type;
+				{ std::declval<detect_next>().next() } -> std::same_as<std::optional<typename T::value_type>>;
+			};
+		};
+
+		template<typename T>
+		struct detect_next_back : std::false_type {
+		};
+
+		template<typename T> requires (std::is_class_v<T>)
+		struct detect_next_back<T> : T {
+			static constexpr bool value = requires {
+				typename T::value_type;
+				{ std::declval<detect_next_back>().next_back() } -> std::same_as<std::optional<typename T::value_type>>;
+			};
+		};
+
+		template<typename T>
+		struct detect_nth : std::false_type {
+		};
+
+		template<typename T> requires (std::is_class_v<T>)
+		struct detect_nth<T> : T {
+			static constexpr bool value = requires (size_t n) {
+				typename T::value_type;
+				{ std::declval<detect_nth>().nth(n) } -> std::same_as<std::optional<typename T::value_type>>;
+			};
+		};
+
+		template<typename T>
+		struct detect_nth_back : std::false_type {
+		};
+
+		template<typename T> requires (std::is_class_v<T>)
+		struct detect_nth_back<T> : T {
+			static constexpr bool value = requires (size_t n) {
+				typename T::value_type;
+				{ std::declval<detect_nth_back>().nth_back(n) } -> std::same_as<std::optional<typename T::value_type>>;
+			};
+		};
+	} // namespace detail_next_to_iter
+
+
 	/**
 	 * A rust-style forward iterator with next() that consumes elements from the front.
+	 *
+	  * Requirements for I (the following things must be at least protected):
+	 *		typename I::value_type;
+	 *		{ I::next() } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept next_iterator = requires (I &iter) {
-		typename I::value_type;
-		{ iter.next() } -> std::same_as<std::optional<typename I::value_type>>;
-	};
+	concept next_iterator = detail_next_to_iter::detect_next<I>::value;
 
 	/**
 	 * A rust-style backwards iterator with a next_back() function that consumes elements from the back.
+	 *
+	 * Requirements for I (the following things must be at least protected):
+	 *		typename I::value_type;
+	 *		{ I::next_back() } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept next_back_iterator = requires (I &iter) {
-		typename I::value_type;
-		{ iter.next_back() } -> std::same_as<std::optional<typename I::value_type>>;
-	};
+	concept next_back_iterator = detail_next_to_iter::detect_next_back<I>::value;
 
 	/**
 	 * A rust-style iterator that knows how many elements it has left.
@@ -40,21 +93,61 @@ namespace dice::template_library {
 
 	/**
 	 * A rust-style forward iterator with nth(off) that consumes elements from the front.
+	 *
+	 * Requirements for I (the following things must be at least protected):
+	 *		typename I::value_type;
+	 *		{ I::nth(off) } -> std::same_as<std::optional<typename I::value_type>>;
 	 */
 	template<typename I>
-	concept nth_iterator = requires (I &iter, size_t off) {
+	concept nth_iterator = detail_next_to_iter::detect_nth<I>::value;
+
+	/**
+	 * A rust-style backwards iterator with nth_back(off) that consumes elements from the front.
+	 *
+	 * Requirements for I (the following things must be at least protected):
+	 *		typename I::value_type;
+	 *		{ I::nth_back(off) } -> std::same_as<std::optional<typename I::value_type>>;
+	 */
+	template<typename I>
+	concept nth_back_iterator = detail_next_to_iter::detect_nth_back<I>::value;
+
+
+	/**
+	 * A rust-style forward iterator with next() that consumes elements from the front.
+	 * Unlike next_iterator, this concept requires public access.
+	 */
+	template<typename I>
+	concept next_iterator2 = requires (I &iter) {
+		typename I::value_type;
+		{ iter.next() } -> std::same_as<std::optional<typename I::value_type>>;
+	};
+
+	/**
+	 * A rust-style backwards iterator with a next_back() function that consumes elements from the back.
+	 * Unlike next_back_iterator, this concept requires public access.
+	 */
+	template<typename I>
+	concept next_back_iterator2 = requires (I &iter) {
+		typename I::value_type;
+		{ iter.next_back() } -> std::same_as<std::optional<typename I::value_type>>;
+	};
+
+	/**
+	 * A rust-style forward iterator with nth(off) that consumes elements from the front.
+	 * Unlike nth_iterator, this concept requires public access.
+	 */
+	template<typename I>
+	concept nth_iterator2 = requires (I &iter, size_t off) {
 		typename I::value_type;
 		{ iter.nth(off) } -> std::same_as<std::optional<typename I::value_type>>;
 	};
 
 	/**
 	 * A rust-style backwards iterator with nth_back(off) that consumes elements from the front.
-	 *
-	 * Requirements for I (the following things must be at least protected):
-	 *		{ I::nth_back(off) } -> std::same_as<std::optional<typename I::value_type>>;
+	 * Unlike nth_back_iterator, this concept requires public access.
 	 */
 	template<typename I>
-	concept nth_back_iterator = requires (I &iter, size_t off) {
+	concept nth_back_iterator2 = requires (I &iter, size_t off) {
 		typename I::value_type;
 		{ iter.nth_back(off) } -> std::same_as<std::optional<typename I::value_type>>;
 	};
@@ -360,6 +453,91 @@ namespace dice::template_library {
 			return next_back_to_reverse_iter<Iter>{iter()};
 		}
 
+		[[nodiscard]] auto crbegin() const requires (next_back_iterator<Iter>) {
+			return rbegin();
+		}
+
+		static constexpr sentinel rend() noexcept requires (next_back_iterator<Iter>) {
+			return sentinel{};
+		}
+
+		static constexpr sentinel crend() noexcept requires (next_back_iterator<Iter>) {
+			return end();
+		}
+
+		/**
+		 * @return a reversed view of *this
+		 * @note this exists because std::views::reverse requires `std::bidirectional_iterator` from the iterator
+		 */
+		[[nodiscard]] auto reversed() const requires (next_back_iterator<Iter>) {
+			return std::ranges::subrange(rbegin(), rend());
+		}
+
+		/**
+		 * @return the size of the range
+		 */
+		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+			return make_iter_.remaining();
+		}
+
+		/**
+		 * @return true iff the range is empty
+		 */
+		[[nodiscard]] bool empty() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+			return size() == 0;
+		}
+
+		/**
+		 * @return true iff the range is non-empty
+		 */
+		[[nodiscard]] explicit operator bool() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+			return !empty();
+		}
+	};
+
+	template<next_iterator Iter> requires (std::is_copy_constructible_v<Iter>)
+	struct next_to_view : std::ranges::view_base {
+		using iterator = next_to_iter<Iter>;
+		using sentinel = typename iterator::sentinel;
+		using value_type = typename iterator::value_type;
+
+	private:
+		Iter iter_;
+
+	public:
+		template<typename ...Args>
+		explicit next_to_view(Args &&...args)
+			: iter_{std::forward<Args>(args)...} {
+		}
+
+		/**
+		 * @return a new iterator from the beginning of the range
+		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
+		 */
+		[[nodiscard]] iterator begin() const {
+			return iterator{iter_};
+		}
+
+		[[nodiscard]] iterator cbegin() const {
+			return begin();
+		}
+
+		static constexpr sentinel end() noexcept {
+			return sentinel{};
+		}
+
+		static constexpr sentinel cend() noexcept {
+			return end();
+		}
+
+		/**
+		 * @return a new iterator from the end of the range
+		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
+		 */
+		[[nodiscard]] auto rbegin() const requires (next_back_iterator<Iter>) {
+			return next_back_to_reverse_iter<Iter>{iter_};
+		}
+
 		[[nodiscard]] auto crbegin() const requires (nth_back_iterator<Iter>) {
 			return rbegin();
 		}
@@ -383,44 +561,23 @@ namespace dice::template_library {
 		/**
 		 * @return the first element of the range
 		 */
-		[[nodiscard]] value_type front() const requires (std::is_copy_constructible_v<Iter>) {
-			return *auto{make_iter_}.next();
+		[[nodiscard]] value_type front() const requires (next_iterator2<Iter>) {
+			return *auto{iter_}.next();
 		}
 
 		/**
 		 * @return the last element of the range
 		 */
-		[[nodiscard]] value_type back() const requires (std::is_copy_constructible_v<Iter> && next_back_iterator<Iter>) {
-			return *auto{make_iter_}.next_back();
+		[[nodiscard]] value_type back() const requires (next_back_iterator2<Iter>) {
+			return *auto{iter_}.next_back();
 		}
 
 		/**
 		 * @param off element index
 		 * @return the element at the given position
 		 */
-		[[nodiscard]] value_type operator[](size_t off) const requires (std::is_copy_constructible_v<Iter> && nth_iterator<Iter>) {
-			return *auto{make_iter_}.nth(off);
-		}
-
-		/**
-		 * @return the size of the range
-		 */
-		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
-			return make_iter_.remaining();
-		}
-
-		/**
-		 * @return true iff the range is empty
-		 */
-		[[nodiscard]] bool empty() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
-			return size() == 0;
-		}
-
-		/**
-		 * @return true iff the range is non-empty
-		 */
-		[[nodiscard]] explicit operator bool() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
-			return !empty();
+		[[nodiscard]] value_type operator[](size_t off) const requires (nth_iterator2<Iter>) {
+			return *auto{iter_}.nth(off);
 		}
 
 		/**
@@ -430,14 +587,35 @@ namespace dice::template_library {
 		 * @param off number of elements to drop
 		 * @return *this
 		 */
-		next_to_range &advance(size_t off) requires (std::is_copy_constructible_v<Iter> && nth_iterator<Iter>) {
+		next_to_view &advance(size_t off) requires (nth_iterator2<Iter>) {
 			if (off != 0) {
 				// "nth" advances behind the nth element
 				off -= 1;
-				(void) make_iter_.nth(off);
+				(void) iter_.nth(off);
 			}
 
 			return *this;
+		}
+
+		/**
+		 * @return the size of the range
+		 */
+		[[nodiscard]] size_t size() const noexcept requires (sized_next_iterator<Iter>) {
+			return iter_.remaining();
+		}
+
+		/**
+		 * @return true iff the range is empty
+		 */
+		[[nodiscard]] bool empty() const noexcept requires (sized_next_iterator<Iter>) {
+			return size() == 0;
+		}
+
+		/**
+		 * @return true iff the range is non-empty
+		 */
+		[[nodiscard]] explicit operator bool() const noexcept requires (sized_next_iterator<Iter>) {
+			return !empty();
 		}
 	};
 
