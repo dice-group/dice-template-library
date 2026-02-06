@@ -28,7 +28,6 @@ TEST_SUITE("next_to_range") {
 		non_copy_iota_iter &operator=(non_copy_iota_iter const &other) = delete;
 		~non_copy_iota_iter() = default;
 
-	protected:
 		[[nodiscard]] std::optional<value_type> next() {
 			return cur_++;
 		}
