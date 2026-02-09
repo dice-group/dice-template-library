@@ -65,6 +65,10 @@ custom_add_test(tests_fmt_join)
 
 add_executable(tests_generator tests_generator.cpp)
 custom_add_test(tests_generator)
+target_link_libraries(tests_generator PRIVATE Boost::headers)
+
+add_executable(tests_graph tests_graph.cpp)
+custom_add_test(tests_graph)
 
 add_executable(tests_channel tests_channel.cpp)
 custom_add_test(tests_channel)
