@@ -14,7 +14,6 @@
 namespace dice::template_library {
 	/**
 	 * A rust-style forward iterator with next() that consumes elements from the front.
-	 * Unlike next_iterator, this concept requires public access.
 	 */
 	template<typename I>
 	concept next_iterator = requires (I &iter) {
@@ -24,7 +23,6 @@ namespace dice::template_library {
 
 	/**
 	 * A rust-style backwards iterator with a next_back() function that consumes elements from the back.
-	 * Unlike next_back_iterator, this concept requires public access.
 	 */
 	template<typename I>
 	concept next_back_iterator = requires (I &iter) {
@@ -34,7 +32,6 @@ namespace dice::template_library {
 
 	/**
 	 * A rust-style forward iterator with nth(off) that consumes elements from the front.
-	 * Unlike nth_iterator, this concept requires public access.
 	 */
 	template<typename I>
 	concept nth_iterator = requires (I &iter, size_t off) {
@@ -44,7 +41,6 @@ namespace dice::template_library {
 
 	/**
 	 * A rust-style backwards iterator with nth_back(off) that consumes elements from the front.
-	 * Unlike nth_back_iterator, this concept requires public access.
 	 */
 	template<typename I>
 	concept nth_back_iterator = requires (I &iter, size_t off) {
