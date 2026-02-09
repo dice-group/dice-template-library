@@ -246,6 +246,9 @@ namespace dice::template_library {
 	 * Make a C++-20 range (**not** a view) out of a rust-style iterator.
 	 * This is meant to save you from writing all the boilerplate that is required for C++ ranges and iterators.
 	 *
+	 * Hint: Use next_to_range when the iterator owns some data that is not cheaply copyable (e.g. it contains a vector).
+	 * If the iterator is cheaply copyable, use next_to_view instead (e.g. for an iota implementation).
+	 *
 	 * @tparam Iter base rust-style iterator
 	 *
 	 * Requirements for Iter:
@@ -382,7 +385,10 @@ namespace dice::template_library {
 
 	/**
 	 * Similar to next_to_range, except that it makes a C++20 view (~ cheaply copyable range, see details on https://www.en.cppreference.com/w/cpp/ranges/view.html)
-	 * out of a rust-style iterator
+	 * out of a rust-style iterator.
+	 *
+	 * Hint: Use next_to_range when the iterator owns some data that is not cheaply copyable (e.g. it contains a vector).
+	 * If the iterator is cheaply copyable, use next_to_view instead (e.g. for an iota implementation).
 	 *
 	 * @tparam Iter base rust-style iterator
 	 *
