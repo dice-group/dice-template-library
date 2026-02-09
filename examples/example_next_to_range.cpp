@@ -18,7 +18,6 @@ public:
 	explicit iota_iter_impl(int start = 0) noexcept : cur_{start} {
 	}
 
-protected:
 	[[nodiscard]] std::optional<int> next() {
 		return cur_++;
 	}
@@ -28,9 +27,13 @@ protected:
 using iota_iter = dtl::next_to_iter<iota_iter_impl>;
 static_assert(std::input_iterator<iota_iter>);
 
-// Create a C++-style range
+// Create a C++20 range
 using iota = dtl::next_to_range<iota_iter_impl>;
 static_assert(std::ranges::range<iota>);
+
+// Create a C++20 view (~ cheaply copyable range)
+using iota_view = dtl::next_to_view<iota_iter_impl>;
+static_assert(std::ranges::view<iota_view>);
 
 
 int main() {
