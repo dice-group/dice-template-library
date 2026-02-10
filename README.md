@@ -18,7 +18,6 @@ It contains:
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
-- `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
@@ -154,13 +153,6 @@ Works just like [`fmt::join`](https://fmt.dev/latest/api/#range-and-tuple-format
 ### `flex_array`
 A combination of `std::array`, `std::span` and a `vector` with small buffer optimization where the size is either
 statically known or a runtime variable depending on the `extent`/`max_extent` template parameters
-
-### `generator`
-The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf).
-By default, the generator and corresponding utilities are exported under the `dice::template_library::` namespace.
-If you want this generator to serve as a drop in replacement for `std::generator` until it arrives
-use `#define DICE_TEMPLATELIBRARY_GENERATOR_STD_COMPAT 1` before including the generator header. That will export
-all generator-related things under namespace `std::`.
 
 ### `channel`
 A single-producer, single-consume queue. This can be used to communicate between threads in a more high level
