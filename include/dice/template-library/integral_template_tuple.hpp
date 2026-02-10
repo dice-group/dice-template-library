@@ -1,13 +1,7 @@
-#ifndef HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
-#define HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
+#ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP
+#define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP
 
-/**
- * dice::template_library::integral_template_tuple is **DEPRECATED**.
- * It will be removed in next major release.
- *
- * Use dice::template_library::integral_template_tuple_v2 instead.
- */
-
+#include <dice/template-library/integral_sequence.hpp>
 #include <dice/template-library/standard_layout_tuple.hpp>
 #include <dice/template-library/tuple_algorithm.hpp>
 #include <dice/template-library/type_list.hpp>
@@ -20,76 +14,44 @@
 
 namespace dice::template_library {
 
-	namespace itt_detail {
+	namespace detail_itt {
 		/**
-		 * generates the std::integer_sequence<Int, first, ..., last>
-		 * @note first is allowed to be greater than last
-		 *
-		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer
-		 * @tparam last the end integer
-		 */
-		template<std::integral Int, Int first, Int last, Int... ixs>
-		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
-			std::integer_sequence<Int, ixs..., first> const acc;
-
-			if constexpr (first == last) {
-				return acc;
-			} else if constexpr (first < last) {
-				return make_integer_sequence<Int, first + 1, last>(acc);
-			} else {
-				return make_integer_sequence<Int, first - 1, last>(acc);
-			}
-		}
-
-		/**
-		 * Generates a type_list<T<first>, ..., T<last>>
-		 * from a type_list<std::integral_constant<first>, ..., std::integral_constant<last>>
-		 * which is generated from a std::integer_sequence<first, ..., last>
+		 * Generates a standard_layout_tuple<T<ix>...> from a type_list<T<ix>...>
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using make_type_list = type_list::transform_t<
-				type_list::integer_sequence_to_type_list_t<decltype(make_integer_sequence<decltype(first), first, last>())>,
-				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
-					return std::type_identity<T<ix>>{};
-				}>;
-
-		/**
-		 * Generates a standard_layout_tuple<T<first>, ..., T<last>>
-		 * from a type_list<T<first>, ..., T<last>>
-		 */
-		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using make_tuple = type_list::apply_t<make_type_list<first, last, T>, standard_layout_tuple>;
-
-	}// namespace itt_detail
+		using make_tuple = type_list::apply_t<detail_integral_template_util::make_type_list<first, last, T>, standard_layout_tuple>;
+	} // namespace detail_itt
 
 	/**
-	 * A std::tuple-like type holding elements T<first> .. T<last> (inclusive).
+	 * A std::tuple-like type holding elements T<ix> for each ix in the sequence
 	 *
-	 * @tparam first first ix to provide to T<ix>
-	 * @tparam last last ix to provide to T<ix>
-	 * @tparam T the template that gets instantiated with T<ix> for ix in first..last (inclusive)
+	 * Direction is automatic:
+	 * - first < last: ascending [first, last) → T<first> .. T<last-1>
+	 * - first > last: descending (last, first] → T<first> .. T<last+1>
+	 * - first == last: empty tuple
 	 *
-	 * @note first is allowed to be smaller then last.
+	 * @tparam first first ix to provide to T<ix> (inclusive)
+	 * @tparam last last ix (exclusive, not included in the tuple)
+	 * @tparam T the template that gets instantiated with T<ix>
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct [[deprecated("use integral_template_tuple_v2 instead")]] integral_template_tuple : itt_detail::make_tuple<first, last, T> {
+	struct integral_template_tuple : detail_itt::make_tuple<first, last, T> {
 		using index_type = decltype(first);
 
 		template<index_type ix>
 		using value_type = T<ix>;
 
 	private:
-		using base = itt_detail::make_tuple<first, last, T>;
-
 		template<index_type ix>
-		static consteval void check_ix() {
-			static_assert(ix >= std::min(first, last) && ix <= std::max(first, last), "Index out of range");
+		static constexpr void check_ix() {
+			static_assert(detail_integral_template_util::valid_index_v<first, last, ix>, "Index out of range");
 		}
+
+		using base = detail_itt::make_tuple<first, last, T>;
 
 		template<index_type ix>
 		static consteval size_t make_index() {
-			return first <= last ? static_cast<size_t>(ix - first) : static_cast<size_t>(first - ix);
+			return static_cast<size_t>(detail_integral_template_util::to_offset<first, last>(ix));
 		}
 
 	public:
@@ -98,13 +60,13 @@ namespace dice::template_library {
 		/**
 		 * Get the element with the type value_type<ix>
 		 *
-		 * @tparam ix index in range [first, ..., last]
+		 * @tparam ix index in the valid range (depends on direction)
 		 * @return reference to the element of type value_type<ix>
 		 */
 		template<index_type ix, typename Self>
 		[[nodiscard]] constexpr decltype(auto) get(this Self &&self) noexcept {
 			check_ix<ix>();
-			return std::forward<Self>(self).base::template get<make_index<ix>()>();
+			return dice::template_library::forward_like<Self>(self.base::template get<make_index<ix>()>());
 		}
 
 		/**
@@ -118,7 +80,7 @@ namespace dice::template_library {
 		 * A typical use case for the return value would be accumulation of some value over all elements:
 		 *
 		 * @code
-		 * integral_template_tuple<1, 5, some_container_type> tup;
+		 * integral_template_tuple<1, 5, some_container_type> tup; // contains T<1>, T<2>, T<3>, T<4>
 		 *
 		 * auto combined_size = tup.visit([acc = 0ul](auto const &c) mutable {
 		 *     return acc += c.size();
@@ -132,29 +94,37 @@ namespace dice::template_library {
 		}
 
 		/**
-		 * Returns a reference to the subtuple of this obtained by dropping every element T<IX> where IX not in [new_first, ..., new_last] (inclusive)
+		 * Returns a reference to the subtuple of this obtained by dropping every element T<IX> where IX not in the new range
 		 *
-		 * @tparam new_first new first value
-		 * @tparam new_last new last value
+		 * @tparam new_first new first value (inclusive)
+		 * @tparam new_last new last value (exclusive)
 		 * @return subtuple
 		 */
 		template<index_type new_first, index_type new_last, typename Self>
 		constexpr decltype(auto) subtuple(this Self &&self) noexcept {
 			static_assert(std::is_standard_layout_v<integral_template_tuple>,
-						  "Types inhabiting the integral_template_tuple must be standard layout for subtuple to work correctly.");
-			static_assert(first <= last ? (new_first >= first && new_last <= last) : (new_first <= first && new_last >= last),
-						  "Indices for subtuple must be in range.");
+						  "Types inhabiting the integral_template_tuple_impl must be standard layout for subtuple to work correctly.");
 
+			auto static constexpr sub_last = [] {
+				if constexpr (first < last) {
+					// Ascending
+					static_assert(new_first >= first && new_last <= last, "Indices for subtuple must be in range.");
+					return new_last - new_first;
+				} else {
+					// Descending
+					static_assert(new_first <= first && new_last >= last, "Indices for subtuple must be in range.");
+					return new_first - new_last;
+				}
+			}();
 			using new_tuple = integral_template_tuple<new_first, new_last, T>;
-
-			// SAFETY: integral_template_tuple has the exact same layout as standard_layout_tuple (and is standard layout)
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
-					std::forward<Self>(self).base::template subtuple<make_index<new_first>(), make_index<new_last>() + 1>());
+					dice::template_library::forward_like<Self>(self.base::template subtuple<make_index<new_first>(), sub_last>()));
 		}
 
 		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;
 		constexpr bool operator==(integral_template_tuple const &other) const noexcept = default;
 	};
+
 }// namespace dice::template_library
 
-#endif//HYPERTRIE_INTEGRALTEMPLATEDTUPLE_HPP
+#endif//DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_TUPLE_V2_HPP

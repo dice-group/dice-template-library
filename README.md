@@ -5,8 +5,8 @@ handy.
 It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
-- `integral_template_tuple`/`integral_template_tuple_v2`: Create a tuple-like structure that instantiates a template for a range of values.
-- `integral_template_variant`/`integral_template_variant_v2`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
+- `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
+- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where ix in [first, last) (inclusive, exclusive).
 - `integral_sequence`: Utilities for generating compile-time integer sequences with automatic direction detection.
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
@@ -18,7 +18,6 @@ It contains:
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
-- `generator`: The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf)
 - `channel`: A single producer, single consumer queue
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
@@ -42,7 +41,7 @@ dispatching to the correct version at runtime. You can add fallbacks for when th
 defined. By using `switch_cases` inside of `switch_cases` multidimensional ranges can be handled as well. Examples can
 be found [here](examples/examples_switch_cases.cpp).
 
-### `integral_template_tuple` (Deprecated)
+### `integral_template_tuple`
 
 Create a tuple-like structure that instantiates a template for a range of values. Let's say you have a type like
 
@@ -50,24 +49,18 @@ Create a tuple-like structure that instantiates a template for a range of values
 template <std::size_t N> struct my_type{...};
 ```
 
-Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to `my_type<j>` for `i<=j` with this code.
-Negative indices, recasting to fewer values and non-default construction are also possible. Examples can be
-found [here](examples/examples_integral_template_tuple.cpp).
+Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to `my_type<j - 1>` for `i < j` with this code.
+Negative indices, recasting to fewer values and non-default construction are also possible.
 
-**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`)
-ranges.
+**Automatic direction detection** is used based on the relationship between `first` and `last`:
 
-### `integral_template_tuple_v2` (New)
-
-The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
-
-- `integral_template_tuple_v2<i, j, my_type>` creates:
+- `integral_template_tuple<i, j, my_type>` creates:
   - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
   - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
   - Empty tuple when `i == j`
-    Examples can be found [here](examples/examples_integral_template_tuple_v2.cpp).
+    Examples can be found [here](examples/examples_integral_template_tuple.cpp).
 
-### `integral_template_variant` (Deprecated)
+### `integral_template_variant`
 
 Creates a variant-like structure that instantiates a template for a range of values. Let's say you have a type like
 
@@ -75,29 +68,23 @@ Creates a variant-like structure that instantiates a template for a range of val
 template <std::size_t N> struct my_type{...};
 ```
 
-Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j>` with the help of
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j - 1>` with the help of
 `integral_template_variant<i, j, my_type>`.
-Negative indices and both ascending and descending ranges are supported. Examples can be
-found [here](examples/examples_integral_template_variant.cpp).
+Negative indices and both ascending and descending ranges are supported.
 
-**Note:** Both boundaries are **inclusive**. The range supports both ascending (`i <= j`) and descending (`i >= j`)
-ranges.
+**Automatic direction detection** is used based on the relationship between `first` and `last`:
 
-### `integral_template_variant_v2` (New)
-
-The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
-
-- `integral_template_variant_v2<i, j, my_type>` creates a variant of:
+- `integral_template_variant<i, j, my_type>` creates a variant of:
   - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
   - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
   - Empty variant when `i == j`
 
-Examples can be found [here](examples/examples_integral_template_variant_v2.cpp).
+Examples can be found [here](examples/examples_integral_template_variant.cpp).
 
 ### `integral_sequence`
 
 Provides utilities for working with compile-time integer sequences. This is the foundation for
-`integral_template_tuple_v2` and `integral_template_variant_v2`.
+`integral_template_tuple` and `integral_template_variant`.
 
 - `make_integer_sequence<Int, first, last>`: Generate `std::integer_sequence` with automatic direction detection
 - `make_index_sequence<first, last>`: Convenience wrapper for `std::integer_sequence<size_t, X, Y>`
@@ -154,13 +141,6 @@ Works just like [`fmt::join`](https://fmt.dev/latest/api/#range-and-tuple-format
 ### `flex_array`
 A combination of `std::array`, `std::span` and a `vector` with small buffer optimization where the size is either
 statically known or a runtime variable depending on the `extent`/`max_extent` template parameters
-
-### `generator`
-The reference implementation of `std::generator` from [P2502R2](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2502r2.pdf).
-By default, the generator and corresponding utilities are exported under the `dice::template_library::` namespace.
-If you want this generator to serve as a drop in replacement for `std::generator` until it arrives
-use `#define DICE_TEMPLATELIBRARY_GENERATOR_STD_COMPAT 1` before including the generator header. That will export
-all generator-related things under namespace `std::`.
 
 ### `channel`
 A single-producer, single-consume queue. This can be used to communicate between threads in a more high level
@@ -257,7 +237,7 @@ A C++23 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/1.23.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/2.0.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 
@@ -279,5 +259,5 @@ ctest
 
 # run an example
 cd build
-./examples/examples_integral_template_tuple
+./examples/examples_dbg
 ```
