@@ -1,12 +1,10 @@
-#ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
-#define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
+#ifndef DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
+#define DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
 
-/**
- * dice::template_library::integral_template_variant is **DEPRECATED**.
- * It will be removed in next major release.
- *
- * Use dice::template_library::integral_template_variant_v2 instead.
- */
+#include <dice/template-library/integral_sequence.hpp>
+#include <dice/template-library/lazy_conditional.hpp>
+#include <dice/template-library/type_list.hpp>
+#include <dice/template-library/type_traits.hpp>
 
 #include <algorithm>
 #include <concepts>
@@ -15,77 +13,52 @@
 
 namespace dice::template_library {
 
-	namespace itv_detail {
-		/**
-		 * generates the std::integer_sequence<Int, first, ..., last>
-		 * @note first is allowed to be greater than last
-		 *
-		 * @tparam Int the integral type of the std::integer_sequence
-		 * @tparam first the starting integer
-		 * @tparam last the end integer
-		 */
-		template<std::integral Int, Int first, Int last, Int ... ixs>
-		constexpr auto make_integer_sequence(std::integer_sequence<Int, ixs...> = {}) {
-			std::integer_sequence<Int, ixs..., first> const acc;
-
-			if constexpr (first == last) {
-				return acc;
-			} else if constexpr (first < last) {
-				return make_integer_sequence<Int, first + 1, last>(acc);
-			} else {
-				return make_integer_sequence<Int, first - 1, last>(acc);
-			}
-		}
+	namespace detail_itv {
+		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+		using variant_provider = type_list::apply<detail_integral_template_util::make_type_list<first, last, T>, std::variant>;
 
 		/**
-		 * Generates the actual std::variant type
-		 * for an integral_template_variant<first, last, T> where Ixs = 0, 1, ..., last - first
-		 * aka std::variant<T<first + 0>, T<first + 1>, ...>.
-		 *
-		 * Note: This function does not have an implementation because it is only used in decltype context.
+		 * Empty variants are std::variant<std::monostate>.
 		 */
-		template<std::integral Int, template<Int> typename T, Int ...ixs>
-		std::variant<T<ixs>...> make_itv_type_impl(std::integer_sequence<Int, ixs...>);
+		struct empty_variant_provider {
+			using type = std::variant<std::monostate>;
+		};
 
 		/**
-		 * Generates the std::variant type corresponding to
-		 * integral_template_variant<first, last, T> by calling make_itv_type_impl with the correct index_sequence.
-		 *
-		 * Note: only callable in decltype context
+		 * Generates a std::variant<T<ix>...> from a type_list<T<ix>...>
+		 * Empty sequences produce std::variant<std::monostate>
 		 */
-		template<std::integral Int, Int first, Int last, template<Int> typename T>
-		auto make_itv_type() {
-			return make_itv_type_impl<Int, T>(make_integer_sequence<Int, first, last>());
-		}
-
-		template<std::integral Int, Int first, Int last, template<Int> typename T>
-		using itv_type_t = std::invoke_result_t<decltype(make_itv_type<Int, first, last, T>)>;
-	} // namespace itv_detail
+		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+		using make_variant = lazy_conditional<first == last, empty_variant_provider, variant_provider<first, last, T>>::type;
+	} // namespace detail_itv
 
 	/**
-	 * A std::variant-like type that holds variants of T<first> .. T<last> (inclusive)
+	 * A std::variant-like type that holds variants T<ix> for each ix in the sequence
 	 *
-	 * @tparam first the first ix for T<ix>
-	 * @tparam last the last ix for T<ix>
-	 * @tparam T the template that gets instantiated with T<ix> for ix in first..last (inclusive)
+	 * Direction is automatic:
+	 * - first < last: ascending [first, last) → T<first> .. T<last-1>
+	 * - first > last: descending (last, first] → T<first> .. T<last+1>
+	 * - first == last: std::variant<std::monostate> (empty)
 	 *
-	 * @note first is allowed to be smaller than last.
+	 * @tparam first the first ix for T<ix> (inclusive)
+	 * @tparam last the last ix (exclusive, not included in the variant)
+	 * @tparam T the template that gets instantiated with T<ix>
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct [[deprecated("use integral_template_variant_v2 instead")]] integral_template_variant {
+	struct integral_template_variant {
 		using index_type = decltype(first);
+		using underlying_type = detail_itv::make_variant<first, last, T>;
 
 		template<index_type ix>
 		using value_type = T<ix>;
 
 	private:
-		using underlying_type = itv_detail::itv_type_t<index_type, first, last, T>;
-		underlying_type repr_;
-
 		template<index_type ix>
-		static consteval void check_ix() {
-			static_assert(ix >= std::min(first, last) && ix <= std::max(first, last), "Index out of range");
+		static constexpr void check_ix() {
+			static_assert(detail_integral_template_util::valid_index_v<first, last, ix>, "Index out of range");
 		}
+
+		underlying_type repr_;
 
 	public:
 		constexpr integral_template_variant() noexcept(std::is_nothrow_default_constructible_v<underlying_type>) = default;
@@ -112,84 +85,61 @@ namespace dice::template_library {
 			: repr_{std::in_place_type<U>, std::forward<Args>(args)...} {
 		}
 
-		[[nodiscard]] static constexpr size_t size() noexcept {
-			return std::variant_size_v<underlying_type>;
+		template<index_type ix, typename ...Args>
+		constexpr value_type<ix> &emplace(Args &&...args) {
+			check_ix<ix>();
+			return repr_.template emplace<T<ix>>(std::forward<Args>(args)...);
 		}
 
 		[[nodiscard]] constexpr index_type index() const noexcept {
 			if constexpr (first < last) {
-				return first + static_cast<index_type>(repr_.index());
+				// Ascending
+				return static_cast<index_type>(first + repr_.index());
 			} else {
-				return first - static_cast<index_type>(repr_.index());
+				// Descending
+				return static_cast<index_type>(first - repr_.index());
 			}
 		}
 
-		template<index_type ix>
-		constexpr value_type<ix> const &get() const & {
+		template<index_type ix, typename Self>
+		constexpr decltype(auto) get(this Self &&self) {
 			check_ix<ix>();
-			return std::get<T<ix>>(repr_);
+			return std::get<T<ix>>(dice::template_library::forward_like<Self>(self.repr_));
 		}
 
-		template<index_type ix>
-		constexpr value_type<ix> &get() & {
-			check_ix<ix>();
-			return std::get<T<ix>>(repr_);
+		template<typename Self, typename Visitor>
+		constexpr decltype(auto) visit(this Self &&self, Visitor &&visitor) {
+			return std::visit(std::forward<Visitor>(visitor), dice::template_library::forward_like<Self>(self.repr_));
 		}
 
-		template<index_type ix>
-		constexpr value_type<ix> const &&get() const && {
-			check_ix<ix>();
-			return std::get<T<ix>>(std::move(repr_));
+		template<typename Self>
+		[[nodiscard]] constexpr decltype(auto) to_underlying(this Self &&self) noexcept {
+			return dice::template_library::forward_like<Self>(self.repr_);
 		}
 
 		template<index_type ix>
-		constexpr value_type<ix> &&get() && {
+		[[nodiscard]] constexpr bool holds_alternative() const noexcept {
 			check_ix<ix>();
-			return std::get<T<ix>>(std::move(repr_));
+			return std::holds_alternative<T<ix>>(repr_);
 		}
 
-		template<typename Visitor>
-		constexpr decltype(auto) visit(Visitor &&visitor) & {
-			return std::visit(std::forward<Visitor>(visitor), repr_);
-		}
-
-		template<typename Visitor>
-		constexpr decltype(auto) visit(Visitor &&visitor) const & {
-			return std::visit(std::forward<Visitor>(visitor), repr_);
-		}
-
-		template<typename Visitor>
-		constexpr decltype(auto) visit(Visitor &&visitor) && {
-			return std::visit(std::forward<Visitor>(visitor), std::move(repr_));
-		}
-
-		template<typename Visitor>
-		constexpr decltype(auto) visit(Visitor &&visitor) const && {
-			return std::visit(std::forward<Visitor>(visitor), std::move(repr_));
+		template<typename U>
+		[[nodiscard]] constexpr bool holds_alternative() const noexcept {
+			return std::holds_alternative<U>(repr_);
 		}
 
 		constexpr auto operator<=>(integral_template_variant const &other) const noexcept = default;
+		constexpr bool operator==(integral_template_variant const &other) const noexcept = default;
 	};
 
-	template<std::integral auto index, decltype(index) first, decltype(index) last, template<decltype(index)> typename T>
-	constexpr bool holds_alternative(integral_template_variant<first, last, T> const &variant) noexcept {
-		return std::holds_alternative<T<index>>(variant.to_underlying());
+}// namespace dice::template_library
+
+template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+struct std::hash<::dice::template_library::integral_template_variant<first, last, T>> {
+	[[nodiscard]] size_t operator()(::dice::template_library::integral_template_variant<first, last, T> const &variant) const noexcept {
+		using underlying_type = typename ::dice::template_library::integral_template_variant<first, last, T>::underlying_type;
+		return std::hash<underlying_type>{}(variant.to_underlying());
 	}
+};
 
-	template<typename U, std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	constexpr bool holds_alternative(integral_template_variant<first, last, T> const &variant) noexcept {
-		return std::holds_alternative<U>(variant.to_underlying());
-	}
-} // namespace dice::template_library
-
-namespace std {
-	template<integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct hash<::dice::template_library::integral_template_variant<first, last, T>> {
-		[[nodiscard]] size_t operator()(::dice::template_library::integral_template_variant<first, last, T> const &variant) const noexcept {
-			using underlying_type = typename ::dice::template_library::integral_template_variant<first, last, T>::underlying_type;
-			return hash<underlying_type>{}(variant.to_underlying());
-		}
-	};
-} // namespace std
-
-#endif//DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_HPP
+#endif//DICE_TEMPLATE_LIBRARY_INTEGRAL_TEMPLATE_VARIANT_V2_HPP
