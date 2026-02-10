@@ -14,13 +14,13 @@
 
 namespace dice::template_library {
 
-	namespace detail_itt2 {
+	namespace detail_itt {
 		/**
 		 * Generates a standard_layout_tuple<T<ix>...> from a type_list<T<ix>...>
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_tuple = type_list::apply_t<detail_integral_template_util::make_type_list<first, last, T>, standard_layout_tuple>;
-	} // namespace detail_itt2
+	} // namespace detail_itt
 
 	/**
 	 * A std::tuple-like type holding elements T<ix> for each ix in the sequence
@@ -35,7 +35,7 @@ namespace dice::template_library {
 	 * @tparam T the template that gets instantiated with T<ix>
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct integral_template_tuple_v2 : detail_itt2::make_tuple<first, last, T> {
+	struct integral_template_tuple : detail_itt::make_tuple<first, last, T> {
 		using index_type = decltype(first);
 
 		template<index_type ix>
@@ -47,7 +47,7 @@ namespace dice::template_library {
 			static_assert(detail_integral_template_util::valid_index_v<first, last, ix>, "Index out of range");
 		}
 
-		using base = detail_itt2::make_tuple<first, last, T>;
+		using base = detail_itt::make_tuple<first, last, T>;
 
 		template<index_type ix>
 		static consteval size_t make_index() {
@@ -80,7 +80,7 @@ namespace dice::template_library {
 		 * A typical use case for the return value would be accumulation of some value over all elements:
 		 *
 		 * @code
-		 * integral_template_tuple_v2<1, 5, some_container_type> tup; // contains T<1>, T<2>, T<3>, T<4>
+		 * integral_template_tuple<1, 5, some_container_type> tup; // contains T<1>, T<2>, T<3>, T<4>
 		 *
 		 * auto combined_size = tup.visit([acc = 0ul](auto const &c) mutable {
 		 *     return acc += c.size();
@@ -102,7 +102,7 @@ namespace dice::template_library {
 		 */
 		template<index_type new_first, index_type new_last, typename Self>
 		constexpr decltype(auto) subtuple(this Self &&self) noexcept {
-			static_assert(std::is_standard_layout_v<integral_template_tuple_v2>,
+			static_assert(std::is_standard_layout_v<integral_template_tuple>,
 						  "Types inhabiting the integral_template_tuple_impl must be standard layout for subtuple to work correctly.");
 
 			auto static constexpr sub_last = [] {
@@ -116,13 +116,13 @@ namespace dice::template_library {
 					return new_first - new_last;
 				}
 			}();
-			using new_tuple = integral_template_tuple_v2<new_first, new_last, T>;
+			using new_tuple = integral_template_tuple<new_first, new_last, T>;
 			return reinterpret_cast<copy_cvref_t<decltype(std::forward<Self>(self)), new_tuple>>(
 					dice::template_library::forward_like<Self>(self.base::template subtuple<make_index<new_first>(), sub_last>()));
 		}
 
-		constexpr auto operator<=>(integral_template_tuple_v2 const &other) const noexcept = default;
-		constexpr bool operator==(integral_template_tuple_v2 const &other) const noexcept = default;
+		constexpr auto operator<=>(integral_template_tuple const &other) const noexcept = default;
+		constexpr bool operator==(integral_template_tuple const &other) const noexcept = default;
 	};
 
 }// namespace dice::template_library

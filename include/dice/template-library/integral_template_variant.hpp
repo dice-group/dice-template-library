@@ -13,7 +13,7 @@
 
 namespace dice::template_library {
 
-	namespace detail_itv2 {
+	namespace detail_itv {
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using variant_provider = type_list::apply<detail_integral_template_util::make_type_list<first, last, T>, std::variant>;
 
@@ -30,7 +30,7 @@ namespace dice::template_library {
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
 		using make_variant = lazy_conditional<first == last, empty_variant_provider, variant_provider<first, last, T>>::type;
-	} // namespace detail_itv2
+	} // namespace detail_itv
 
 	/**
 	 * A std::variant-like type that holds variants T<ix> for each ix in the sequence
@@ -45,9 +45,9 @@ namespace dice::template_library {
 	 * @tparam T the template that gets instantiated with T<ix>
 	 */
 	template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-	struct integral_template_variant_v2 {
+	struct integral_template_variant {
 		using index_type = decltype(first);
-		using underlying_type = detail_itv2::make_variant<first, last, T>;
+		using underlying_type = detail_itv::make_variant<first, last, T>;
 
 		template<index_type ix>
 		using value_type = T<ix>;
@@ -61,27 +61,27 @@ namespace dice::template_library {
 		underlying_type repr_;
 
 	public:
-		constexpr integral_template_variant_v2() noexcept(std::is_nothrow_default_constructible_v<underlying_type>) = default;
-		constexpr integral_template_variant_v2(integral_template_variant_v2 const &other) noexcept(std::is_copy_constructible_v<underlying_type>) = default;
-		constexpr integral_template_variant_v2(integral_template_variant_v2 &&other) noexcept(std::is_nothrow_move_constructible_v<underlying_type>) = default;
-		constexpr integral_template_variant_v2 &operator=(integral_template_variant_v2 const &other) noexcept(std::is_nothrow_copy_assignable_v<underlying_type>) = default;
-		constexpr integral_template_variant_v2 &operator=(integral_template_variant_v2 &&other) noexcept(std::is_nothrow_move_assignable_v<underlying_type>) = default;
-		constexpr ~integral_template_variant_v2() noexcept(std::is_nothrow_destructible_v<underlying_type>) = default;
+		constexpr integral_template_variant() noexcept(std::is_nothrow_default_constructible_v<underlying_type>) = default;
+		constexpr integral_template_variant(integral_template_variant const &other) noexcept(std::is_copy_constructible_v<underlying_type>) = default;
+		constexpr integral_template_variant(integral_template_variant &&other) noexcept(std::is_nothrow_move_constructible_v<underlying_type>) = default;
+		constexpr integral_template_variant &operator=(integral_template_variant const &other) noexcept(std::is_nothrow_copy_assignable_v<underlying_type>) = default;
+		constexpr integral_template_variant &operator=(integral_template_variant &&other) noexcept(std::is_nothrow_move_assignable_v<underlying_type>) = default;
+		constexpr ~integral_template_variant() noexcept(std::is_nothrow_destructible_v<underlying_type>) = default;
 
 		template<index_type ix>
-		constexpr integral_template_variant_v2(T<ix> const &value) noexcept(std::is_nothrow_copy_constructible_v<T<ix>>)
+		constexpr integral_template_variant(T<ix> const &value) noexcept(std::is_nothrow_copy_constructible_v<T<ix>>)
 			: repr_{value} {
 			check_ix<ix>();
 		}
 
 		template<index_type ix>
-		constexpr integral_template_variant_v2(T<ix> &&value) noexcept(std::is_nothrow_move_constructible_v<T<ix>>)
+		constexpr integral_template_variant(T<ix> &&value) noexcept(std::is_nothrow_move_constructible_v<T<ix>>)
 			: repr_{std::move(value)} {
 			check_ix<ix>();
 		}
 
 		template<typename U, typename ...Args>
-		explicit constexpr integral_template_variant_v2(std::in_place_type_t<U>, Args &&...args) noexcept(std::is_nothrow_constructible_v<U, decltype(std::forward<Args>(args))...>)
+		explicit constexpr integral_template_variant(std::in_place_type_t<U>, Args &&...args) noexcept(std::is_nothrow_constructible_v<U, decltype(std::forward<Args>(args))...>)
 			: repr_{std::in_place_type<U>, std::forward<Args>(args)...} {
 		}
 
@@ -128,16 +128,16 @@ namespace dice::template_library {
 			return std::holds_alternative<U>(repr_);
 		}
 
-		constexpr auto operator<=>(integral_template_variant_v2 const &other) const noexcept = default;
-		constexpr bool operator==(integral_template_variant_v2 const &other) const noexcept = default;
+		constexpr auto operator<=>(integral_template_variant const &other) const noexcept = default;
+		constexpr bool operator==(integral_template_variant const &other) const noexcept = default;
 	};
 
 }// namespace dice::template_library
 
 template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-struct std::hash<::dice::template_library::integral_template_variant_v2<first, last, T>> {
-	[[nodiscard]] size_t operator()(::dice::template_library::integral_template_variant_v2<first, last, T> const &variant) const noexcept {
-		using underlying_type = typename ::dice::template_library::integral_template_variant_v2<first, last, T>::underlying_type;
+struct std::hash<::dice::template_library::integral_template_variant<first, last, T>> {
+	[[nodiscard]] size_t operator()(::dice::template_library::integral_template_variant<first, last, T> const &variant) const noexcept {
+		using underlying_type = typename ::dice::template_library::integral_template_variant<first, last, T>::underlying_type;
 		return std::hash<underlying_type>{}(variant.to_underlying());
 	}
 };

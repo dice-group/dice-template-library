@@ -1,6 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/integral_template_tuple_v2.hpp>
+#include <dice/template-library/integral_template_tuple.hpp>
 
 #include <doctest/doctest.h>
 
@@ -96,87 +96,87 @@ namespace dice::template_library {
 
 	TEST_SUITE("testing of the integral templated tuple") {
 		TEST_CASE("ctor") {
-			integral_template_tuple_v2<0, 4, Data> tuple{individual_construct, 0, 1, 2, 3};
+			integral_template_tuple<0, 4, Data> tuple{individual_construct, 0, 1, 2, 3};
 			REQUIRE(tuple.get<0>().value_ == 0);
 			REQUIRE(tuple.get<1>().value_ == 1);
 			REQUIRE(tuple.get<2>().value_ == 2);
 			REQUIRE(tuple.get<3>().value_ == 3);
 
-			integral_template_tuple_v2<0, 4, Data> tuple2{uniform_construct, 0};
+			integral_template_tuple<0, 4, Data> tuple2{uniform_construct, 0};
 			REQUIRE(tuple2.get<0>().value_ == 0);
 			REQUIRE(tuple2.get<1>().value_ == 0);
 			REQUIRE(tuple2.get<2>().value_ == 0);
 			REQUIRE(tuple2.get<3>().value_ == 0);
 
-			integral_template_tuple_v2<0, 4, Data> copy{tuple};
+			integral_template_tuple<0, 4, Data> copy{tuple};
 			tuple = copy;
 			tuple = std::move(copy);
 
-			integral_template_tuple_v2<0, 4, Data> moved{std::move(tuple2)};
+			integral_template_tuple<0, 4, Data> moved{std::move(tuple2)};
 		}
 
 		TEST_CASE("comparision") {
-			integral_template_tuple_v2<0, 4, Data> tuple{individual_construct, 0, 1, 2, 3};
-			integral_template_tuple_v2<0, 4, Data> tuple2{individual_construct, 1, 2, 3, 4};
+			integral_template_tuple<0, 4, Data> tuple{individual_construct, 0, 1, 2, 3};
+			integral_template_tuple<0, 4, Data> tuple2{individual_construct, 1, 2, 3, 4};
 
 			REQUIRE(tuple <=> tuple2 == std::strong_ordering::less);
 		}
 
 		TEST_CASE("Is same for single value at 0") {
-			integral_template_tuple_v2<0, 1, Data> inTuple;
+			integral_template_tuple<0, 1, Data> inTuple;
 			auto vec = to_int_vector<0, 1>(inTuple);
 			REQUIRE(is_equal(vec, {0}));
 		}
 
 		TEST_CASE("Is same for single value at 4") {
-			integral_template_tuple_v2<4, 5, Data> inTuple;
+			integral_template_tuple<4, 5, Data> inTuple;
 			auto vec = to_int_vector<4, 5>(inTuple);
 			REQUIRE(is_equal(vec, {4}));
 		}
 
 		TEST_CASE("Is same for multiple values starting at 0") {
-			integral_template_tuple_v2<0, 5, Data> inTuple;
+			integral_template_tuple<0, 5, Data> inTuple;
 			auto vec = to_int_vector<0, 5>(inTuple);
 			REQUIRE(is_equal(vec, {0, 1, 2, 3, 4}));
 		}
 
 		TEST_CASE("Is same for multiple values starting at 4") {
-			integral_template_tuple_v2<4, 9, Data> inTuple;
+			integral_template_tuple<4, 9, Data> inTuple;
 			auto vec = to_int_vector<4, 9>(inTuple);
 			REQUIRE(is_equal(vec, {4, 5, 6, 7, 8}));
 		}
 
 		TEST_CASE("Negative values counting up") {
-			integral_template_tuple_v2<-2, 3, Data> inTuple;
+			integral_template_tuple<-2, 3, Data> inTuple;
 			auto vec = to_int_vector<-2, 3>(inTuple);
 			REQUIRE(is_equal(vec, {-2, -1, 0, 1, 2}));
 		}
 
 		TEST_CASE("reinterpret_cast counting up") {
-			integral_template_tuple_v2<0, 4, Data> inTuple;
+			integral_template_tuple<0, 4, Data> inTuple;
 			// NOLINTNEXTLINE
-			integral_template_tuple_v2<1, 3, Data> &casted = inTuple.template subtuple<1, 3>();
+			integral_template_tuple<1, 3, Data> &casted = inTuple.template subtuple<1, 3>();
 			auto vec = to_int_vector<1, 3>(casted);
 			REQUIRE(is_equal(vec, {1, 2}));
 		}
 
 		TEST_CASE("reinterpret_cast counting up from negative") {
-			integral_template_tuple_v2<-1, 4, Data> inTuple;
+			integral_template_tuple<-1, 4, Data> inTuple;
 			// NOLINTNEXTLINE
-			integral_template_tuple_v2<0, 3, Data> &casted = inTuple.template subtuple<0, 3>();
+			integral_template_tuple<0, 3, Data> &casted = inTuple.template subtuple<0, 3>();
 			auto vec = to_int_vector<0, 3>(casted);
 			REQUIRE(is_equal(vec, {0, 1, 2}));
 		}
 
 		TEST_CASE("size") {
-			REQUIRE(integral_template_tuple_v2<-1, 2, Data>::size() == 3);
-			REQUIRE(integral_template_tuple_v2<1, 3, Data>::size() == 2);
-			REQUIRE(integral_template_tuple_v2<1, 2, Data>::size() == 1);
-			REQUIRE(integral_template_tuple_v2<2, 2, Data>::size() == 0);
+			REQUIRE(integral_template_tuple<-1, 2, Data>::size() == 3);
+			REQUIRE(integral_template_tuple<1, 3, Data>::size() == 2);
+			REQUIRE(integral_template_tuple<1, 2, Data>::size() == 1);
+			REQUIRE(integral_template_tuple<2, 2, Data>::size() == 0);
 		}
 
 		TEST_CASE("visit") {
-			integral_template_tuple_v2<1, 3, Data> const tuple{};
+			integral_template_tuple<1, 3, Data> const tuple{};
 
 			SUBCASE("non-void return") {
 				auto const res = tuple.visit([acc = 0]<auto I>(Data<I> const &data) mutable {
@@ -200,74 +200,74 @@ namespace dice::template_library {
 
 	TEST_SUITE("testing of the integral templated tuple reverse") {
 		TEST_CASE("ctor") {
-			integral_template_tuple_v2<3, -1, Data> tuple{individual_construct, 3, 2, 1, 0};
+			integral_template_tuple<3, -1, Data> tuple{individual_construct, 3, 2, 1, 0};
 			REQUIRE(tuple.get<3>().value_ == 3);
 			REQUIRE(tuple.get<2>().value_ == 2);
 			REQUIRE(tuple.get<1>().value_ == 1);
 			REQUIRE(tuple.get<0>().value_ == 0);
 
-			integral_template_tuple_v2<3, -1, Data> tuple2{uniform_construct, 0};
+			integral_template_tuple<3, -1, Data> tuple2{uniform_construct, 0};
 			REQUIRE(tuple2.get<3>().value_ == 0);
 			REQUIRE(tuple2.get<2>().value_ == 0);
 			REQUIRE(tuple2.get<1>().value_ == 0);
 			REQUIRE(tuple2.get<0>().value_ == 0);
 
-			integral_template_tuple_v2<3, -1, Data> copy{tuple};
+			integral_template_tuple<3, -1, Data> copy{tuple};
 			tuple = copy;
 			tuple = std::move(copy);
 
-			integral_template_tuple_v2<3, -1, Data> moved{std::move(tuple2)};
+			integral_template_tuple<3, -1, Data> moved{std::move(tuple2)};
 		}
 
 		TEST_CASE("comparision") {
-			integral_template_tuple_v2<3, -1, Data> tuple{individual_construct, 3, 2, 1, 0};
-			integral_template_tuple_v2<3, -1, Data> tuple2{individual_construct, 4, 3, 2, 1};
+			integral_template_tuple<3, -1, Data> tuple{individual_construct, 3, 2, 1, 0};
+			integral_template_tuple<3, -1, Data> tuple2{individual_construct, 4, 3, 2, 1};
 
 			REQUIRE(tuple <=> tuple2 == std::strong_ordering::less);
 		}
 
 		TEST_CASE("Is same for single value at 4") {
-			integral_template_tuple_v2<4, 3, Data> inTuple;
+			integral_template_tuple<4, 3, Data> inTuple;
 			auto vec = to_int_vector<4, 5>(inTuple);
 			REQUIRE(is_equal(vec, {4}));
 		}
 
 		TEST_CASE("Is same for multiple values counting down") {
-			integral_template_tuple_v2<8, 3, Data> inTuple;
+			integral_template_tuple<8, 3, Data> inTuple;
 			auto vec = to_int_vector<4, 9>(inTuple);
 			REQUIRE(is_equal(vec, {4, 5, 6, 7, 8}));
 		}
 
 		TEST_CASE("Negative values counting down") {
-			integral_template_tuple_v2<2, -3, Data> inTuple;
+			integral_template_tuple<2, -3, Data> inTuple;
 			auto vec = to_int_vector<-2, 3>(inTuple);
 			REQUIRE(is_equal(vec, {-2, -1, 0, 1, 2}));
 		}
 
 		TEST_CASE("reinterpret_cast counting down") {
-			integral_template_tuple_v2<3, -1, Data> inTuple;
+			integral_template_tuple<3, -1, Data> inTuple;
 			// NOLINTNEXTLINE
-			integral_template_tuple_v2<2, 0, Data> &casted = inTuple.template subtuple<2, 0>();
+			integral_template_tuple<2, 0, Data> &casted = inTuple.template subtuple<2, 0>();
 			auto vec = to_int_vector<1, 3>(casted);
 			REQUIRE(is_equal(vec, {1, 2}));
 		}
 
 		TEST_CASE("reinterpret_cast counting down into negative") {
-			integral_template_tuple_v2<3, -3, Data> inTuple;
+			integral_template_tuple<3, -3, Data> inTuple;
 			// NOLINTNEXTLINE
-			integral_template_tuple_v2<2, -2, Data> &casted = inTuple.template subtuple<2, -2>();
+			integral_template_tuple<2, -2, Data> &casted = inTuple.template subtuple<2, -2>();
 			auto vec = to_int_vector<-1, 3>(casted);
 			REQUIRE(is_equal(vec, {-1, 0, 1, 2}));
 		}
 
 		TEST_CASE("size") {
-			REQUIRE(integral_template_tuple_v2<1, -2, Data>::size() == 3);
-			REQUIRE(integral_template_tuple_v2<2, 1, Data>::size() == 1);
-			REQUIRE(integral_template_tuple_v2<3, 1, Data>::size() == 2);
+			REQUIRE(integral_template_tuple<1, -2, Data>::size() == 3);
+			REQUIRE(integral_template_tuple<2, 1, Data>::size() == 1);
+			REQUIRE(integral_template_tuple<3, 1, Data>::size() == 2);
 		}
 
 		TEST_CASE("visit") {
-			integral_template_tuple_v2<2, -1, Data> const tuple{};
+			integral_template_tuple<2, -1, Data> const tuple{};
 
 			SUBCASE("non-void return") {
 				auto const res = tuple.visit([acc = 0]<auto I>(Data<I> const &data) mutable {

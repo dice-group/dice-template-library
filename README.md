@@ -5,8 +5,8 @@ handy.
 It contains:
 
 - `switch_cases`: Use runtime values in compile-time context.
-- `integral_template_tuple_v2`: Create a tuple-like structure that instantiates a template for a range of values.
-- `integral_template_variant_v2`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where $\texttt{ix}\in [\texttt{first},\texttt{last}]$ (inclusive).
+- `integral_template_tuple`: Create a tuple-like structure that instantiates a template for a range of values.
+- `integral_template_variant`: A wrapper type for `std::variant` guarantees to only contain variants of the form `T<ix>` where ix in [first, last) (inclusive, exclusive).
 - `integral_sequence`: Utilities for generating compile-time integer sequences with automatic direction detection.
 - `for_{types,values,range}`: Compile time for loops for types, values or ranges
 - `polymorphic_allocator`: Like `std::pmr::polymorphic_allocator` but with static dispatch
@@ -42,31 +42,50 @@ dispatching to the correct version at runtime. You can add fallbacks for when th
 defined. By using `switch_cases` inside of `switch_cases` multidimensional ranges can be handled as well. Examples can
 be found [here](examples/examples_switch_cases.cpp).
 
-### `integral_template_tuple_v2` (New)
+### `integral_template_tuple`
 
-The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
+Create a tuple-like structure that instantiates a template for a range of values. Let's say you have a type like
 
-- `integral_template_tuple_v2<i, j, my_type>` creates:
+```cpp
+template <std::size_t N> struct my_type{...};
+```
+
+Then you can create a tuple consisting of `my_type<i>, my_type<i+1>, ...` up to `my_type<j - 1>` for `i < j` with this code.
+Negative indices, recasting to fewer values and non-default construction are also possible.
+
+**Automatic direction detection** is used based on the relationship between `first` and `last`:
+
+- `integral_template_tuple<i, j, my_type>` creates:
   - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
   - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
   - Empty tuple when `i == j`
-    Examples can be found [here](examples/examples_integral_template_tuple_v2.cpp).
+    Examples can be found [here](examples/examples_integral_template_tuple.cpp).
 
-### `integral_template_variant_v2` (New)
+### `integral_template_variant`
 
-The v2 version uses **automatic direction detection** based on the relationship between `first` and `last`:
+Creates a variant-like structure that instantiates a template for a range of values. Let's say you have a type like
 
-- `integral_template_variant_v2<i, j, my_type>` creates a variant of:
+```cpp
+template <std::size_t N> struct my_type{...};
+```
+
+Then you can create a variant consisting of `my_type<i>, my_type<i+1>, ..., my_type<j - 1>` with the help of
+`integral_template_variant<i, j, my_type>`.
+Negative indices and both ascending and descending ranges are supported.
+
+**Automatic direction detection** is used based on the relationship between `first` and `last`:
+
+- `integral_template_variant<i, j, my_type>` creates a variant of:
   - `my_type<i>, my_type<i+1>, ..., my_type<j-1>` when `i < j` (ascending, exclusive upper bound `[i, j)`)
   - `my_type<i>, my_type<i-1>, ..., my_type<j+1>` when `i > j` (descending, exclusive lower bound `(j, i]`)
   - Empty variant when `i == j`
 
-Examples can be found [here](examples/examples_integral_template_variant_v2.cpp).
+Examples can be found [here](examples/examples_integral_template_variant.cpp).
 
 ### `integral_sequence`
 
 Provides utilities for working with compile-time integer sequences. This is the foundation for
-`integral_template_tuple_v2` and `integral_template_variant_v2`.
+`integral_template_tuple` and `integral_template_variant`.
 
 - `make_integer_sequence<Int, first, last>`: Generate `std::integer_sequence` with automatic direction detection
 - `make_index_sequence<first, last>`: Convenience wrapper for `std::integer_sequence<size_t, X, Y>`
