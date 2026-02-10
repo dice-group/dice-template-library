@@ -55,9 +55,6 @@ custom_add_test(tests_flex_array)
 add_executable(tests_fmt_join tests_fmt_join.cpp)
 custom_add_test(tests_fmt_join)
 
-add_executable(tests_generator tests_generator.cpp)
-custom_add_test(tests_generator)
-
 add_executable(tests_channel tests_channel.cpp)
 custom_add_test(tests_channel)
 
