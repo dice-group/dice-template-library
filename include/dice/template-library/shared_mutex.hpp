@@ -79,7 +79,7 @@ namespace dice::template_library {
 
     private:
         value_type value_;
-        mutex_type mutex_;
+        mutable mutex_type mutex_;
 
     public:
         constexpr shared_mutex() noexcept(std::is_nothrow_default_constructible_v<value_type>) = default;
@@ -137,7 +137,7 @@ namespace dice::template_library {
          * @return mutex guard for the inner value
          * @throws std::system_error in case the underlying mutex implementation throws it
          */
-        [[nodiscard]] shared_mutex_guard<value_type const> lock_shared() {
+        [[nodiscard]] shared_mutex_guard<value_type const> lock_shared() const {
             return shared_mutex_guard<value_type const>{std::shared_lock<mutex_type>{mutex_}, value_};
         }
 
@@ -148,7 +148,7 @@ namespace dice::template_library {
          * @return nullopt in case the mutex could not be locked, otherwise a mutex guard for the inner value
          * @throws std::system_error in case the underlying mutex implementation throws it
          */
-        [[nodiscard]] std::optional<shared_mutex_guard<value_type const>> try_lock_shared() {
+        [[nodiscard]] std::optional<shared_mutex_guard<value_type const>> try_lock_shared() const {
             std::shared_lock<mutex_type> lock{mutex_, std::try_to_lock};
             if (!lock.owns_lock()) {
                 return std::nullopt;
