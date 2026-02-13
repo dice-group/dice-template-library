@@ -385,7 +385,13 @@ TEST_SUITE("range view") {
 			auto view = dtl::range(2025y/01/01, 2027y/01/01, years{1});
 			std::vector<year_month_day> const expected{2025y/01/01, 2026y/01/01};
 
-			REQUIRE(std::ranges::equal(view, expected));
+ 		REQUIRE(std::ranges::equal(view, expected));
+		}
+
+		SUBCASE("reversed()") {
+			auto view = dtl::range<int>(0, 10, 2);
+			std::vector<int> const expected{8, 6, 4, 2, 0};
+			REQUIRE(std::ranges::equal(view.reversed(), expected));
 		}
 	}
 }
