@@ -349,8 +349,12 @@ namespace dice::template_library {
 			S step_;
 
 		public:
-			explicit constexpr range_iterator(T start, T stop, S step) noexcept
-				: current_{start}, stop_{stop}, step_{step} {}
+			explicit constexpr range_iterator(T start, T stop, S step)
+				: current_{start}, stop_{stop}, step_{step} {
+				if (step == S{}) [[unlikely]] {
+					throw std::invalid_argument{"range: step must not be the zero element/the additive identity"};
+				}
+			}
 
 			[[nodiscard]] constexpr std::optional<T> next() noexcept {
 				if (step_ > S{}) {
@@ -441,10 +445,6 @@ namespace dice::template_library {
 	 */
 	template<typename T, typename S>
 	constexpr auto range(T start, T stop, S step) {
-		if (step == S{}) [[unlikely]] {
-			throw std::invalid_argument{"range: step must not be the zero element/the additive identity"};
-		}
-
 		return next_to_view<ranges_algo_detail::range_iterator<T, S>>{start, stop, step};
 	}
 
