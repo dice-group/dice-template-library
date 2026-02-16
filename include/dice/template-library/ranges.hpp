@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATELIBRARY_HPP
 #define DICE_TEMPLATELIBRARY_HPP
 
+#include <dice/template-library/next_to_range.hpp>
+
 #include <algorithm>
 #include <functional>
 #include <limits>
@@ -51,8 +53,7 @@ namespace dice::template_library {
 		struct empty_fn {
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
-				static_assert(requires { std::ranges::empty(range); },
-							  "std::ranges::empty requires an input range as it might otherwise be expensive to materialize the first element.");
+				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires an input range as it might otherwise be expensive to materialize the first element.");
 				return std::ranges::empty(range);
 			}
 
@@ -113,11 +114,11 @@ namespace dice::template_library {
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
 			constexpr auto operator()(R &&range) const {
-				return std::forward<R>(range)
-					| std::views::filter([value = value_, pred = pred_](auto const &element) {
-						return !std::invoke(pred, element, value);
-					});
-			}
+                return std::forward<R>(range)
+                       | std::views::filter([value = value_, pred = pred_](auto const &element) {
+                             return !std::invoke(pred, element, value);
+                         });
+            }
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
 			friend constexpr auto operator|(R &&range, remove_element_fn const &self) {
@@ -136,7 +137,7 @@ namespace dice::template_library {
 	template<typename T, typename Pred = std::ranges::equal_to>
 	constexpr auto remove_element(T &&value, Pred &&pred = Pred{}) {
 		return ranges_algo_detail::remove_element_fn<std::remove_cvref_t<T>, std::remove_cvref_t<Pred>>{
-			std::forward<T>(value), std::forward<Pred>(pred)};
+				std::forward<T>(value), std::forward<Pred>(pred)};
 	}
 }// namespace dice::template_library
 
@@ -164,11 +165,11 @@ namespace dice::template_library {
 				auto const first_element = *it;
 				++it;
 
-				// Check if all subsequent elements in the range match the first one.
-				return std::ranges::subrange(it, end) |
-					   dice::template_library::all_of([this, first_element](auto const &current_element) {
-						   return std::invoke(pred_, current_element, first_element);
-					   });
+                // Check if all subsequent elements in the range match the first one.
+                return std::ranges::subrange(it, end)
+                       | dice::template_library::all_of([this, first_element](auto const &current_element) {
+                             return std::invoke(pred_, current_element, first_element);
+                         });
 			}
 
 			template<std::ranges::input_range R>
@@ -198,9 +199,9 @@ namespace dice::template_library {
 	namespace ranges_algo_detail {
 
 		template<typename T>
-		concept unordered_set_elem = std::equality_comparable<T> && requires (T const &elem) {
-			{ std::hash<T>{}(elem) } -> std::convertible_to<size_t>;
-		};
+        concept unordered_set_elem = std::equality_comparable<T> && requires (T const &elem) {
+            { std::hash<T>{}(elem) } -> std::convertible_to<size_t>;
+        };
 
 		template<typename T>
 		concept set_elem = std::strict_weak_order<std::less<T>, T, T>;
@@ -244,10 +245,9 @@ namespace dice::template_library {
 						  "The value type must be either hashable and equality comparable, or support less than.");
 
 			using set_type = std::conditional_t<
-				unordered_set_elem<set_value_type>, // prioritize unordered_set
-				std::unordered_set<set_value_type>,
-				std::set<set_value_type>
-			>;
+					unordered_set_elem<set_value_type>,// prioritize unordered_set
+					std::unordered_set<set_value_type>,
+					std::set<set_value_type>>;
 
 			set_type seen_;
 			std::ranges::iterator_t<R> current_;
@@ -322,115 +322,129 @@ namespace dice::template_library {
 
 namespace dice::template_library {
 
-	template<typename S, typename T>
-	concept step_for = std::is_default_constructible_v<S> && requires (T start, T const stop, S step) {
-		{ start <= stop } -> std::convertible_to<bool>;
-		{ start >= stop } -> std::convertible_to<bool>;
+    template<typename S, typename T>
+    concept step_for = std::is_default_constructible_v<S> && requires (T start, T const stop, S step) {
+        { start <= stop } -> std::convertible_to<bool>;
+        { start >= stop } -> std::convertible_to<bool>;
 
-		start += step;
-	};
+        start += step;
+    };
 
 	namespace ranges_algo_detail {
-
-		// The view that represents the generated sequence.
-		// range generator view (python-like iota with step)
+		/**
+		 * range generator (python-like iota with step) implemented as a rust-like next() iterator
+		 *
+		 * @tparam T range return type
+		 * @tparam S step type for range (can also be a signed type even though T is unsigned)
+		 */
 		template<typename T, step_for<T> S>
-		struct range_generator_view : std::ranges::view_interface<range_generator_view<T, S>> {
-			struct iterator;
-			using sentinel = std::default_sentinel_t;
+		struct range_iterator {
+			using value_type = T;
 
 		private:
-			T start_;
+			T current_;
 			T stop_;
 			S step_;
 
 		public:
-			explicit constexpr range_generator_view(T start, T stop, S step)
-				: start_{start},
-				  stop_{stop},
-				  step_{step} {
+            range_iterator() noexcept
+                    requires (std::is_default_constructible_v<T> && std::is_constructible_v<S, int>)
+                : current_{},
+                  stop_{},
+                  step_{1} {
+            }
 
+			explicit constexpr range_iterator(T start, T stop, S step)
+				: current_{start}, stop_{stop}, step_{step} {
 				if (step == S{}) [[unlikely]] {
 					throw std::invalid_argument{"range: step must not be the zero element/the additive identity"};
 				}
 			}
 
-			constexpr iterator begin() const noexcept {
-				return iterator{*this, start_};
+			[[nodiscard]] constexpr std::optional<T> next() noexcept {
+				if (step_ > S{}) {
+					if (current_ >= stop_) {
+						return std::nullopt;
+					}
+				} else {
+					if (current_ <= stop_) {
+						return std::nullopt;
+					}
+				}
+
+				return std::exchange(current_, current_ + step_);
 			}
 
-			static constexpr sentinel end() noexcept {
-				return std::default_sentinel;
-			}
-
-			constexpr size_t size() const noexcept requires (std::integral<T> && std::integral<S>) {
-				// Math for calculating result: ceil(|stop_ - start_| / |step_|)
-				// For integers we need to adjust the formula to avoid overflows, conversions and inefficient operations.
-				// Note: ceil(a / b) = (a + b - 1) / b
-
-				if (start_ <= stop_) {
+            [[nodiscard]] constexpr size_t remaining() const noexcept
+                    requires (std::integral<T> && std::integral<S>)
+            {
+				if (current_ <= stop_) {
 					// forward
-					if (step_ < 0) {
+					if (step_ < S{}) {
 						// wrong direction
 						return 0;
 					}
 
-					return (stop_ - start_ + step_ - 1) / step_;
+					return static_cast<size_t>((stop_ - current_ + step_ - 1) / step_);
 				} else {
 					// backward
-					if (step_ > 0) {
+					if (step_ > S{}) {
 						// wrong direction
 						return 0;
 					}
 
-					return (start_ - stop_ + -step_ - 1) / -step_;
+					return static_cast<size_t>((current_ - stop_ + -step_ - 1) / -step_);
 				}
 			}
-		};
 
-		// The iterator that generates the numbers on the fly.
-		template<typename T, step_for<T> S>
-		struct range_generator_view<T, S>::iterator {
-			using iterator_category = std::input_iterator_tag;
-			using value_type = T;
-			using difference_type = std::ptrdiff_t;
-
-		private:
-			range_generator_view const *parent_;
-			T value_;
-
-		public:
-			explicit constexpr iterator(range_generator_view const &parent, T value) noexcept
-				: parent_{&parent},
-				  value_{value} {
-			}
-
-			constexpr value_type operator*() const noexcept {
-				return value_;
-			}
-
-			constexpr iterator &operator++() noexcept {
-				value_ += parent_->step_;
-				return *this;
-			}
-			constexpr void operator++(int) noexcept {
-				++*this;
-			}
-
-			friend constexpr bool operator==(iterator const &self, std::default_sentinel_t) noexcept {
-				// The end is reached if the step is positive and value is >= stop,
-				// or if the step is negative and value is <= stop.
-				if (self.parent_->step_ > S{}) {
-					return self.value_ >= self.parent_->stop_;
+            [[nodiscard]] constexpr std::optional<T> nth(size_t off) noexcept
+                    requires (std::integral<T> && std::integral<S>)
+            {
+				auto const rem = remaining();
+				if (off >= rem) {
+					current_ = stop_;
+					return std::nullopt;
 				}
-				return self.value_ <= self.parent_->stop_;
+
+				current_ += static_cast<T>(off) * step_;
+				return next();
 			}
 
-			friend constexpr bool operator==(std::default_sentinel_t sent, iterator const &self) noexcept {
-				return self == sent;
+            [[nodiscard]] constexpr std::optional<T> next_back() noexcept
+                    requires (std::integral<T> && std::integral<S>)
+            {
+				if (step_ > S{}) {
+					if (current_ >= stop_) {
+						return std::nullopt;
+					}
+					stop_ -= step_;
+					return stop_;
+				} else {
+					if (current_ <= stop_) {
+						return std::nullopt;
+					}
+					stop_ -= step_;
+					return stop_;
+				}
+			}
+
+            [[nodiscard]] constexpr std::optional<T> nth_back(size_t off) noexcept
+                    requires (std::integral<T> && std::integral<S>)
+			{
+				auto const rem = remaining();
+				if (off >= rem) {
+					stop_ = current_;
+					return std::nullopt;
+				}
+
+				stop_ -= static_cast<T>(off) * step_;
+				return next_back();
 			}
 		};
 	}// namespace ranges_algo_detail
+
+	template<typename T, typename S>
+	using range_view = next_to_view<ranges_algo_detail::range_iterator<T, S>>;
 
 	/**
 	 * @brief A lazy view that generates a sequence of numbers, similar to Python's range().
@@ -441,18 +455,20 @@ namespace dice::template_library {
 	 * - `range<T>(start, stop, step)`: Generates numbers from start, incrementing by step, until stop is met or passed.
 	 */
 	template<typename T, typename S>
-	constexpr auto range(T start, T stop, S step) noexcept {
-		return ranges_algo_detail::range_generator_view<T, S>(start, stop, step);
+	[[nodiscard]] constexpr range_view<T, S> range(T start, T stop, S step) {
+		return range_view<T, S>{start, stop, step};
 	}
 
-	template<typename T> requires (std::is_constructible_v<T, int> && step_for<T, T>)
-	constexpr auto range(T start, T stop) noexcept {
-		return ranges_algo_detail::range_generator_view<T, T>(start, stop, T(1));
-	}
+	template<typename T>
+    requires (std::is_constructible_v<T, int> && step_for<T, T>)
+    [[nodiscard]] constexpr range_view<T, T> range(T start, T stop) {
+        return range_view<T, T>{start, stop, T(1)};
+    }
 
-	template<typename T> requires (std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
-	constexpr auto range(T stop) noexcept {
-		return ranges_algo_detail::range_generator_view<T, T>(T{}, stop, T(1));
+    template<typename T>
+    requires (std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
+    [[nodiscard]] constexpr range_view<T, T> range(T stop) {
+		return range_view<T, T>{T{}, stop, T(1)};
 	}
 
 }// namespace dice::template_library

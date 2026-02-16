@@ -129,10 +129,12 @@ namespace dice::template_library {
 			}
 
 		public:
-			template<typename ...Args>
-			explicit next_to_iter_impl(Args &&...args) : Iter{std::forward<Args>(args)...},
-														 cur_{next()} {
-			}
+            template<typename... Args>
+            explicit next_to_iter_impl(Args &&...args)
+                    requires (std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
+                : Iter{std::forward<Args>(args)...},
+                  cur_{next()} {
+            }
 
 			[[nodiscard]] reference operator*() const noexcept {
 				assert(cur_.has_value());
@@ -302,15 +304,17 @@ namespace dice::template_library {
 		}
 
 	public:
-		template<typename ...Args> requires (!std::is_copy_constructible_v<Iter>)
-		explicit next_to_range(Args &&...args)
-			: make_iter_{[...args = std::forward<Args>(args)] { return Iter{args...}; }} {
-		}
+        template<typename... Args>
+        explicit next_to_range(Args &&...args)
+                requires (!std::is_copy_constructible_v<Iter> && std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
+            : make_iter_{[... args = std::forward<Args>(args)] { return Iter{args...}; }} {
+        }
 
-		template<typename ...Args> requires (std::is_copy_constructible_v<Iter>)
-		explicit next_to_range(Args &&...args)
-			: make_iter_{std::forward<Args>(args)...} {
-		}
+        template<typename... Args>
+        explicit next_to_range(Args &&...args)
+                requires (std::is_copy_constructible_v<Iter> && std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
+            : make_iter_{std::forward<Args>(args)...} {
+        }
 
 		/**
 		 * @return a new iterator from the beginning of the range
@@ -434,10 +438,10 @@ namespace dice::template_library {
 		Iter iter_;
 
 	public:
-		template<typename ...Args>
-		explicit next_to_view(Args &&...args)
-			: iter_{std::forward<Args>(args)...} {
-		}
+        template<typename... Args>
+        explicit next_to_view(Args &&...args) requires (std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
+            : iter_{std::forward<Args>(args)...} {
+        }
 
 		/**
 		 * @return a new iterator from the beginning of the range

@@ -16,6 +16,9 @@ option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_im
 option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
+    file(DOWNLOAD https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/refs/heads/main/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format)
+    file(DOWNLOAD https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/refs/heads/main/.clang-tidy ${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy)
+
     if (BUILD_TESTING OR BUILD_EXAMPLES)
         set(WITH_BOOST ON)
         set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_test_deps=True")
