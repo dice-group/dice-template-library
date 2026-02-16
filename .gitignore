@@ -108,3 +108,6 @@ test_package/CMakeUserPresets.json
 /CMakeUserPresets.json
 /conan_provider.cmake
 include/dice/template-library/version.hpp
+
+.clang-tidy
+.clang-format
