@@ -114,10 +114,11 @@ namespace dice::template_library {
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
 			constexpr auto operator()(R &&range) const {
-				return std::forward<R>(range) | std::views::filter([value = value_, pred = pred_](auto const &element) {
-						   return !std::invoke(pred, element, value);
-					   });
-			}
+                return std::forward<R>(range)
+                       | std::views::filter([value = value_, pred = pred_](auto const &element) {
+                             return !std::invoke(pred, element, value);
+                         });
+            }
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
 			friend constexpr auto operator|(R &&range, remove_element_fn const &self) {
@@ -164,11 +165,11 @@ namespace dice::template_library {
 				auto const first_element = *it;
 				++it;
 
-				// Check if all subsequent elements in the range match the first one.
-				return std::ranges::subrange(it, end) |
-					   dice::template_library::all_of([this, first_element](auto const &current_element) {
-						   return std::invoke(pred_, current_element, first_element);
-					   });
+                // Check if all subsequent elements in the range match the first one.
+                return std::ranges::subrange(it, end)
+                       | dice::template_library::all_of([this, first_element](auto const &current_element) {
+                             return std::invoke(pred_, current_element, first_element);
+                         });
 			}
 
 			template<std::ranges::input_range R>
