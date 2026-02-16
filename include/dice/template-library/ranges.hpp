@@ -199,9 +199,9 @@ namespace dice::template_library {
 	namespace ranges_algo_detail {
 
 		template<typename T>
-		concept unordered_set_elem = std::equality_comparable<T> && requires(T const &elem) {
-			{ std::hash<T>{}(elem) } -> std::convertible_to<size_t>;
-		};
+        concept unordered_set_elem = std::equality_comparable<T> && requires (T const &elem) {
+            { std::hash<T>{}(elem) } -> std::convertible_to<size_t>;
+        };
 
 		template<typename T>
 		concept set_elem = std::strict_weak_order<std::less<T>, T, T>;
@@ -322,13 +322,13 @@ namespace dice::template_library {
 
 namespace dice::template_library {
 
-	template<typename S, typename T>
-	concept step_for = std::is_default_constructible_v<S> && requires(T start, T const stop, S step) {
-		{ start <= stop } -> std::convertible_to<bool>;
-		{ start >= stop } -> std::convertible_to<bool>;
+    template<typename S, typename T>
+    concept step_for = std::is_default_constructible_v<S> && requires (T start, T const stop, S step) {
+        { start <= stop } -> std::convertible_to<bool>;
+        { start >= stop } -> std::convertible_to<bool>;
 
-		start += step;
-	};
+        start += step;
+    };
 
 	namespace ranges_algo_detail {
 		/**
@@ -347,10 +347,12 @@ namespace dice::template_library {
 			S step_;
 
 		public:
-			range_iterator() noexcept
-				requires(std::is_default_constructible_v<T> && std::is_constructible_v<S, int>)
-				: current_{}, stop_{}, step_{1} {
-			}
+            range_iterator() noexcept
+                    requires (std::is_default_constructible_v<T> && std::is_constructible_v<S, int>)
+                : current_{},
+                  stop_{},
+                  step_{1} {
+            }
 
 			explicit constexpr range_iterator(T start, T stop, S step)
 				: current_{start}, stop_{stop}, step_{step} {
@@ -373,9 +375,9 @@ namespace dice::template_library {
 				return std::exchange(current_, current_ + step_);
 			}
 
-			[[nodiscard]] constexpr size_t remaining() const noexcept
-				requires(std::integral<T> && std::integral<S>)
-			{
+            [[nodiscard]] constexpr size_t remaining() const noexcept
+                    requires (std::integral<T> && std::integral<S>)
+            {
 				if (current_ <= stop_) {
 					// forward
 					if (step_ < S{}) {
@@ -395,9 +397,9 @@ namespace dice::template_library {
 				}
 			}
 
-			[[nodiscard]] constexpr std::optional<T> nth(size_t off) noexcept
-				requires(std::integral<T> && std::integral<S>)
-			{
+            [[nodiscard]] constexpr std::optional<T> nth(size_t off) noexcept
+                    requires (std::integral<T> && std::integral<S>)
+            {
 				auto const rem = remaining();
 				if (off >= rem) {
 					current_ = stop_;
@@ -408,9 +410,9 @@ namespace dice::template_library {
 				return next();
 			}
 
-			[[nodiscard]] constexpr std::optional<T> next_back() noexcept
-				requires(std::integral<T> && std::integral<S>)
-			{
+            [[nodiscard]] constexpr std::optional<T> next_back() noexcept
+                    requires (std::integral<T> && std::integral<S>)
+            {
 				if (step_ > S{}) {
 					if (current_ >= stop_) {
 						return std::nullopt;
@@ -426,8 +428,8 @@ namespace dice::template_library {
 				}
 			}
 
-			[[nodiscard]] constexpr std::optional<T> nth_back(size_t off) noexcept
-				requires(std::integral<T> && std::integral<S>)
+            [[nodiscard]] constexpr std::optional<T> nth_back(size_t off) noexcept
+                    requires (std::integral<T> && std::integral<S>)
 			{
 				auto const rem = remaining();
 				if (off >= rem) {
@@ -458,14 +460,14 @@ namespace dice::template_library {
 	}
 
 	template<typename T>
-		requires(std::is_constructible_v<T, int> && step_for<T, T>)
-	[[nodiscard]] constexpr range_view<T, T> range(T start, T stop) {
-		return range_view<T, T>{start, stop, T(1)};
-	}
+    requires (std::is_constructible_v<T, int> && step_for<T, T>)
+    [[nodiscard]] constexpr range_view<T, T> range(T start, T stop) {
+        return range_view<T, T>{start, stop, T(1)};
+    }
 
-	template<typename T>
-		requires(std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
-	[[nodiscard]] constexpr range_view<T, T> range(T stop) {
+    template<typename T>
+    requires (std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
+    [[nodiscard]] constexpr range_view<T, T> range(T stop) {
 		return range_view<T, T>{T{}, stop, T(1)};
 	}
 

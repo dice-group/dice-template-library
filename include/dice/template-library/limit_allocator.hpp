@@ -96,17 +96,17 @@ namespace dice::template_library {
 		[[no_unique_address]] upstream_allocator_type inner_;
 
 		constexpr limit_allocator(std::shared_ptr<control_block_type> const &control_block, upstream_allocator_type const &alloc)
-			requires(std::is_default_constructible_v<upstream_allocator_type>)
-			: control_block_{control_block},
-			  inner_{alloc} {
-		}
+                requires (std::is_default_constructible_v<upstream_allocator_type>)
+            : control_block_{control_block},
+              inner_{alloc} {
+        }
 
 	public:
-		explicit constexpr limit_allocator(size_t bytes_limit)
-			requires(std::is_default_constructible_v<upstream_allocator_type>)
-			: control_block_{std::make_shared<control_block_type>(bytes_limit)},
-			  inner_{} {
-		}
+        explicit constexpr limit_allocator(size_t bytes_limit)
+                requires (std::is_default_constructible_v<upstream_allocator_type>)
+            : control_block_{std::make_shared<control_block_type>(bytes_limit)},
+              inner_{} {
+        }
 
 		constexpr limit_allocator(limit_allocator const &other) noexcept(std::is_nothrow_move_constructible_v<upstream_allocator_type>) = default;
 		constexpr limit_allocator(limit_allocator &&other) noexcept(std::is_nothrow_copy_constructible_v<upstream_allocator_type>) = default;
@@ -160,9 +160,9 @@ namespace dice::template_library {
 			return inner_;
 		}
 
-		friend constexpr void swap(limit_allocator &a, limit_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>)
-			requires(std::is_swappable_v<upstream_allocator_type>)
-		{
+        friend constexpr void swap(limit_allocator &a, limit_allocator &b) noexcept(std::is_nothrow_swappable_v<upstream_allocator_type>)
+                requires (std::is_swappable_v<upstream_allocator_type>)
+        {
 			using std::swap;
 			swap(a.control_block_, b.control_block_);
 			swap(a.inner_, b.inner_);
