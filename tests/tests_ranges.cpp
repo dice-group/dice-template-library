@@ -394,6 +394,17 @@ TEST_SUITE("range view") {
 			REQUIRE(std::ranges::equal(view.reversed(), expected));
 		}
 	}
+
+	TEST_CASE("Default construction necessary for subrange") {
+		[[maybe_unused]] auto view = dtl::range<unsigned long>(0, 10);
+
+		using RevIterType = decltype(view.begin());
+		using SentinelType = decltype(view.end());
+
+		std::ranges::subrange<RevIterType, SentinelType> const empty_subrange{};
+
+		(void) empty_subrange;
+	}
 }
 
 TEST_SUITE("all_distinct algorithm") {

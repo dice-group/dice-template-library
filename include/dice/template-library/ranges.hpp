@@ -53,8 +53,7 @@ namespace dice::template_library {
 		struct empty_fn {
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
-				static_assert(requires { std::ranges::empty(range); },
-							  "std::ranges::empty requires an input range as it might otherwise be expensive to materialize the first element.");
+				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires an input range as it might otherwise be expensive to materialize the first element.");
 				return std::ranges::empty(range);
 			}
 
@@ -115,10 +114,9 @@ namespace dice::template_library {
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
 			constexpr auto operator()(R &&range) const {
-				return std::forward<R>(range)
-					| std::views::filter([value = value_, pred = pred_](auto const &element) {
-						return !std::invoke(pred, element, value);
-					});
+				return std::forward<R>(range) | std::views::filter([value = value_, pred = pred_](auto const &element) {
+						   return !std::invoke(pred, element, value);
+					   });
 			}
 
 			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
@@ -138,7 +136,7 @@ namespace dice::template_library {
 	template<typename T, typename Pred = std::ranges::equal_to>
 	constexpr auto remove_element(T &&value, Pred &&pred = Pred{}) {
 		return ranges_algo_detail::remove_element_fn<std::remove_cvref_t<T>, std::remove_cvref_t<Pred>>{
-			std::forward<T>(value), std::forward<Pred>(pred)};
+				std::forward<T>(value), std::forward<Pred>(pred)};
 	}
 }// namespace dice::template_library
 
@@ -200,7 +198,7 @@ namespace dice::template_library {
 	namespace ranges_algo_detail {
 
 		template<typename T>
-		concept unordered_set_elem = std::equality_comparable<T> && requires (T const &elem) {
+		concept unordered_set_elem = std::equality_comparable<T> && requires(T const &elem) {
 			{ std::hash<T>{}(elem) } -> std::convertible_to<size_t>;
 		};
 
@@ -246,10 +244,9 @@ namespace dice::template_library {
 						  "The value type must be either hashable and equality comparable, or support less than.");
 
 			using set_type = std::conditional_t<
-				unordered_set_elem<set_value_type>, // prioritize unordered_set
-				std::unordered_set<set_value_type>,
-				std::set<set_value_type>
-			>;
+					unordered_set_elem<set_value_type>,// prioritize unordered_set
+					std::unordered_set<set_value_type>,
+					std::set<set_value_type>>;
 
 			set_type seen_;
 			std::ranges::iterator_t<R> current_;
@@ -325,7 +322,7 @@ namespace dice::template_library {
 namespace dice::template_library {
 
 	template<typename S, typename T>
-	concept step_for = std::is_default_constructible_v<S> && requires (T start, T const stop, S step) {
+	concept step_for = std::is_default_constructible_v<S> && requires(T start, T const stop, S step) {
 		{ start <= stop } -> std::convertible_to<bool>;
 		{ start >= stop } -> std::convertible_to<bool>;
 
@@ -349,6 +346,9 @@ namespace dice::template_library {
 			S step_;
 
 		public:
+			range_iterator() : current_{}, stop_{}, step_{1} {
+			}
+
 			explicit constexpr range_iterator(T start, T stop, S step)
 				: current_{start}, stop_{stop}, step_{step} {
 				if (step == S{}) [[unlikely]] {
@@ -381,13 +381,15 @@ namespace dice::template_library {
 					}
 
 					return static_cast<size_t>((stop_ - current_ + step_ - 1) / step_);
-				}// backward
-				if (step_ > S{}) {
-					// wrong direction
-					return 0;
-				}
+				} else {
+					// backward
+					if (step_ > S{}) {
+						// wrong direction
+						return 0;
+					}
 
-				return static_cast<size_t>((current_ - stop_ + -step_ - 1) / -step_);
+					return static_cast<size_t>((current_ - stop_ + -step_ - 1) / -step_);
+				}
 			}
 
 			[[nodiscard]] constexpr std::optional<T> nth(size_t off) noexcept
@@ -412,12 +414,13 @@ namespace dice::template_library {
 					}
 					stop_ -= step_;
 					return stop_;
+				} else {
+					if (current_ <= stop_) {
+						return std::nullopt;
+					}
+					stop_ -= step_;
+					return stop_;
 				}
-				if (current_ <= stop_) {
-					return std::nullopt;
-				}
-				stop_ -= step_;
-				return stop_;
 			}
 
 			[[nodiscard]] constexpr std::optional<T> nth_back(size_t off) noexcept
@@ -435,6 +438,9 @@ namespace dice::template_library {
 		};
 	}// namespace ranges_algo_detail
 
+	template<typename T, typename S>
+	using range_view = next_to_view<ranges_algo_detail::range_iterator<T, S>>;
+
 	/**
 	 * @brief A lazy view that generates a sequence of numbers, similar to Python's range().
 	 *
@@ -445,19 +451,19 @@ namespace dice::template_library {
 	 */
 	template<typename T, typename S>
 	constexpr auto range(T start, T stop, S step) {
-		return next_to_view<ranges_algo_detail::range_iterator<T, S>>{start, stop, step};
+		return range_view<T, S>{start, stop, step};
 	}
 
 	template<typename T>
 		requires(std::is_constructible_v<T, int> && step_for<T, T>)
 	constexpr auto range(T start, T stop) {
-		return range<T, T>(start, stop, T(1));
+		return range_view<T, T>{start, stop, T(1)};
 	}
 
 	template<typename T>
 		requires(std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
 	constexpr auto range(T stop) {
-		return range<T, T>(T{}, stop, T(1));
+		return range_view<T, T>{T{}, stop, T(1)};
 	}
 
 }// namespace dice::template_library
