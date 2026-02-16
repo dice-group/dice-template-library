@@ -346,7 +346,9 @@ namespace dice::template_library {
 			S step_;
 
 		public:
-			range_iterator() : current_{}, stop_{}, step_{1} {
+			range_iterator() noexcept
+				requires(std::is_default_constructible_v<T> && std::is_constructible_v<S, int>)
+				: current_{}, stop_{}, step_{1} {
 			}
 
 			explicit constexpr range_iterator(T start, T stop, S step)
@@ -450,19 +452,19 @@ namespace dice::template_library {
 	 * - `range<T>(start, stop, step)`: Generates numbers from start, incrementing by step, until stop is met or passed.
 	 */
 	template<typename T, typename S>
-	constexpr auto range(T start, T stop, S step) {
+	[[nodiscard]] constexpr range_view<T, S> range(T start, T stop, S step) {
 		return range_view<T, S>{start, stop, step};
 	}
 
 	template<typename T>
 		requires(std::is_constructible_v<T, int> && step_for<T, T>)
-	constexpr auto range(T start, T stop) {
+	[[nodiscard]] constexpr range_view<T, T> range(T start, T stop) {
 		return range_view<T, T>{start, stop, T(1)};
 	}
 
 	template<typename T>
 		requires(std::is_default_constructible_v<T> && std::is_constructible_v<T, int>)
-	constexpr auto range(T stop) {
+	[[nodiscard]] constexpr range_view<T, T> range(T stop) {
 		return range_view<T, T>{T{}, stop, T(1)};
 	}
 

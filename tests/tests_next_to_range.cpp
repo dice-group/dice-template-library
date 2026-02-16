@@ -19,7 +19,7 @@ TEST_SUITE("next_to_range") {
 		int cur_;
 
 	public:
-		explicit non_copy_iota_iter(int start = 0) noexcept : cur_{start} {
+		explicit non_copy_iota_iter(int start) noexcept : cur_{start} {
 		}
 
 		non_copy_iota_iter(non_copy_iota_iter &&other) = default;
@@ -37,6 +37,7 @@ TEST_SUITE("next_to_range") {
 	static_assert(std::ranges::range<non_copy_iota>);
 	static_assert(!std::ranges::view<non_copy_iota>);
 	static_assert(!std::ranges::sized_range<non_copy_iota>);
+	static_assert(!std::is_default_constructible_v<non_copy_iota>);
 
 	template<typename Container>
 	struct values_yielder_iter {

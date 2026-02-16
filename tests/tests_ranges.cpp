@@ -382,10 +382,10 @@ TEST_SUITE("range view") {
 			using namespace std::chrono;
 			using namespace std::chrono_literals;
 
-			auto view = dtl::range(2025y/01/01, 2027y/01/01, years{1});
-			std::vector<year_month_day> const expected{2025y/01/01, 2026y/01/01};
+			auto view = dtl::range(2025y / 01 / 01, 2027y / 01 / 01, years{1});
+			std::vector<year_month_day> const expected{2025y / 01 / 01, 2026y / 01 / 01};
 
- 		REQUIRE(std::ranges::equal(view, expected));
+			REQUIRE(std::ranges::equal(view, expected));
 		}
 
 		SUBCASE("reversed()") {
