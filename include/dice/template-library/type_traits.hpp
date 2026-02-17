@@ -167,6 +167,38 @@ namespace dice::template_library {
 		return static_cast<detail_forward_like::like_t<T, U>>(val);
 	}
 
+
+/**
+ * Move a value if it is either a non-const rvalue-reference or just a value (without reference qualifiers).
+ *
+ * @param expr expression to potentially move
+ *
+ * @example
+ * @code
+ * int value;
+ * int &ref;
+ * int const &cref;
+ * int &&rref;
+ * int const &&crref;
+ *
+ * DICE_MOVE_IF_VALUE(value) // moves
+ * DICE_MOVE_IF_VALUE(rref) // moves
+ *
+ * DICE_MOVE_IF_VALUE(ref) // does not move
+ * DICE_MOVE_IF_VALUE(cref) // does not move
+ * DICE_MOVE_IF_VALUE(crref) // does not move
+ * @endcode
+ */
+#define DICE_MOVE_IF_VALUE(expr)                                                                                                              \
+    [&]<bool _dice_detail_no_move = std::is_lvalue_reference_v<decltype(expr)> || std::is_const_v<std::remove_reference_t<decltype(expr)>>>() \
+            -> std::conditional_t<_dice_detail_no_move, decltype(expr), std::add_rvalue_reference_t<std::remove_cvref_t<decltype(expr)>>> {   \
+        if constexpr (_dice_detail_no_move) {                                                                                                 \
+            return expr;                                                                                                                      \
+        } else {                                                                                                                              \
+            return std::move(expr);                                                                                                           \
+        }                                                                                                                                     \
+    }()
+
 } // namespace dice::template_library
 
 #endif // DICE_TEMPLATELIBRARY_ZST_HPP

@@ -2,6 +2,7 @@
 #include <doctest/doctest.h>
 
 #include <dice/template-library/ranges.hpp>
+#include <dice/template-library/dbg.hpp>
 
 #include <array>
 #include <chrono>
@@ -446,4 +447,22 @@ TEST_SUITE("all_distinct algorithm") {
 		std::vector<HashableOnly> const duplicate_items{{10}, {20}, {10}};
 		REQUIRE_FALSE((duplicate_items | dtl::all_distinct(same_id_custom)));
 	}
+}
+
+TEST_SUITE("merge_view") {
+    TEST_CASE("sanity check") {
+        std::vector<int> v1{0, 2, 4};
+        std::vector<int> v2{1, 3, 5};
+
+        auto merge = dtl::merge(v1, v2);
+
+        using merge_t = decltype(merge);
+
+        static_assert(std::ranges::range<merge_t>);
+        static_assert(std::ranges::sized_range<merge_t>);
+        static_assert(std::ranges::forward_range<merge_t>);
+        static_assert(std::ranges::view<merge_t>);
+
+        CHECK((std::ranges::equal(merge, std::vector<int>{0, 1, 2, 3, 4, 5})));
+    }
 }
