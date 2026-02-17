@@ -96,4 +96,18 @@ TEST_SUITE("type_traits") {
 		static_assert(std::is_same_v<decltype(std::declval<forward_like_tester &&>().get()), int &&>);
 		static_assert(std::is_same_v<decltype(std::declval<forward_like_tester const &&>().get()), int const &&>);
 	}
+
+    TEST_CASE("move if value") {
+	    int value = 0;
+	    int &ref = value;
+	    int const &cref = value;
+	    int &&rref = std::move(value);
+	    int const &&crref = std::move(value);
+
+	    static_assert(std::is_same_v<decltype(DICE_MOVE_IF_VALUE(value)), int &&>); // move
+	    static_assert(std::is_same_v<decltype(DICE_MOVE_IF_VALUE(ref)), int &>); // no move
+	    static_assert(std::is_same_v<decltype(DICE_MOVE_IF_VALUE(cref)), int const &>); // no move
+	    static_assert(std::is_same_v<decltype(DICE_MOVE_IF_VALUE(rref)), int &&>); // move
+	    static_assert(std::is_same_v<decltype(DICE_MOVE_IF_VALUE(crref)), int const &&>); // no move
+	}
 }

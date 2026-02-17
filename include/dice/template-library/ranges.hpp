@@ -4,6 +4,7 @@
 #include <dice/template-library/next_to_range.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <ranges>
