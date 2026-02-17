@@ -539,11 +539,19 @@ namespace dice::template_library {
 	}
 
 
-	template<std::ranges::range R1, std::ranges::range R2, typename Cmp, typename Proj1, typename Proj2>
-	requires (std::ranges::view<R1> && std::ranges::view<R2>)
-	struct merge_view : std::ranges::view_interface<merge_view<R1, R2, Cmp, Proj1, Proj2>> {
-	private:
-		R1 r1_;
+    /**
+     *
+     * @tparam R1
+     * @tparam R2
+     * @tparam Cmp
+     * @tparam Proj1
+     * @tparam Proj2
+     */
+    template<std::ranges::range R1, std::ranges::range R2, typename Cmp = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
+    requires (std::ranges::view<R1> && std::ranges::view<R2>)
+    struct merge_view : std::ranges::view_interface<merge_view<R1, R2, Cmp, Proj1, Proj2>> {
+    private:
+        R1 r1_;
 		R2 r2_;
 
 		[[no_unique_address]] Cmp cmp_;
@@ -553,8 +561,12 @@ namespace dice::template_library {
 	    template<bool is_const>
 		struct iterator_impl {
 	    private:
-	        using base_iterator1 = std::ranges::iterator_t<std::conditional_t<is_const, R1 const, R1>>;
-	        using base_iterator2 = std::ranges::iterator_t<std::conditional_t<is_const, R2 const, R2>>;
+	    	using base1 = std::conditional_t<is_const, R1 const, R1>;
+	    	using base2 = std::conditional_t<is_const, R2 const, R2>;
+	        using base_iterator1 = std::ranges::iterator_t<base1>;
+	        using base_iterator2 = std::ranges::iterator_t<base2>;
+	        using base_sentinel1 = std::ranges::sentinel_t<base1>;
+	        using base_sentinel2 = std::ranges::sentinel_t<base2>;
 
 	        enum struct Source : uint8_t {
 	            Left,
@@ -568,20 +580,32 @@ namespace dice::template_library {
 	            std::indirect_result_t<Proj2, base_iterator2>
 	        >;
 
-		    using iterator_category = std::input_iterator_tag;
-		    using difference_type = std::iterator_traits<std::ranges::iterator_t<R1>>::difference_type;
+	    	using difference_type = std::common_type_t<
+			    typename std::iterator_traits<base_iterator1>::difference_type,
+			    typename std::iterator_traits<base_iterator2>::difference_type
+		    >;
+
+	    	using iterator_category = std::input_iterator_tag;
+
+	        using iterator_concept = std::conditional_t<
+                std::ranges::forward_range<base1> && std::ranges::forward_range<base2>,
+                std::forward_iterator_tag,
+                std::input_iterator_tag
+            >;
 
 		private:
-		    std::conditional_t<is_const, merge_view const *, merge_view *> parent_;
+		    std::conditional_t<is_const, merge_view const *, merge_view *> parent_ = nullptr;
 
-		    base_iterator1 it1_;
-		    base_iterator2 it2_;
+		    base_iterator1 it1_{};
+	        [[no_unique_address]] base_sentinel1 end1_{};
+		    base_iterator2 it2_{};
+	        [[no_unique_address]] base_iterator2 end2_{};
 
-		    Source src_;
+		    Source src_ = Source::Ended;
 
 		    void update_state() {
-		        auto r1_ended = it1_ == std::ranges::end(parent_->r1_);
-		        auto r2_ended = it2_ == std::ranges::end(parent_->r2_);
+		        bool const r1_ended = it1_ == end1_;
+		        bool const r2_ended = it2_ == end2_;
 
 		        if (r1_ended) {
 		            if (r2_ended) {
@@ -599,12 +623,21 @@ namespace dice::template_library {
 		    }
 
 		public:
-		    explicit iterator_impl(std::conditional_t<is_const, merge_view const &, merge_view &> parent)
-		        : parent_{&parent},
-		          it1_{std::ranges::begin(parent.r1_)},
-                  it2_{std::ranges::begin(parent.r2_)} {
-		        update_state();
-		    }
+            iterator_impl()
+                    requires (std::is_default_constructible_v<base_iterator1>
+                              && std::is_default_constructible_v<base_iterator2>
+                              && std::is_default_constructible_v<base_sentinel1>
+                              && std::is_default_constructible_v<base_sentinel2>)
+                    = default;
+
+            explicit iterator_impl(std::conditional_t<is_const, merge_view const &, merge_view &> parent)
+                : parent_{&parent},
+                  it1_{std::ranges::begin(parent.r1_)},
+                  end1_{std::ranges::end(parent.r1_)},
+                  it2_{std::ranges::begin(parent.r2_)},
+                  end2_{std::ranges::end(parent.r2_)} {
+                update_state();
+            }
 
 		    value_type operator*() const {
 		        switch (src_) {
@@ -641,17 +674,31 @@ namespace dice::template_library {
 		        return *this;
 		    }
 
-		    void operator++(int) {
+		    void operator++(int) requires (!std::is_copy_constructible_v<iterator_impl>) {
 		        ++*this;
 		    }
 
-		    friend bool operator==(iterator_impl const &self, std::default_sentinel_t) {
-		        return self.src_ == Source::Ended;
-		    }
+	    	iterator_impl operator++(int)
+                    requires (std::is_copy_constructible_v<iterator_impl>)
+            {
+                auto cpy = *this;
+                ++*this;
+                return cpy;
+            }
 
-		    friend bool operator==(std::default_sentinel_t, iterator_impl const &self) {
-		        return self == std::default_sentinel;
-		    }
+            friend bool operator==(iterator_impl const &lhs, iterator_impl const &rhs)
+                    requires (std::equality_comparable<base_iterator1> && std::equality_comparable<base_iterator2>)
+            {
+                return lhs.it1_ == rhs.it1_ && lhs.it2_ == rhs.it2_;
+            }
+
+	        friend bool operator==(iterator_impl const &iter, std::default_sentinel_t) noexcept {
+	    	    return iter.src_ == Source::Ended;
+	    	}
+
+	        friend bool operator==(std::default_sentinel_t, iterator_impl const &iter) noexcept {
+	    	    return iter == std::default_sentinel;
+	    	}
 		};
 
 	public:
@@ -667,16 +714,16 @@ namespace dice::template_library {
 			  proj2_{std::move(proj2)} {
 		}
 
-		[[nodiscard]] const_iterator begin() const {
-			return iterator{*this};
-		}
-
 	    [[nodiscard]] iterator begin() {
 		    return iterator{*this};
 		}
 
-		static constexpr sentinel end() noexcept {
-			return sentinel{};
+	    [[nodiscard]] const_iterator begin() const {
+		    return const_iterator{*this};
+		}
+
+	    static constexpr sentinel end() noexcept {
+		    return sentinel{};
 		}
 
 		[[nodiscard]] size_t size() const noexcept requires (std::ranges::sized_range<R1> && std::ranges::sized_range<R2>) {
@@ -684,9 +731,8 @@ namespace dice::template_library {
 		}
 	};
 
-    template<std::ranges::range R1, std::ranges::range R2, typename Cmp = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
+    template<typename R1, typename R2, typename Cmp = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
     merge_view(R1, R2, Cmp = {}, Proj1 = {}, Proj2 = {}) -> merge_view<std::views::all_t<R1>, std::views::all_t<R2>, Cmp, Proj1, Proj2>;
-
 
     /**
      * Merge two **sorted** ranges into a combined sorted range

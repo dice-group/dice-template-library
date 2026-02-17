@@ -2,6 +2,7 @@
 #include <doctest/doctest.h>
 
 #include <dice/template-library/ranges.hpp>
+#include <dice/template-library/dbg.hpp>
 
 #include <array>
 #include <chrono>
@@ -453,7 +454,15 @@ TEST_SUITE("merge_view") {
         std::vector<int> v1{0, 2, 4};
         std::vector<int> v2{1, 3, 5};
 
+        auto merge = dtl::merge(v1, v2);
 
-        CHECK((std::ranges::equal(dtl::merge(std::move(v1), v2), std::vector<int>{0, 1, 2, 3, 4, 5})));
+        using merge_t = decltype(merge);
+
+        static_assert(std::ranges::range<merge_t>);
+        static_assert(std::ranges::sized_range<merge_t>);
+        static_assert(std::ranges::forward_range<merge_t>);
+        static_assert(std::ranges::view<merge_t>);
+
+        CHECK((std::ranges::equal(merge, std::vector<int>{0, 1, 2, 3, 4, 5})));
     }
 }
