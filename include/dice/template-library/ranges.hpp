@@ -537,6 +537,173 @@ namespace dice::template_library {
 				std::forward<Pred>(pred));
 	}
 
+
+	template<std::ranges::range R1, std::ranges::range R2, typename Cmp, typename Proj1, typename Proj2>
+	requires (std::ranges::view<R1> && std::ranges::view<R2>)
+	struct merge_view : std::ranges::view_interface<merge_view<R1, R2, Cmp, Proj1, Proj2>> {
+	private:
+		R1 r1_;
+		R2 r2_;
+
+		[[no_unique_address]] Cmp cmp_;
+		[[no_unique_address]] Proj1 proj1_;
+		[[no_unique_address]] Proj2 proj2_;
+
+	    template<bool is_const>
+		struct iterator_impl {
+	    private:
+	        using base_iterator1 = std::ranges::iterator_t<std::conditional_t<is_const, R1 const, R1>>;
+	        using base_iterator2 = std::ranges::iterator_t<std::conditional_t<is_const, R2 const, R2>>;
+
+	        enum struct Source : uint8_t {
+	            Left,
+                Right,
+                Ended,
+            };
+
+	    public:
+		    using value_type = std::common_type_t<
+		        std::indirect_result_t<Proj1, base_iterator1>,
+	            std::indirect_result_t<Proj2, base_iterator2>
+	        >;
+
+		    using iterator_category = std::input_iterator_tag;
+		    using difference_type = std::iterator_traits<std::ranges::iterator_t<R1>>::difference_type;
+
+		private:
+		    std::conditional_t<is_const, merge_view const *, merge_view *> parent_;
+
+		    base_iterator1 it1_;
+		    base_iterator2 it2_;
+
+		    Source src_;
+
+		    void update_state() {
+		        auto r1_ended = it1_ == std::ranges::end(parent_->r1_);
+		        auto r2_ended = it2_ == std::ranges::end(parent_->r2_);
+
+		        if (r1_ended) {
+		            if (r2_ended) {
+		                src_ = Source::Ended;
+		            } else {
+		                src_ = Source::Right;
+		            }
+		        } else {
+		            if (r2_ended) {
+		                src_ = Source::Left;
+		            } else {
+		                src_ = std::invoke(parent_->cmp_, std::invoke(parent_->proj1_, *it1_), std::invoke(parent_->proj2_, *it2_)) ? Source::Left : Source::Right;
+		            }
+		        }
+		    }
+
+		public:
+		    explicit iterator_impl(std::conditional_t<is_const, merge_view const &, merge_view &> parent)
+		        : parent_{&parent},
+		          it1_{std::ranges::begin(parent.r1_)},
+                  it2_{std::ranges::begin(parent.r2_)} {
+		        update_state();
+		    }
+
+		    value_type operator*() const {
+		        switch (src_) {
+		            case Source::Left: {
+		                return std::invoke(parent_->proj1_, *it1_);
+		            }
+		            case Source::Right: {
+		                return std::invoke(parent_->proj2_, *it2_);
+		            }
+		            default: {
+		                assert(false);
+		                __builtin_unreachable();
+		            }
+		        }
+		    }
+
+		    iterator_impl &operator++() {
+		        switch (src_) {
+		            case Source::Left: {
+		                ++it1_;
+		                break;
+		            }
+		            case Source::Right: {
+		                ++it2_;
+		                break;
+		            }
+		            default: {
+		                assert(false);
+		                __builtin_unreachable();
+		            }
+		        }
+
+		        update_state();
+		        return *this;
+		    }
+
+		    void operator++(int) {
+		        ++*this;
+		    }
+
+		    friend bool operator==(iterator_impl const &self, std::default_sentinel_t) {
+		        return self.src_ == Source::Ended;
+		    }
+
+		    friend bool operator==(std::default_sentinel_t, iterator_impl const &self) {
+		        return self == std::default_sentinel;
+		    }
+		};
+
+	public:
+	    using iterator = iterator_impl<false>;
+	    using const_iterator = iterator_impl<true>;
+	    using sentinel = std::default_sentinel_t;
+
+		merge_view(R1 r1, R2 r2, Cmp cmp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+			: r1_{std::move(r1)},
+			  r2_{std::move(r2)},
+			  cmp_{std::move(cmp)},
+			  proj1_{std::move(proj1)},
+			  proj2_{std::move(proj2)} {
+		}
+
+		[[nodiscard]] const_iterator begin() const {
+			return iterator{*this};
+		}
+
+	    [[nodiscard]] iterator begin() {
+		    return iterator{*this};
+		}
+
+		static constexpr sentinel end() noexcept {
+			return sentinel{};
+		}
+
+		[[nodiscard]] size_t size() const noexcept requires (std::ranges::sized_range<R1> && std::ranges::sized_range<R2>) {
+			return std::ranges::size(r1_) + std::ranges::size(r2_);
+		}
+	};
+
+    template<std::ranges::range R1, std::ranges::range R2, typename Cmp = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
+    merge_view(R1, R2, Cmp = {}, Proj1 = {}, Proj2 = {}) -> merge_view<std::views::all_t<R1>, std::views::all_t<R2>, Cmp, Proj1, Proj2>;
+
+
+    /**
+     * Merge two **sorted** ranges into a combined sorted range
+     *
+     * @param r1 first **sorted** range
+     * @param r2 second **sorted** range
+     * @param cmp comparator for projected values
+     * @param proj1 projection for elements of first range
+     * @param proj2 projection for elements of second range
+     *
+     * @return view over combined, sorted and projected range
+     */
+    template<std::ranges::range R1, std::ranges::range R2, typename Cmp = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
+    [[nodiscard]] std::ranges::view auto merge(R1 &&r1, R2 &&r2, Cmp &&cmp = {}, Proj1 &&proj1 = {}, Proj2 &&proj2 = {}) {
+        return merge_view<std::views::all_t<R1>, std::views::all_t<R2>, std::remove_cvref_t<Cmp>, std::remove_cvref_t<Proj1>, std::remove_cvref_t<Proj2>>{
+                std::forward<R1>(r1), std::forward<R2>(r2), std::forward<Cmp>(cmp), std::forward<Proj1>(proj1), std::forward<Proj2>(proj2)};
+    }
+
 }// namespace dice::template_library
 
 #endif// DICE_TEMPLATELIBRARY_HPP

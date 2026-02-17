@@ -447,3 +447,13 @@ TEST_SUITE("all_distinct algorithm") {
 		REQUIRE_FALSE((duplicate_items | dtl::all_distinct(same_id_custom)));
 	}
 }
+
+TEST_SUITE("merge_view") {
+    TEST_CASE("sanity check") {
+        std::vector<int> v1{0, 2, 4};
+        std::vector<int> v2{1, 3, 5};
+
+
+        CHECK((std::ranges::equal(dtl::merge(std::move(v1), v2), std::vector<int>{0, 1, 2, 3, 4, 5})));
+    }
+}
