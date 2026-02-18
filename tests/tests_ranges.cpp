@@ -447,3 +447,34 @@ TEST_SUITE("all_distinct algorithm") {
 		REQUIRE_FALSE((duplicate_items | dtl::all_distinct(same_id_custom)));
 	}
 }
+
+TEST_SUITE("is_strictly_sorted") {
+    TEST_CASE("sanity check") {
+        CHECK(dtl::is_strictly_sorted(std::vector{1, 2, 3, 4}));
+        CHECK_FALSE(dtl::is_strictly_sorted(std::vector{1, 2, 2, 3, 4}));
+        CHECK_FALSE(dtl::is_strictly_sorted(std::vector{1, 1, 2, 3, 4}));
+        CHECK_FALSE(dtl::is_strictly_sorted(std::vector{1, 2, 3, 4, 4}));
+        CHECK_FALSE(dtl::is_strictly_sorted(std::vector{5, 4, 3, 2, 1}));
+    }
+
+    TEST_CASE("range overload") {
+        std::vector<int> const v{1, 2, 3};
+        CHECK(dtl::is_strictly_sorted(v));
+        CHECK(dtl::is_strictly_sorted(v, std::ranges::less{}));
+        CHECK(dtl::is_strictly_sorted(v, std::ranges::less{}, std::identity{}));
+    }
+
+    TEST_CASE("iterator overload") {
+        std::vector<int> const v{1, 2, 3};
+        CHECK(dtl::is_strictly_sorted(v.begin(), v.end()));
+        CHECK(dtl::is_strictly_sorted(v.begin(), v.end(), std::ranges::less{}));
+        CHECK(dtl::is_strictly_sorted(v.begin(), v.end(), std::ranges::less{}, std::identity{}));
+    }
+
+    TEST_CASE("pipeline overload") {
+        std::vector<int> const v{1, 2, 3};
+        CHECK((v | dtl::is_strictly_sorted()));
+        CHECK((v | dtl::is_strictly_sorted(std::ranges::less{})));
+        CHECK((v | dtl::is_strictly_sorted(std::ranges::less{}, std::identity{})));
+    }
+}
