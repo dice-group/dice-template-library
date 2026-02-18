@@ -541,7 +541,7 @@ namespace dice::template_library {
 	namespace ranges_algo_detail {
         template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp, typename Proj>
         requires (std::indirect_strict_weak_order<Cmp, std::projected<I, Proj>>)
-        constexpr bool is_strictly_sorted_impl(I first, S last, Cmp cmp, Proj proj) {
+        constexpr bool is_sorted_unique_impl(I first, S last, Cmp cmp, Proj proj) {
             if (first == last) {
                 return true;
             }
@@ -560,19 +560,19 @@ namespace dice::template_library {
         }
 
 		template<typename Cmp, typename Proj>
-		struct is_strictly_sorted_pipeline {
+		struct is_sorted_unique_pipeline {
         private:
 			[[no_unique_address]] Cmp cmp_;
 			[[no_unique_address]] Proj proj_;
 
         public:
-        	is_strictly_sorted_pipeline(Cmp cmp, Proj proj)
+        	is_sorted_unique_pipeline(Cmp cmp, Proj proj)
         		: cmp_{std::move(cmp)}, proj_{std::move(proj)} {
         	}
 
 			template<std::ranges::input_range R>
-			friend constexpr bool operator|(R &&range, is_strictly_sorted_pipeline const &self) {
-				return is_strictly_sorted_impl(std::ranges::begin(range), std::ranges::end(range), self.cmp_, self.proj_);
+			friend constexpr bool operator|(R &&range, is_sorted_unique_pipeline const &self) {
+				return is_sorted_unique_impl(std::ranges::begin(range), std::ranges::end(range), self.cmp_, self.proj_);
 			}
 		};
 	} // namespace ranges_algo_detail
@@ -585,8 +585,8 @@ namespace dice::template_library {
 	 * @param proj projection
 	 */
 	template<std::ranges::input_range R, typename Cmp = std::ranges::less, typename Proj = std::identity>
-	[[nodiscard]] constexpr bool is_strictly_unique(R &&range, Cmp cmp = {}, Proj proj = {}) {
-		return ranges_algo_detail::is_strictly_sorted_impl(std::ranges::begin(range), std::ranges::end(range), std::move(cmp), std::move(proj));
+	[[nodiscard]] constexpr bool is_sorted_unique(R &&range, Cmp cmp = {}, Proj proj = {}) {
+		return ranges_algo_detail::is_sorted_unique_impl(std::ranges::begin(range), std::ranges::end(range), std::move(cmp), std::move(proj));
 	}
 
     /**
@@ -599,8 +599,8 @@ namespace dice::template_library {
 	 * @return
 	 */
 	template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp = std::ranges::less, typename Proj = std::identity>
-	[[nodiscard]] constexpr bool is_strictly_unique(I first, S last, Cmp cmp = {}, Proj proj = {}) {
-		return ranges_algo_detail::is_strictly_sorted_impl(std::move(first), std::move(last), std::move(cmp), std::move(proj));
+	[[nodiscard]] constexpr bool is_sorted_unique(I first, S last, Cmp cmp = {}, Proj proj = {}) {
+		return ranges_algo_detail::is_sorted_unique_impl(std::move(first), std::move(last), std::move(cmp), std::move(proj));
 	}
 
 	/**
@@ -608,8 +608,8 @@ namespace dice::template_library {
 	 */
 	template<typename Cmp = std::ranges::less, typename Proj = std::identity>
 	requires (!std::ranges::input_range<Cmp> && !std::input_iterator<Cmp>)
-	[[nodiscard]] constexpr auto is_strictly_unique(Cmp cmp = {}, Proj proj = {}) {
-		return ranges_algo_detail::is_strictly_sorted_pipeline{std::move(cmp), std::move(proj)};
+	[[nodiscard]] constexpr auto is_sorted_unique(Cmp cmp = {}, Proj proj = {}) {
+		return ranges_algo_detail::is_sorted_unique_pipeline{std::move(cmp), std::move(proj)};
 	}
 
 }// namespace dice::template_library
