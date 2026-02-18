@@ -262,6 +262,10 @@ TEST_SUITE("range view") {
 	static_assert(std::ranges::range<decltype(dtl::range<std::chrono::seconds>(std::chrono::seconds{1}))>);
 	static_assert(!std::ranges::sized_range<decltype(dtl::range<std::chrono::seconds>(std::chrono::seconds{1}))>);
 
+    // testing constexprness
+    inline constexpr auto cexpr_range = dtl::range<int>(10) | std::views::take(3);
+    static_assert(std::ranges::equal(cexpr_range, std::array{0, 1, 2}));
+
 	TEST_CASE("range(stop) overload") {
 		auto view1 = dtl::range<int>(5);
 		std::vector expected1{0, 1, 2, 3, 4};
