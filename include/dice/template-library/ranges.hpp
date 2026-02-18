@@ -11,7 +11,7 @@
 #include <unordered_set>
 
 // all_of, any_of, none_of terminal algorithm
-#define DTL_DEFINE_PIPEABLE_RANGE_ALGO(namespc, algo_name)                             \
+#define DTL_DEFINE_PIPEABLE_RANGE_ALGO(algo_name)                                      \
 	namespace ranges_algo_detail {                                                     \
 		template<typename Pred>                                                        \
 		struct algo_name##_fn {                                                        \
