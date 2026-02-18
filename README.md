@@ -23,7 +23,7 @@ It contains:
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
-- `next_to_range`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
+- `next_to_range`/`next_to_view`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
 - `type_list`: A variadic lists of types for metaprogramming.
 - `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
@@ -171,10 +171,19 @@ It also supports allocators with "fancy" pointers.
 Additional range algorithms (e.g. `unique_view`) and adaptors (e.g., a pipeable `all_of`)
 that are missing from the standard library.
 
-### `next_to_range`/`next_to_iter`
+### `next_to_range`/`next_to_view`/`next_to_iter`
 Eliminate the boilerplate required to write C++ iterators and ranges.
 To get a fully functional range, the only thing that is required is
 implementing a minimal, rust-style iterator interface.
+
+#### Limitations
+Due to technical reasons in how `std::ranges::range`s are specified, `next_to_view` is **not** suitable
+to build truly general purpose "transformer"/pipeline views (i.e. ranges that take existing ranges and do stuff to them).
+
+It is possible to build "transformer" views, but you need to limit yourself to copyable views inside of them, i.e. you cannot use
+`std::ranges::owning_view` (which is only movable), you must use `std::ranges::ref_view`. Therefore, it would not be possible to
+move a vector inside a pipeline that has a `next_to_view`-based view as part of it.
+(It works fine if you don't **move** the vector into the pipeline.)
 
 ### `inplace_polymorphic`
 Similar to `std::variant`, this type allows for polymorphism without heap allocations.
@@ -237,7 +246,7 @@ A C++23 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/2.0.2` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/2.1.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

@@ -82,7 +82,7 @@ namespace dice::template_library {
 			mutable std::optional<value_type> cur_;
 			std::optional<value_type> peeked_;
 
-			[[nodiscard]] std::optional<value_type> next() {
+			[[nodiscard]] constexpr std::optional<value_type> next() {
 				if constexpr (dir == direction::forward) {
 					return Iter::next();
 				} else {
@@ -90,7 +90,7 @@ namespace dice::template_library {
 				}
 			}
 
-			[[nodiscard]] std::optional<value_type> nth(size_t off) requires (efficient_skip) {
+			[[nodiscard]] constexpr std::optional<value_type> nth(size_t off) requires (efficient_skip) {
 				if constexpr (dir == direction::forward) {
 					return Iter::nth(off);
 				} else {
@@ -98,7 +98,7 @@ namespace dice::template_library {
 				}
 			}
 
-			void advance() {
+			constexpr void advance() {
 				if (peeked_.has_value()) [[unlikely]] {
 					// fast path, we have already peaked the value
 					cur_ = std::exchange(peeked_, std::nullopt);
@@ -107,7 +107,7 @@ namespace dice::template_library {
 				}
 			}
 
-			void advance_by(size_t off) {
+			constexpr void advance_by(size_t off) {
 				if (off == 0) {
 					return;
 				}
@@ -130,28 +130,28 @@ namespace dice::template_library {
 
 		public:
             template<typename... Args>
-            explicit next_to_iter_impl(Args &&...args)
+            explicit constexpr next_to_iter_impl(Args &&...args)
                     requires (std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
                 : Iter{std::forward<Args>(args)...},
                   cur_{next()} {
             }
 
-			[[nodiscard]] reference operator*() const noexcept {
+			[[nodiscard]] constexpr reference operator*() const noexcept {
 				assert(cur_.has_value());
 				return *cur_;
 			}
 
-			[[nodiscard]] pointer operator->() const noexcept {
+			[[nodiscard]] constexpr pointer operator->() const noexcept {
 				assert(cur_.has_value());
 				return &*cur_;
 			}
 
-			next_to_iter_impl &operator++() {
+			constexpr next_to_iter_impl &operator++() {
 				advance();
 				return *this;
 			}
 
-			std::conditional_t<std::is_copy_constructible_v<base_iterator>, next_to_iter_impl, void> operator++(int) {
+			constexpr std::conditional_t<std::is_copy_constructible_v<base_iterator>, next_to_iter_impl, void> operator++(int) {
 				if constexpr (std::is_copy_constructible_v<base_iterator>) {
 					auto cpy = *this;
 					advance();
@@ -161,12 +161,12 @@ namespace dice::template_library {
 				}
 			}
 
-			next_to_iter_impl &operator+=(size_t off) requires (efficient_skip) {
+			constexpr next_to_iter_impl &operator+=(size_t off) requires (efficient_skip) {
 				advance_by(off);
 				return *this;
 			}
 
-			next_to_iter_impl operator+(size_t off) const requires (efficient_skip && std::is_copy_constructible_v<base_iterator>) {
+			constexpr next_to_iter_impl operator+(size_t off) const requires (efficient_skip && std::is_copy_constructible_v<base_iterator>) {
 				auto cpy = *this;
 				cpy += off;
 				return cpy;
@@ -178,7 +178,7 @@ namespace dice::template_library {
 			 *
 			 * @return nullopt if there is no next element, the element if there is a next element
 			 */
-			[[nodiscard]] std::optional<value_type> const &peek() {
+			[[nodiscard]] constexpr std::optional<value_type> const &peek() {
 				if (!peeked_.has_value()) {
 					peeked_ = next();
 				}
@@ -186,11 +186,11 @@ namespace dice::template_library {
 				return peeked_;
 			}
 
-			friend bool operator==(next_to_iter_impl const &self, sentinel) noexcept {
+			friend constexpr bool operator==(next_to_iter_impl const &self, sentinel) noexcept {
 				return !self.cur_.has_value();
 			}
 
-			friend bool operator==(sentinel, next_to_iter_impl const &self) noexcept {
+			friend constexpr bool operator==(sentinel, next_to_iter_impl const &self) noexcept {
 				return !self.cur_.has_value();
 			}
 		};
@@ -295,7 +295,7 @@ namespace dice::template_library {
 			std::function<Iter()>
 		> make_iter_;
 
-		[[nodiscard]] Iter iter() const {
+		[[nodiscard]] constexpr Iter iter() const {
 			if constexpr (std::is_copy_constructible_v<Iter>) {
 				return make_iter_;
 			} else {
@@ -305,13 +305,13 @@ namespace dice::template_library {
 
 	public:
         template<typename... Args>
-        explicit next_to_range(Args &&...args)
+        explicit constexpr next_to_range(Args &&...args)
                 requires (!std::is_copy_constructible_v<Iter> && std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
             : make_iter_{[... args = std::forward<Args>(args)] { return Iter{args...}; }} {
         }
 
         template<typename... Args>
-        explicit next_to_range(Args &&...args)
+        explicit constexpr next_to_range(Args &&...args)
                 requires (std::is_copy_constructible_v<Iter> && std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
             : make_iter_{std::forward<Args>(args)...} {
         }
@@ -320,11 +320,11 @@ namespace dice::template_library {
 		 * @return a new iterator from the beginning of the range
 		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
 		 */
-		[[nodiscard]] iterator begin() const {
+		[[nodiscard]] constexpr iterator begin() const {
 			return iterator{iter()};
 		}
 
-		[[nodiscard]] iterator cbegin() const {
+		[[nodiscard]] constexpr iterator cbegin() const {
 			return begin();
 		}
 
@@ -340,11 +340,11 @@ namespace dice::template_library {
 		 * @return a new iterator from the end of the range
 		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
 		 */
-		[[nodiscard]] auto rbegin() const requires (next_back_iterator<Iter>) {
+		[[nodiscard]] constexpr auto rbegin() const requires (next_back_iterator<Iter>) {
 			return next_back_to_reverse_iter<Iter>{iter()};
 		}
 
-		[[nodiscard]] auto crbegin() const requires (next_back_iterator<Iter>) {
+		[[nodiscard]] constexpr auto crbegin() const requires (next_back_iterator<Iter>) {
 			return rbegin();
 		}
 
@@ -360,28 +360,28 @@ namespace dice::template_library {
 		 * @return a reversed view of *this
 		 * @note this exists because std::views::reverse requires `std::bidirectional_iterator` from the iterator
 		 */
-		[[nodiscard]] auto reversed() const requires (next_back_iterator<Iter>) {
+		[[nodiscard]] constexpr auto reversed() const requires (next_back_iterator<Iter>) {
 			return std::ranges::subrange(rbegin(), rend());
 		}
 
 		/**
 		 * @return the size of the range
 		 */
-		[[nodiscard]] size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+		[[nodiscard]] constexpr size_t size() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return make_iter_.remaining();
 		}
 
 		/**
 		 * @return true iff the range is empty
 		 */
-		[[nodiscard]] bool empty() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+		[[nodiscard]] constexpr bool empty() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return size() == 0;
 		}
 
 		/**
 		 * @return true iff the range is non-empty
 		 */
-		[[nodiscard]] explicit operator bool() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
+		[[nodiscard]] explicit constexpr operator bool() const noexcept requires (std::is_copy_constructible_v<Iter> && sized_next_iterator<Iter>) {
 			return !empty();
 		}
 	};
@@ -439,7 +439,7 @@ namespace dice::template_library {
 
 	public:
         template<typename... Args>
-        explicit next_to_view(Args &&...args) requires (std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
+        explicit constexpr next_to_view(Args &&...args) requires (std::is_constructible_v<Iter, decltype(std::forward<Args>(args))...>)
             : iter_{std::forward<Args>(args)...} {
         }
 
@@ -447,11 +447,11 @@ namespace dice::template_library {
 		 * @return a new iterator from the beginning of the range
 		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
 		 */
-		[[nodiscard]] iterator begin() const {
+		[[nodiscard]] constexpr iterator begin() const {
 			return iterator{iter_};
 		}
 
-		[[nodiscard]] iterator cbegin() const {
+		[[nodiscard]] constexpr iterator cbegin() const {
 			return begin();
 		}
 
@@ -467,11 +467,11 @@ namespace dice::template_library {
 		 * @return a new iterator from the end of the range
 		 * @note this *always* returns a new iterator, regardless if there are other iterators alive
 		 */
-		[[nodiscard]] auto rbegin() const requires (next_back_iterator<Iter>) {
+		[[nodiscard]] constexpr auto rbegin() const requires (next_back_iterator<Iter>) {
 			return next_back_to_reverse_iter<Iter>{iter_};
 		}
 
-		[[nodiscard]] auto crbegin() const requires (nth_back_iterator<Iter>) {
+		[[nodiscard]] constexpr auto crbegin() const requires (nth_back_iterator<Iter>) {
 			return rbegin();
 		}
 
@@ -487,21 +487,21 @@ namespace dice::template_library {
 		 * @return a reversed view of *this
 		 * @note this exists because std::views::reverse requires `std::bidirectional_iterator` from the iterator
 		 */
-		[[nodiscard]] auto reversed() const requires (next_back_iterator<Iter>) {
+		[[nodiscard]] constexpr auto reversed() const requires (next_back_iterator<Iter>) {
 			return std::ranges::subrange(rbegin(), rend());
 		}
 
 		/**
 		 * @return the first element of the range
 		 */
-		[[nodiscard]] value_type front() const requires (next_iterator<Iter>) {
+		[[nodiscard]] constexpr value_type front() const requires (next_iterator<Iter>) {
 			return *auto{iter_}.next();
 		}
 
 		/**
 		 * @return the last element of the range
 		 */
-		[[nodiscard]] value_type back() const requires (next_back_iterator<Iter>) {
+		[[nodiscard]] constexpr value_type back() const requires (next_back_iterator<Iter>) {
 			return *auto{iter_}.next_back();
 		}
 
@@ -509,7 +509,7 @@ namespace dice::template_library {
 		 * @param off element index
 		 * @return the element at the given position
 		 */
-		[[nodiscard]] value_type operator[](size_t off) const requires (nth_iterator<Iter>) {
+		[[nodiscard]] constexpr value_type operator[](size_t off) const requires (nth_iterator<Iter>) {
 			return *auto{iter_}.nth(off);
 		}
 
@@ -520,7 +520,7 @@ namespace dice::template_library {
 		 * @param off number of elements to drop
 		 * @return *this
 		 */
-		next_to_view &advance(size_t off) requires (nth_iterator<Iter>) {
+		constexpr next_to_view &advance(size_t off) requires (nth_iterator<Iter>) {
 			if (off != 0) {
 				// "nth" advances behind the nth element
 				off -= 1;
@@ -533,21 +533,21 @@ namespace dice::template_library {
 		/**
 		 * @return the size of the range
 		 */
-		[[nodiscard]] size_t size() const noexcept requires (sized_next_iterator<Iter>) {
+		[[nodiscard]] constexpr size_t size() const noexcept requires (sized_next_iterator<Iter>) {
 			return iter_.remaining();
 		}
 
 		/**
 		 * @return true iff the range is empty
 		 */
-		[[nodiscard]] bool empty() const noexcept requires (sized_next_iterator<Iter>) {
+		[[nodiscard]] constexpr bool empty() const noexcept requires (sized_next_iterator<Iter>) {
 			return size() == 0;
 		}
 
 		/**
 		 * @return true iff the range is non-empty
 		 */
-		[[nodiscard]] explicit operator bool() const noexcept requires (sized_next_iterator<Iter>) {
+		[[nodiscard]] explicit constexpr operator bool() const noexcept requires (sized_next_iterator<Iter>) {
 			return !empty();
 		}
 	};
