@@ -585,7 +585,7 @@ namespace dice::template_library {
 	 * @param proj projection
 	 */
 	template<std::ranges::input_range R, typename Cmp = std::ranges::less, typename Proj = std::identity>
-	[[nodiscard]] constexpr bool is_strictly_sorted(R &&range, Cmp cmp = {}, Proj proj = {}) {
+	[[nodiscard]] constexpr bool is_strictly_unique(R &&range, Cmp cmp = {}, Proj proj = {}) {
 		return ranges_algo_detail::is_strictly_sorted_impl(std::ranges::begin(range), std::ranges::end(range), std::move(cmp), std::move(proj));
 	}
 
@@ -599,7 +599,7 @@ namespace dice::template_library {
 	 * @return
 	 */
 	template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp = std::ranges::less, typename Proj = std::identity>
-	[[nodiscard]] constexpr bool is_strictly_sorted(I first, S last, Cmp cmp = {}, Proj proj = {}) {
+	[[nodiscard]] constexpr bool is_strictly_unique(I first, S last, Cmp cmp = {}, Proj proj = {}) {
 		return ranges_algo_detail::is_strictly_sorted_impl(std::move(first), std::move(last), std::move(cmp), std::move(proj));
 	}
 
@@ -608,7 +608,7 @@ namespace dice::template_library {
 	 */
 	template<typename Cmp = std::ranges::less, typename Proj = std::identity>
 	requires (!std::ranges::input_range<Cmp> && !std::input_iterator<Cmp>)
-	[[nodiscard]] constexpr auto is_strictly_sorted(Cmp cmp = {}, Proj proj = {}) {
+	[[nodiscard]] constexpr auto is_strictly_unique(Cmp cmp = {}, Proj proj = {}) {
 		return ranges_algo_detail::is_strictly_sorted_pipeline{std::move(cmp), std::move(proj)};
 	}
 
