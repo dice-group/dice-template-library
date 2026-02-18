@@ -25,7 +25,7 @@
 			/* input_range causes no dangling risk since this adaptor is terminal  */  \
 			template<std::ranges::input_range R>                                       \
 			constexpr bool operator()(R &&r) const {                                   \
-				return namespc::algo_name(r, pred_);                                   \
+				return std::ranges::algo_name(r, pred_);                               \
 			}                                                                          \
                                                                                        \
 			template<typename R>                                                       \
@@ -42,9 +42,9 @@
 	}
 
 namespace dice::template_library {
-	DTL_DEFINE_PIPEABLE_RANGE_ALGO(std::ranges, all_of)
-	DTL_DEFINE_PIPEABLE_RANGE_ALGO(std::ranges, any_of)
-	DTL_DEFINE_PIPEABLE_RANGE_ALGO(std::ranges, none_of)
+	DTL_DEFINE_PIPEABLE_RANGE_ALGO(all_of)
+	DTL_DEFINE_PIPEABLE_RANGE_ALGO(any_of)
+	DTL_DEFINE_PIPEABLE_RANGE_ALGO(none_of)
 }// namespace dice::template_library
 
 // empty / non_empty terminal algorithm
