@@ -537,6 +537,81 @@ namespace dice::template_library {
 				std::forward<Pred>(pred));
 	}
 
+
+	namespace ranges_algo_detail {
+        template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp, typename Proj>
+        requires (std::indirect_strict_weak_order<Cmp, std::projected<I, Proj>>)
+        constexpr bool is_strictly_sorted_impl(I first, S last, Cmp cmp, Proj proj) {
+            if (first == last) {
+                return true;
+            }
+
+            auto it = first;
+            while (++it != last) {
+                // We require that 'prev' is strictly less than 'curr'.
+                // cmp(a, b) ~ a < b
+                // <-> !cmp(a, b) ~ a >= b
+                if (!std::invoke(cmp, std::invoke(proj, *first), std::invoke(proj, *it))) {
+                    return false;
+                }
+                first = it;
+            }
+            return true;
+        }
+
+		template<typename Cmp, typename Proj>
+		struct is_strictly_sorted_pipeline {
+        private:
+			[[no_unique_address]] Cmp cmp_;
+			[[no_unique_address]] Proj proj_;
+
+        public:
+        	is_strictly_sorted_pipeline(Cmp cmp, Proj proj)
+        		: cmp_{std::move(cmp)}, proj_{std::move(proj)} {
+        	}
+
+			template<std::ranges::input_range R>
+			friend constexpr bool operator|(R &&range, is_strictly_sorted_pipeline const &self) {
+				return is_strictly_sorted_impl(std::ranges::begin(range), std::ranges::end(range), self.cmp_, self.proj_);
+			}
+		};
+	} // namespace ranges_algo_detail
+
+	/**
+	 * Return true iff the given range is sorted and there are no duplicates.
+	 *
+	 * @param range range to check
+	 * @param cmp comparator
+	 * @param proj projection
+	 */
+	template<std::ranges::input_range R, typename Cmp = std::ranges::less, typename Proj = std::identity>
+	[[nodiscard]] constexpr bool is_strictly_unique(R &&range, Cmp cmp = {}, Proj proj = {}) {
+		return ranges_algo_detail::is_strictly_sorted_impl(std::ranges::begin(range), std::ranges::end(range), std::move(cmp), std::move(proj));
+	}
+
+    /**
+	 * Return true iff the given range is sorted and there are no duplicates.
+	 *
+	 * @param first iterator to start of range
+	 * @param last sentinel for range
+	 * @param cmp comparator
+	 * @param proj projection
+	 * @return
+	 */
+	template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp = std::ranges::less, typename Proj = std::identity>
+	[[nodiscard]] constexpr bool is_strictly_unique(I first, S last, Cmp cmp = {}, Proj proj = {}) {
+		return ranges_algo_detail::is_strictly_sorted_impl(std::move(first), std::move(last), std::move(cmp), std::move(proj));
+	}
+
+	/**
+	 * Pipeline overload for is_strictly_sorted
+	 */
+	template<typename Cmp = std::ranges::less, typename Proj = std::identity>
+	requires (!std::ranges::input_range<Cmp> && !std::input_iterator<Cmp>)
+	[[nodiscard]] constexpr auto is_strictly_unique(Cmp cmp = {}, Proj proj = {}) {
+		return ranges_algo_detail::is_strictly_sorted_pipeline{std::move(cmp), std::move(proj)};
+	}
+
 }// namespace dice::template_library
 
 #endif// DICE_TEMPLATELIBRARY_HPP
