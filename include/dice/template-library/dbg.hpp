@@ -23,9 +23,9 @@
  * assert(b == 5);
  */
 #define DICE_DBG(expr)                                                                                                       \
-	[]<typename T>(T &&val) -> decltype(auto) {                                                                              \
-		std::format_to(std::ostreambuf_iterator<char>{std::cerr}, "[{}:{}] {} = {}\n", DICE_FILENAME, __LINE__, #expr, val); \
-		return std::forward<T>(val);                                                                                         \
-	}(expr)
+    []<typename _dice_dbg_T>(_dice_dbg_T &&val) -> decltype(auto) {                                                          \
+        std::format_to(std::ostreambuf_iterator<char>{std::cerr}, "[{}:{}] {} = {}\n", DICE_FILENAME, __LINE__, #expr, val); \
+        return std::forward<_dice_dbg_T>(val);                                                                               \
+    }(expr)
 
 #endif // DICE_TEMPLATELIBRARY_DBG_HPP
