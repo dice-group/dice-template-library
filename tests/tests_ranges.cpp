@@ -20,9 +20,9 @@ TEST_SUITE("range adaptors for all_of, any_of, none_of") {
 	constexpr std::array a = {2, 4, 6};
 	constexpr auto even = [](int x) { return x % 2 == 0; };
 	static_assert(std::ranges::all_of(a, even));
-	static_assert(dtl::all_of(even)(a));
-	static_assert(!dtl::none_of(even)(a));
-	static_assert(dtl::any_of(even)(a));
+	static_assert(dtl::all_of(a, even));
+	static_assert(!dtl::none_of(a, even));
+	static_assert(dtl::any_of(a, even));
 
 	auto is_even = [](int x) { return x % 2 == 0; };
 
