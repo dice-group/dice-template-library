@@ -16,8 +16,18 @@ option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_im
 option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
-    file(DOWNLOAD https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/refs/heads/main/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format)
-    file(DOWNLOAD https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/refs/heads/main/.clang-tidy ${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy)
+    set(style_files
+        .clang-format
+        .clang-tidy
+    )
+
+    foreach (style_file ${style_files})
+        # remove the file, otherwise cmake will not redownload it when it changes on the remote
+        file(REMOVE "${CMAKE_SOURCE_DIR}/${style_file}")
+        file(DOWNLOAD "https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/main/${style_file}"
+                "${CMAKE_SOURCE_DIR}/${style_file}"
+                TLS_VERIFY ON)
+    endforeach ()
 
     if (BUILD_TESTING OR BUILD_EXAMPLES)
         set(WITH_BOOST ON)
