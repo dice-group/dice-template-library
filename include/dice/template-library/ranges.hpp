@@ -61,8 +61,9 @@ namespace dice::template_library {
 		struct empty_fn {
 			template<std::input_iterator I, std::sentinel_for<I> S>
 			constexpr bool operator()(I first, S last) const {
-				static_assert(requires { std::ranges::empty(first, last); }, "std::ranges::empty requires a forward range as it might otherwise be expensive to materialize the first element.");
-				return std::ranges::empty(std::move(first), std::move(last));
+				std::ranges::subrange<I, S> range{std::move(first), std::move(last)};
+				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires a forward range as it might otherwise be expensive to materialize the first element.");
+				return std::ranges::empty(range);
 			}
 
 			template<std::ranges::input_range R>
@@ -146,13 +147,7 @@ namespace dice::template_library {
 		};
 
 		struct remove_element_fn {
-			template<std::ranges::viewable_range R, typename T, typename Pred = std::ranges::equal_to>
-			constexpr std::ranges::view auto operator()(R &&range, T remove_value, Pred pred = {}) const {
-                return remove_element_impl(std::forward<R>(range), std::move(remove_value), std::move(pred));
-			}
-
 			template<typename T, typename Pred = std::ranges::equal_to>
-			requires (!std::ranges::viewable_range<T>)
 			constexpr auto operator()(T remove_value, Pred pred = {}) const {
 				return remove_element_pipeline<T, Pred>{std::move(remove_value), std::move(pred)};
 			}
@@ -165,8 +160,12 @@ namespace dice::template_library {
 	 * @param value The value to filter out of the source range.
 	 * @param pred Optional binary predicate for comparison. Defaults to `std::ranges::equal_to`.
 	 * @return A range adaptor closure.
+	 *
+	 * @note This view is deprecated because it is not possible to make it callable as a regular function and pipelineable
+	 *		at the same time due to overload resolution issues with ranges of ranges.
+	 *		Additionally, this is just a `std::views::filter([remove_value](auto const &x) { return x != remove_value });`, use that instead.
 	 */
-	inline constexpr ranges_algo_detail::remove_element_fn remove_element;
+	[[deprecated("Use std::views::filter")]] inline constexpr ranges_algo_detail::remove_element_fn remove_element;
 
 }// namespace dice::template_library
 
@@ -312,7 +311,6 @@ namespace dice::template_library {
 				return self(std::forward<R>(r));
 			}
 		};
-
 	}// namespace ranges_algo_detail
 
 	/**
@@ -508,6 +506,11 @@ namespace dice::template_library {
 				}
 			}
 			return true;
+		}
+
+		template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = std::ranges::equal_to>
+		[[nodiscard]] constexpr bool all_distinct_sorted_impl(I first, S last, Pred pred) {
+			return std::ranges::adjacent_find(first, last, std::move(pred)) == last;
 		}
 	} // namespace ranges_algo_detail
 

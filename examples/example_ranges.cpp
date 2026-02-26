@@ -24,5 +24,4 @@ int main() {
 	assert(std::ranges::equal(uniq, std::vector{2, 4, 6}));
 
 	assert(std::ranges::equal(dtl::range(1, 4, 1), std::vector{1, 2, 3}));
-	assert(std::ranges::equal(dtl::range(3) | dtl::remove_element(1), std::vector{0, 2}));
 }
