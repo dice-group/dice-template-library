@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   dice-template-library
-  VERSION 2.1.0
+  VERSION 2.1.1
   DESCRIPTION
     "This template library is a collection of template-oriented code that we, the Data Science Group at UPB, found pretty handy. It contains: `switch_cases` (Use runtime values in compile-time context), `integral_template_tuple` (Create a tuple-like structure that instantiates a template for a range of values), `integral_template_variant` (A wrapper type for `std::variant` guarantees to only contain variants of the form `T<IX>` and `for_{types,values,range}` (Compile time for loops for types, values or ranges))."
   HOMEPAGE_URL "https://dice-research.org/")
@@ -22,11 +22,8 @@ if (PROJECT_IS_TOP_LEVEL)
     )
 
     foreach (style_file ${style_files})
-        # remove the file, otherwise cmake will not redownload it when it changes on the remote
-        file(REMOVE "${CMAKE_SOURCE_DIR}/${style_file}")
-        file(DOWNLOAD "https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/main/${style_file}"
-                "${CMAKE_SOURCE_DIR}/${style_file}"
-                TLS_VERIFY ON)
+        file(REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/${style_file})
+        file(DOWNLOAD https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/refs/heads/main/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/${style_file})
     endforeach ()
 
     if (BUILD_TESTING OR BUILD_EXAMPLES)
