@@ -5,56 +5,71 @@
 
 #include <algorithm>
 #include <functional>
-#include <limits>
 #include <ranges>
 #include <set>
 #include <unordered_set>
 
-// all_of, any_of, none_of terminal algorithm
-#define DTL_DEFINE_PIPEABLE_RANGE_ALGO(algo_name)                                      \
-	namespace ranges_algo_detail {                                                     \
-		template<typename Pred>                                                        \
-		struct algo_name##_fn {                                                        \
-		private:                                                                       \
-			Pred pred_;                                                                \
-                                                                                       \
-		public:                                                                        \
-			explicit constexpr algo_name##_fn(Pred const &pred) : pred_{pred} {}       \
-			explicit constexpr algo_name##_fn(Pred &&pred) : pred_{std::move(pred)} {} \
-                                                                                       \
-			/* input_range causes no dangling risk since this adaptor is terminal  */  \
-			template<std::ranges::input_range R>                                       \
-			constexpr bool operator()(R &&r) const {                                   \
-				return std::ranges::algo_name(r, pred_);                               \
-			}                                                                          \
-                                                                                       \
-			template<typename R>                                                       \
-			friend auto operator|(R &&r, algo_name##_fn const &self) {                 \
-				return self(std::forward<R>(r));                                       \
-			}                                                                          \
-		};                                                                             \
-	}                                                                                  \
-                                                                                       \
-	template<typename Pred>                                                            \
-	constexpr auto algo_name(Pred &&pred) {                                            \
-		return ranges_algo_detail::algo_name##_fn<std::remove_cvref_t<Pred>>(          \
-				std::forward<Pred>(pred));                                             \
-	}
+// predicate based terminal algorithm
+#define DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(algo_name, impl_function)                                     \
+    namespace ranges_algo_detail {                                                                         \
+        template<typename Pred>                                                                            \
+        struct algo_name##_pipeline {                                                                      \
+        private:                                                                                           \
+            Pred pred_;                                                                                    \
+                                                                                                           \
+        public:                                                                                            \
+            explicit constexpr algo_name##_pipeline(Pred pred)                                             \
+                : pred_{std::move(pred)} {                                                                 \
+            }                                                                                              \
+                                                                                                           \
+            template<std::ranges::input_range R>                                                           \
+            [[nodiscard]] friend constexpr bool operator|(R &&r, algo_name##_pipeline const &self) {       \
+                return impl_function(std::ranges::begin(r), std::ranges::end(r), self.pred_);              \
+            }                                                                                              \
+        };                                                                                                 \
+                                                                                                           \
+        struct algo_name##_fn {                                                                            \
+            template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = std::ranges::equal_to> \
+            [[nodiscard]] constexpr bool operator()(I first, S last, Pred pred = {}) const {               \
+                return impl_function(std::move(first), std::move(last), std::move(pred));                  \
+            }                                                                                              \
+                                                                                                           \
+            template<std::ranges::input_range R, typename Pred = std::ranges::equal_to>                    \
+            [[nodiscard]] constexpr bool operator()(R &&range, Pred pred = {}) const {                     \
+                return impl_function(std::ranges::begin(range), std::ranges::end(range), std::move(pred)); \
+            }                                                                                              \
+                                                                                                           \
+            template<typename Pred = std::ranges::equal_to>                                                \
+            requires (!std::ranges::input_range<Pred> && !std::input_iterator<Pred>)                       \
+            [[nodiscard]] constexpr auto operator()(Pred pred = {}) const {                                \
+                return algo_name##_pipeline{std::move(pred)};                                              \
+            }                                                                                              \
+        };                                                                                                 \
+    }                                                                                                      \
+                                                                                                           \
+    inline constexpr ranges_algo_detail::algo_name##_fn algo_name;
 
 namespace dice::template_library {
-	DTL_DEFINE_PIPEABLE_RANGE_ALGO(all_of)
-	DTL_DEFINE_PIPEABLE_RANGE_ALGO(any_of)
-	DTL_DEFINE_PIPEABLE_RANGE_ALGO(none_of)
+	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_of, std::ranges::all_of);
+	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(any_of, std::ranges::any_of);
+	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(none_of, std::ranges::none_of);
 }// namespace dice::template_library
 
 // empty / non_empty terminal algorithm
 namespace dice::template_library {
 	namespace ranges_algo_detail {
 		struct empty_fn {
+			template<std::input_iterator I, std::sentinel_for<I> S>
+			constexpr bool operator()(I first, S last) const {
+				std::ranges::subrange<I, S> range{std::move(first), std::move(last)};
+				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires a forward range as it might otherwise be expensive to materialize the first element.");
+				return std::ranges::empty(range);
+			}
+
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
-				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires an input range as it might otherwise be expensive to materialize the first element.");
-				return std::ranges::empty(range);
+				static_assert(requires { std::ranges::empty(range); }, "std::ranges::empty requires a forward range as it might otherwise be expensive to materialize the first element.");
+				return std::ranges::empty(std::forward<R>(range));
 			}
 
 			template<std::ranges::input_range R>
@@ -64,6 +79,11 @@ namespace dice::template_library {
 		};
 
 		struct non_empty_fn {
+			template<std::input_iterator I, std::sentinel_for<I> S>
+			constexpr bool operator()(I first, S last) const {
+				return !empty_fn{}(std::move(first), std::move(last));
+			}
+
 			template<std::ranges::input_range R>
 			constexpr bool operator()(R &&range) const {
 				return !empty_fn{}(std::forward<R>(range));
@@ -100,29 +120,36 @@ namespace dice::template_library {
 // remove_element adaptor
 namespace dice::template_library {
 	namespace ranges_algo_detail {
+		template<std::ranges::viewable_range R, typename T, typename Pred = std::ranges::equal_to>
+		constexpr std::ranges::view auto remove_element_impl(R &&range, T remove_value, Pred pred = {}) {
+            return std::forward<R>(range)
+                   | std::views::filter([remove_value = std::move(remove_value), pred = std::move(pred)](auto const &element) {
+                         return !std::invoke(pred, element, remove_value);
+                     });
+		}
+
 		template<typename T, typename Pred>
-		struct remove_element_fn {
+		struct remove_element_pipeline {
 		private:
 			T value_;
 			Pred pred_;
 
 		public:
 			template<typename V, typename P>
-			constexpr remove_element_fn(V &&value, P &&pred)
+			constexpr remove_element_pipeline(V &&value, P &&pred)
 				: value_{std::forward<V>(value)}, pred_{std::forward<P>(pred)} {
 			}
 
-			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
-			constexpr auto operator()(R &&range) const {
-                return std::forward<R>(range)
-                       | std::views::filter([value = value_, pred = pred_](auto const &element) {
-                             return !std::invoke(pred, element, value);
-                         });
-            }
+			template<std::ranges::viewable_range R>
+			friend constexpr std::ranges::view auto operator|(R &&range, remove_element_pipeline const &self) {
+				return remove_element_impl(std::forward<R>(range), self.value_, self.pred_);
+			}
+		};
 
-			template<std::ranges::viewable_range R>// viewable_range ensures there are no views into dangling stuff
-			friend constexpr auto operator|(R &&range, remove_element_fn const &self) {
-				return self(std::forward<R>(range));
+		struct remove_element_fn {
+			template<typename T, typename Pred = std::ranges::equal_to>
+			constexpr auto operator()(T remove_value, Pred pred = {}) const {
+				return remove_element_pipeline<T, Pred>{std::move(remove_value), std::move(pred)};
 			}
 		};
 	}// namespace ranges_algo_detail
@@ -133,51 +160,34 @@ namespace dice::template_library {
 	 * @param value The value to filter out of the source range.
 	 * @param pred Optional binary predicate for comparison. Defaults to `std::ranges::equal_to`.
 	 * @return A range adaptor closure.
+	 *
+	 * @note This view is deprecated because it is not possible to make it callable as a regular function and pipelineable
+	 *		at the same time due to overload resolution issues with ranges of ranges.
+	 *		Additionally, this is just a `std::views::filter([remove_value](auto const &x) { return x != remove_value });`, use that instead.
 	 */
-	template<typename T, typename Pred = std::ranges::equal_to>
-	constexpr auto remove_element(T &&value, Pred &&pred = Pred{}) {
-		return ranges_algo_detail::remove_element_fn<std::remove_cvref_t<T>, std::remove_cvref_t<Pred>>{
-				std::forward<T>(value), std::forward<Pred>(pred)};
-	}
+	[[deprecated("Use std::views::filter")]] inline constexpr ranges_algo_detail::remove_element_fn remove_element;
+
 }// namespace dice::template_library
 
 // all_equal adaptor
 namespace dice::template_library {
 	namespace ranges_algo_detail {
-		template<typename Pred>
-		struct all_equal_fn {
-		private:
-			Pred pred_;
+        template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = std::ranges::equal_to>
+        requires (std::copyable<std::iter_value_t<I>>)
+        bool all_equal_impl(I first, S last, Pred pred) {
+            if (first == last) {
+                return true;
+            }
 
-		public:
-			explicit constexpr all_equal_fn(Pred &&pred) : pred_{std::move(pred)} {}
-			explicit constexpr all_equal_fn(Pred const &pred) : pred_{pred} {}
+            auto const first_element = *first;
+            ++first;
 
-			template<std::ranges::input_range R>
-				requires std::copyable<std::ranges::range_value_t<R>>
-			constexpr bool operator()(R &&range) const {
-				auto it = std::ranges::begin(range);
-				auto const end = std::ranges::end(range);
-				if (it == end) {
-					return true;
-				}
-
-				auto const first_element = *it;
-				++it;
-
-                // Check if all subsequent elements in the range match the first one.
-                return std::ranges::subrange(it, end)
-                       | dice::template_library::all_of([this, first_element](auto const &current_element) {
-                             return std::invoke(pred_, current_element, first_element);
-                         });
-			}
-
-			template<std::ranges::input_range R>
-				requires std::copyable<std::ranges::range_value_t<R>>
-			friend constexpr bool operator|(R &&range, all_equal_fn const &self) {
-				return self(std::forward<R>(range));
-			}
-		};
+            // Check if all subsequent elements in the range match the first one.
+            return std::ranges::subrange(first, last)
+                   | dice::template_library::all_of([&](auto const &current_element) {
+                         return std::invoke(pred, current_element, first_element);
+                     });
+        }
 	}// namespace ranges_algo_detail
 
 	/**
@@ -188,10 +198,7 @@ namespace dice::template_library {
      * @param pred Optional binary predicate for comparison. Defaults to `std::ranges::equal_to`.
      * @return true if all elements in the range are equal, otherwise false.
      */
-	template<typename Pred = std::ranges::equal_to>
-	constexpr auto all_equal(Pred &&pred = Pred{}) {
-		return ranges_algo_detail::all_equal_fn<std::remove_cvref_t<Pred>>(std::forward<Pred>(pred));
-	}
+	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_equal, ranges_algo_detail::all_equal_impl);
 }// namespace dice::template_library
 
 // unique adaptor
@@ -304,7 +311,6 @@ namespace dice::template_library {
 				return self(std::forward<R>(r));
 			}
 		};
-
 	}// namespace ranges_algo_detail
 
 	/**
@@ -315,7 +321,7 @@ namespace dice::template_library {
 	 *
 	 * @return A lazy view containing the unique elements.
 	 */
-	inline constexpr ranges_algo_detail::unique_fn unique{};
+	inline constexpr ranges_algo_detail::unique_fn unique;
 
 }// namespace dice::template_library
 
@@ -476,49 +482,37 @@ namespace dice::template_library {
 // all_distinct terminal algorithm
 namespace dice::template_library {
 	namespace ranges_algo_detail {
-		template<typename Pred>
-		struct all_distinct_fn {
-		private:
-			Pred pred_;
+		template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = std::ranges::equal_to>
+		[[nodiscard]] constexpr bool all_distinct_impl(I first, S last, Pred pred) {
+			using value_type = std::remove_cvref_t<std::iter_value_t<I>>;
+			static_assert(unordered_set_elem<value_type> || (set_elem<value_type> && std::is_same_v<Pred, std::ranges::equal_to>),
+						  "The elements of the consumed range are neither compatible with std::unordered_set nor with std::set.");
 
-		public:
-			explicit constexpr all_distinct_fn(Pred const &pred) : pred_{pred} {}
-			explicit constexpr all_distinct_fn(Pred &&pred) : pred_{std::move(pred)} {}
-
-			template<std::ranges::input_range R>
-			constexpr bool operator()(R &&range) const {
-				using value_type = std::remove_cvref_t<std::ranges::range_value_t<R>>;
-				static_assert(unordered_set_elem<value_type> || (set_elem<value_type> && std::is_same_v<Pred, std::ranges::equal_to>),
-							  "The elements of the consumed range are neither compatible with std::unordered_set nor with std::set.");
-
-				auto it = std::ranges::begin(range);
-				auto const end = std::ranges::end(range);
-				if (it == end) {
-					return true;
-				}
-
-				auto seen = [&] {
-					if constexpr (unordered_set_elem<value_type>) {
-						return std::unordered_set<value_type, std::hash<value_type>, Pred>{1, {}, pred_};
-					} else {
-						return std::set<value_type>{};
-					}
-				}();
-
-				for (auto const &element : std::ranges::subrange(it, end)) {
-					if (!seen.insert(element).second) {
-						return false;
-					}
-				}
+			if (first == last) {
 				return true;
 			}
 
-			template<std::ranges::input_range R>
-			friend constexpr bool operator|(R &&range, all_distinct_fn const &self) {
-				return self(std::forward<R>(range));
+			auto seen = [&] {
+				if constexpr (unordered_set_elem<value_type>) {
+					return std::unordered_set<value_type, std::hash<value_type>, Pred>{1, {}, std::move(pred)};
+				} else {
+					return std::set<value_type>{};
+				}
+			}();
+
+			for (; first != last; ++first) {
+				if (!seen.insert(*first).second) {
+					return false;
+				}
 			}
-		};
-	}// namespace ranges_algo_detail
+			return true;
+		}
+
+		template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = std::ranges::equal_to>
+		[[nodiscard]] constexpr bool all_distinct_sorted_impl(I first, S last, Pred pred) {
+			return std::ranges::adjacent_find(first, last, std::move(pred)) == last;
+		}
+	} // namespace ranges_algo_detail
 
 	/**
 	 * @brief Checks if all elements in a range are distinct from one another.
@@ -531,13 +525,11 @@ namespace dice::template_library {
 	 * @param pred Optional binary predicate for equality comparison. Defaults to `std::ranges::equal_to`.
 	 * @return true if all elements are distinct, otherwise false.
 	 */
-	template<typename Pred = std::ranges::equal_to>
-	constexpr auto all_distinct(Pred &&pred = Pred{}) {
-		return ranges_algo_detail::all_distinct_fn<std::remove_cvref_t<Pred>>(
-				std::forward<Pred>(pred));
-	}
+	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_distinct, ranges_algo_detail::all_distinct_impl);
+} // namespace dice::template_library
 
-
+// is_sorted_unique terminal algorithm
+namespace dice::template_library {
 	namespace ranges_algo_detail {
         template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp, typename Proj>
         requires (std::indirect_strict_weak_order<Cmp, std::projected<I, Proj>>)
@@ -562,56 +554,66 @@ namespace dice::template_library {
 		template<typename Cmp, typename Proj>
 		struct is_sorted_unique_pipeline {
         private:
-			[[no_unique_address]] Cmp cmp_;
-			[[no_unique_address]] Proj proj_;
+        	[[no_unique_address]] Cmp cmp_;
+        	[[no_unique_address]] Proj proj_;
 
         public:
         	is_sorted_unique_pipeline(Cmp cmp, Proj proj)
-        		: cmp_{std::move(cmp)}, proj_{std::move(proj)} {
+			: cmp_{std::move(cmp)}, proj_{std::move(proj)} {
         	}
 
-			template<std::ranges::input_range R>
-			friend constexpr bool operator|(R &&range, is_sorted_unique_pipeline const &self) {
-				return is_sorted_unique_impl(std::ranges::begin(range), std::ranges::end(range), self.cmp_, self.proj_);
-			}
+        	template<std::ranges::input_range R>
+			[[nodiscard]] friend constexpr bool operator|(R &&range, is_sorted_unique_pipeline const &self) {
+        		return is_sorted_unique_impl(std::ranges::begin(range), std::ranges::end(range), self.cmp_, self.proj_);
+        	}
+        };
+
+		struct is_sorted_unique_fn {
+            /**
+			 * Return true iff the given range is sorted and there are no duplicates.
+			 *
+			 * @param range range to check
+			 * @param cmp comparator
+			 * @param proj projection
+			 */
+            template<std::ranges::input_range R, typename Cmp = std::ranges::less, typename Proj = std::identity>
+            [[nodiscard]] constexpr bool operator()(R &&range, Cmp cmp = {}, Proj proj = {}) const {
+                return is_sorted_unique_impl(std::ranges::begin(range), std::ranges::end(range), std::move(cmp), std::move(proj));
+            }
+
+            /**
+		     * Return true iff the given range is sorted and there are no duplicates.
+		     *
+		     * @param first iterator to start of range
+		     * @param last sentinel for range
+		     * @param cmp comparator
+		     * @param proj projection
+		     * @return
+		     */
+            template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp = std::ranges::less, typename Proj = std::identity>
+            [[nodiscard]] constexpr bool operator()(I first, S last, Cmp cmp = {}, Proj proj = {}) const {
+                return is_sorted_unique_impl(std::move(first), std::move(last), std::move(cmp), std::move(proj));
+            }
+
+            /**
+			 * Pipeline overload for is_strictly_sorted
+			 */
+            template<typename Cmp = std::ranges::less, typename Proj = std::identity>
+            requires (!std::ranges::input_range<Cmp> && !std::input_iterator<Cmp>)
+            [[nodiscard]] constexpr auto operator()(Cmp cmp = {}, Proj proj = {}) const {
+                return is_sorted_unique_pipeline{std::move(cmp), std::move(proj)};
+            }
 		};
 	} // namespace ranges_algo_detail
 
 	/**
-	 * Return true iff the given range is sorted and there are no duplicates.
-	 *
-	 * @param range range to check
-	 * @param cmp comparator
-	 * @param proj projection
-	 */
-	template<std::ranges::input_range R, typename Cmp = std::ranges::less, typename Proj = std::identity>
-	[[nodiscard]] constexpr bool is_sorted_unique(R &&range, Cmp cmp = {}, Proj proj = {}) {
-		return ranges_algo_detail::is_sorted_unique_impl(std::ranges::begin(range), std::ranges::end(range), std::move(cmp), std::move(proj));
-	}
-
-    /**
-	 * Return true iff the given range is sorted and there are no duplicates.
-	 *
-	 * @param first iterator to start of range
-	 * @param last sentinel for range
-	 * @param cmp comparator
-	 * @param proj projection
-	 * @return
-	 */
-	template<std::input_iterator I, std::sentinel_for<I> S, typename Cmp = std::ranges::less, typename Proj = std::identity>
-	[[nodiscard]] constexpr bool is_sorted_unique(I first, S last, Cmp cmp = {}, Proj proj = {}) {
-		return ranges_algo_detail::is_sorted_unique_impl(std::move(first), std::move(last), std::move(cmp), std::move(proj));
-	}
-
-	/**
-	 * Pipeline overload for is_strictly_sorted
-	 */
-	template<typename Cmp = std::ranges::less, typename Proj = std::identity>
-	requires (!std::ranges::input_range<Cmp> && !std::input_iterator<Cmp>)
-	[[nodiscard]] constexpr auto is_sorted_unique(Cmp cmp = {}, Proj proj = {}) {
-		return ranges_algo_detail::is_sorted_unique_pipeline{std::move(cmp), std::move(proj)};
-	}
-
+     * Return true iff the given range is sorted and there are no duplicates.
+     *
+     * @param range or first+last range to check
+     * @param cmp comparator
+     * @param proj projection
+     */
+	inline constexpr ranges_algo_detail::is_sorted_unique_fn is_sorted_unique;
 }// namespace dice::template_library
 
 #endif// DICE_TEMPLATELIBRARY_HPP

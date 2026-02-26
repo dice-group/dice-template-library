@@ -20,9 +20,9 @@ TEST_SUITE("range adaptors for all_of, any_of, none_of") {
 	constexpr std::array a = {2, 4, 6};
 	constexpr auto even = [](int x) { return x % 2 == 0; };
 	static_assert(std::ranges::all_of(a, even));
-	static_assert(dtl::all_of(even)(a));
-	static_assert(!dtl::none_of(even)(a));
-	static_assert(dtl::any_of(even)(a));
+	static_assert(dtl::all_of(a, even));
+	static_assert(!dtl::none_of(a, even));
+	static_assert(dtl::any_of(a, even));
 
 	auto is_even = [](int x) { return x % 2 == 0; };
 
@@ -45,6 +45,23 @@ TEST_SUITE("range adaptors for all_of, any_of, none_of") {
 		REQUIRE((a | dtl::all_of([](int x) { return x == 0; })));
 		REQUIRE(!(a | dtl::none_of([](int x) { return x == 0; })));
 		REQUIRE((a | dtl::any_of([](int x) { return x == 0; })));
+	}
+
+    TEST_CASE_TEMPLATE("overloads", T, std::vector<int>, std::vector<std::vector<int>>) {
+	    auto run_tests = [](auto &&func, bool expected) {
+	        auto const is_empty = [](auto const &x) {
+	            return x == typename T::value_type{};
+	        };
+
+	        T v{{}};
+	        REQUIRE_EQ(v | func(is_empty), expected);
+	        REQUIRE_EQ(func(v, is_empty), expected);
+	        REQUIRE_EQ(func(v.begin(), v.end(), is_empty), expected);
+	    };
+
+	    run_tests(dtl::all_of, true);
+	    run_tests(dtl::any_of, true);
+	    run_tests(dtl::none_of, false);
 	}
 
 	TEST_CASE("views pipeline") {
@@ -108,15 +125,23 @@ TEST_SUITE("range adaptors for all_of, any_of, none_of") {
 }
 
 TEST_SUITE("empty and non_empty algorithms") {
-	TEST_CASE("standard containers that support std::ranges::empty") {
-		std::vector<int> const empty_vec{};
-		REQUIRE((empty_vec | dtl::empty));
-		REQUIRE_FALSE((empty_vec | dtl::non_empty));
+    TEST_CASE_TEMPLATE("overloads", T, std::vector<int>, std::vector<std::vector<int>>) {
+        T const empty_vec{};
+        REQUIRE((empty_vec | dtl::empty));
+        REQUIRE_FALSE((empty_vec | dtl::non_empty));
+        REQUIRE(dtl::empty(empty_vec));
+        REQUIRE_FALSE(dtl::non_empty(empty_vec));
+        REQUIRE(dtl::empty(empty_vec.begin(), empty_vec.end()));
+        REQUIRE_FALSE(dtl::non_empty(empty_vec.begin(), empty_vec.end()));
 
-		std::vector<int> const non_empty_vec{1, 2, 3};
-		REQUIRE_FALSE((non_empty_vec | dtl::empty));
-		REQUIRE((non_empty_vec | dtl::non_empty));
-	}
+        T const non_empty_vec{{}, {}};
+        REQUIRE_FALSE((non_empty_vec | dtl::empty));
+        REQUIRE((non_empty_vec | dtl::non_empty));
+        REQUIRE_FALSE(dtl::empty(non_empty_vec));
+        REQUIRE(dtl::non_empty(non_empty_vec));
+        REQUIRE_FALSE(dtl::empty(non_empty_vec.begin(), non_empty_vec.end()));
+        REQUIRE(dtl::non_empty(non_empty_vec.begin(), non_empty_vec.end()));
+    }
 
 	TEST_CASE("fallback to iterator comparison for input-only ranges") {
 		// none-empty input range
@@ -136,6 +161,8 @@ TEST_SUITE("empty and non_empty algorithms") {
 	}
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 TEST_SUITE("remove_element adaptor") {
 	TEST_CASE("default equality predicate") {
 		std::vector<int> input{1, 2, 3, 2, 4};
@@ -152,6 +179,7 @@ TEST_SUITE("remove_element adaptor") {
 		REQUIRE(std::ranges::equal(result, expected));
 	}
 }
+#pragma GCC diagnostic pop
 
 TEST_SUITE("all_equal algorithm") {
 	TEST_CASE("default equality predicate") {
@@ -172,6 +200,15 @@ TEST_SUITE("all_equal algorithm") {
 
 		std::vector<int> not_all_near_values{10, 12, 13, 9};
 		REQUIRE_FALSE((not_all_near_values | dtl::all_equal(are_near)));
+	}
+
+    TEST_CASE_TEMPLATE("overloads", T, std::vector<int>, std::vector<std::vector<int>>) {
+	    T v{{}, {}};
+
+	    REQUIRE((v | dtl::all_equal()));
+	    REQUIRE(dtl::all_equal(v));
+	    REQUIRE((v | dtl::all_equal(std::equal_to<typename T::value_type>{})));
+	    REQUIRE(dtl::all_equal(v, std::equal_to<typename T::value_type>{}));
 	}
 }
 
@@ -201,6 +238,13 @@ TEST_SUITE("unique range adaptor") {
 		auto result_view = input | dtl::unique;
 		std::vector expected{1, 2, 3, 4, 5};
 		REQUIRE(std::ranges::equal(result_view, expected));
+	}
+
+    TEST_CASE_TEMPLATE("overloads", T, std::vector<int>, std::vector<std::vector<int>>) {
+	    T v{{}, {}};
+
+	    REQUIRE(std::ranges::equal(v | dtl::unique, T{{}}));
+	    REQUIRE(std::ranges::equal(dtl::unique(v), T{{}}));
 	}
 
 	TEST_CASE("edge cases") {
@@ -421,6 +465,18 @@ TEST_SUITE("all_distinct algorithm") {
 
 		REQUIRE_FALSE((std::vector<int>{1, 2, 3, 2, 1} | dtl::all_distinct()));
 		REQUIRE_FALSE((std::list<std::string>{"a", "b", "a"} | dtl::all_distinct()));
+	}
+
+
+
+    TEST_CASE_TEMPLATE("overloads", T, std::vector<int>, std::vector<std::vector<int>>) {
+	    T v{{}, {}};
+
+	    REQUIRE_FALSE((v | dtl::all_distinct()));
+	    REQUIRE_FALSE(dtl::all_distinct(v));
+
+	    REQUIRE_FALSE((v | dtl::all_distinct(std::ranges::equal_to{})));
+	    REQUIRE_FALSE(dtl::all_distinct(v, std::ranges::equal_to{}));
 	}
 
 	TEST_CASE("ComparableOnly type") {
