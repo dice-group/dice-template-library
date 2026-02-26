@@ -3,6 +3,10 @@
 
 #include <dice/template-library/variant2.hpp>
 
+#include <string>
+
+using namespace std::string_literals;
+
 TEST_SUITE("variant2") {
 	using namespace dice::template_library;
 
@@ -146,10 +150,33 @@ TEST_SUITE("variant2") {
 
 		variant2<int, double> const g{};
 		check_acessors(g, 0);
+
+	    variant2<int, double> h{1.0};
+	    check_acessors(h, 1.0);
+
+	    variant2<int, double> const i{h};
+	    check_acessors(h, 1.0);
+	    check_acessors(i, 1.0);
+
+	    variant2<int, double> const j{std::move(h)};
+	    check_acessors(j, 1.0);
 	}
 
-	TEST_CASE("assignment operators") {
-		variant2<int, double> x{std::in_place_type<int>, 5};
+    TEST_CASE("copy move ctors non-trivial") {
+	    variant2<int, std::string> h{"Spherical Cow"s};
+	    check_acessors(h, "Spherical Cow"s);
+
+	    variant2<int, std::string> const i{h};
+	    check_acessors(h, "Spherical Cow"s);
+	    check_acessors(i, "Spherical Cow"s);
+
+	    variant2<int, std::string> const j{std::move(h)};
+	    check_acessors(j, "Spherical Cow"s);
+	    check_acessors(h, ""s);
+	}
+
+	TEST_CASE("assignment operators non-trivial") {
+		variant2<int, std::string> x{std::in_place_type<int>, 5};
 		check_acessors(x, 5);
 
 		int const a = 6;
@@ -158,11 +185,11 @@ TEST_SUITE("variant2") {
 		x = a;
 		check_acessors(x, 6);
 
-		double const b = 7.0;
+		std::string const b = "Hello";
 		x = b;
-		check_acessors(x, 7.0);
+		check_acessors(x, "Hello"s);
 		x = b;
-		check_acessors(x, 7.0);
+		check_acessors(x, "Hello"s);
 
 		int c = 8;
 		x = std::move(c);
@@ -170,26 +197,26 @@ TEST_SUITE("variant2") {
 		x = std::move(c);
 		check_acessors(x, 8);
 
-		double d = 9.0;
+		std::string d = "Spherical Cow";
+		x = auto{d};
+		check_acessors(x, "Spherical Cow"s);
 		x = std::move(d);
-		check_acessors(x, 9.0);
-		x = std::move(d);
-		check_acessors(x, 9.0);
+		check_acessors(x, "Spherical Cow"s);
 
-		variant2<int, double> const e{10};
+		variant2<int, std::string> const e{10};
 		x = e;
 		check_acessors(x, 10);
 		x = e;
 		check_acessors(x, 10);
 
-		variant2<int, double> f{11.0};
+		variant2<int, std::string> f{"Moo"};
 		x = f;
-		check_acessors(x, 11.0);
+		check_acessors(x, "Moo"s);
 		x = std::move(f);
-		check_acessors(x, 11.0);
+		check_acessors(x, "Moo"s);
 
 		x = x;
-		check_acessors(x, 11.0);
+		check_acessors(x, "Moo"s);
 	}
 
 	TEST_CASE("valueless by exception") {
@@ -243,5 +270,23 @@ TEST_SUITE("variant2") {
 		static_assert(std::is_same_v<variant<>, std::variant<>>);
 		static_assert(std::is_same_v<variant<int>, std::variant<int>>);
 		static_assert(std::is_same_v<variant<int, double, float>, std::variant<int, double, float>>);
+	}
+
+    TEST_CASE("trivialness") {
+	    using var1 = variant2<int, char>;
+	    static_assert(std::is_trivially_copy_constructible_v<var1>);
+	    static_assert(std::is_trivially_copy_assignable_v<var1>);
+	    static_assert(std::is_trivially_move_constructible_v<var1>);
+	    static_assert(std::is_trivially_move_assignable_v<var1>);
+	    static_assert(std::is_trivially_destructible_v<var1>);
+	    static_assert(std::is_trivially_copyable_v<var1>);
+
+	    using var2 = variant2<std::vector<int>, std::string>;
+	    static_assert(!std::is_trivially_copy_constructible_v<var2>);
+	    static_assert(!std::is_trivially_copy_assignable_v<var2>);
+	    static_assert(!std::is_trivially_move_constructible_v<var2>);
+	    static_assert(!std::is_trivially_move_assignable_v<var2>);
+	    static_assert(!std::is_trivially_destructible_v<var2>);
+	    static_assert(!std::is_trivially_copyable_v<var2>);
 	}
 }

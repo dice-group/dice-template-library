@@ -200,7 +200,13 @@ namespace dice::template_library {
             new (&a_) T{};
         }
 
-        constexpr variant2(variant2 const &other) noexcept(std::is_nothrow_copy_constructible_v<T> && std::is_nothrow_copy_constructible_v<U>)
+        constexpr variant2(variant2 const &other) noexcept
+            requires (std::is_trivially_copy_constructible_v<T> && std::is_trivially_copy_constructible_v<U>)
+            = default;
+
+        constexpr variant2(variant2 const &other) noexcept(std::is_nothrow_copy_constructible_v<T>
+                                                           && std::is_nothrow_copy_constructible_v<U>)
+            requires (!std::is_trivially_copy_constructible_v<T> || !std::is_trivially_copy_constructible_v<U>)
             : discriminant_{other.discriminant_} {
             switch (discriminant_) {
                 case discriminant_type::First: {
@@ -222,7 +228,12 @@ namespace dice::template_library {
             }
         }
 
+        constexpr variant2(variant2 &&other) noexcept
+            requires (std::is_trivially_move_constructible_v<T> && std::is_trivially_move_constructible_v<U>)
+            = default;
+
         constexpr variant2(variant2 &&other) noexcept(std::is_nothrow_move_constructible_v<T> && std::is_nothrow_move_constructible_v<U>)
+            requires (!std::is_trivially_move_constructible_v<T> || !std::is_trivially_move_constructible_v<U>)
             : discriminant_{other.discriminant_} {
             switch (discriminant_) {
                 case discriminant_type::First: {
@@ -288,7 +299,12 @@ namespace dice::template_library {
             new (&b_) U{std::forward<Args>(args)...};
         }
 
-        constexpr ~variant2() noexcept(std::is_nothrow_destructible_v<T> && std::is_nothrow_destructible_v<U>) {
+        constexpr ~variant2() noexcept requires (std::is_trivially_destructible_v<T> && std::is_trivially_destructible_v<U>)
+        = default;
+
+        constexpr ~variant2() noexcept(std::is_nothrow_destructible_v<T> && std::is_nothrow_destructible_v<U>)
+            requires (!std::is_trivially_destructible_v<T> || !std::is_trivially_destructible_v<U>)
+        {
             switch (discriminant_) {
                 case discriminant_type::First: {
                     a_.~T();
@@ -309,12 +325,16 @@ namespace dice::template_library {
             }
         }
 
-        constexpr variant2 &operator=(variant2 const &other) noexcept(std::is_nothrow_copy_assignable_v<T>
-                                                                        && std::is_nothrow_destructible_v<T>
-                                                                        && std::is_nothrow_copy_constructible_v<T>
-                                                                        && std::is_nothrow_copy_assignable_v<U>
-                                                                        && std::is_nothrow_destructible_v<U>
-                                                                        && std::is_nothrow_copy_constructible_v<U>) {
+        constexpr variant2 &operator=(variant2 const &other) noexcept
+            requires (std::is_trivially_copy_assignable_v<T> && std::is_trivially_copy_assignable_v<U>)
+            = default;
+
+        constexpr variant2 &
+        operator=(variant2 const &other) noexcept(std::is_nothrow_copy_assignable_v<T> && std::is_nothrow_destructible_v<T>
+                                                  && std::is_nothrow_copy_constructible_v<T> && std::is_nothrow_copy_assignable_v<U>
+                                                  && std::is_nothrow_destructible_v<U> && std::is_nothrow_copy_constructible_v<U>)
+            requires (!std::is_trivially_copy_assignable_v<T> || !std::is_trivially_copy_assignable_v<U>)
+        {
             if (this == &other) [[unlikely]] {
                 return *this;
             }
@@ -328,9 +348,7 @@ namespace dice::template_library {
                         }
                         case discriminant_type::Second: {
                             a_.~T();
-                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<U>, {
-                                new (&b_) U{other.b_};
-                            });
+                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<U>, { new (&b_) U{other.b_}; });
                             break;
                         }
                         case discriminant_type::ValuelessByException: {
@@ -348,9 +366,7 @@ namespace dice::template_library {
                     switch (other.discriminant_) {
                         case discriminant_type::First: {
                             b_.~U();
-                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<T>, {
-                                new (&a_) T{other.a_};
-                            });
+                            DICE_TEMPLATELIBRARY_DETAIL_VARIANT2_TRY(std::is_nothrow_copy_constructible_v<T>, { new (&a_) T{other.a_}; });
                             break;
                         }
                         case discriminant_type::Second: {
@@ -400,12 +416,16 @@ namespace dice::template_library {
             return *this;
         }
 
-        constexpr variant2 &operator=(variant2 &&other) noexcept(std::is_nothrow_move_assignable_v<T>
-                                                                    && std::is_nothrow_destructible_v<T>
-                                                                    && std::is_nothrow_move_constructible_v<T>
-                                                                    && std::is_nothrow_move_assignable_v<U>
-                                                                    && std::is_nothrow_destructible_v<U>
-                                                                    && std::is_nothrow_move_constructible_v<U>) {
+        constexpr variant2 &operator=(variant2 &&other) noexcept
+            requires (std::is_trivially_move_assignable_v<T> && std::is_trivially_move_assignable_v<U>)
+            = default;
+
+        constexpr variant2 &
+        operator=(variant2 &&other) noexcept(std::is_nothrow_move_assignable_v<T> && std::is_nothrow_destructible_v<T>
+                                             && std::is_nothrow_move_constructible_v<T> && std::is_nothrow_move_assignable_v<U>
+                                             && std::is_nothrow_destructible_v<U> && std::is_nothrow_move_constructible_v<U>)
+            requires (!std::is_trivially_move_assignable_v<T> || !std::is_trivially_move_assignable_v<U>)
+        {
             assert(this != &other);
 
             switch (discriminant_) {
