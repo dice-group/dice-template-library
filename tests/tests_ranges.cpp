@@ -231,8 +231,9 @@ struct std::hash<HashableOnly> {
 	}
 };// namespace std
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 TEST_SUITE("unique range adaptor") {
-
 	TEST_CASE("sanity check") {
 		std::vector input{1, 2, 1, 3, 4, 2, 1, 5, 4};
 		auto result_view = input | dtl::unique;
@@ -298,6 +299,7 @@ TEST_SUITE("unique range adaptor") {
 		REQUIRE(std::ranges::equal(result_vec, expected));
 	}
 }
+#pragma GCC diagnostic pop
 
 TEST_SUITE("range view") {
 	static_assert(std::ranges::range<decltype(dtl::range<int>(5))>);
@@ -455,8 +457,10 @@ TEST_SUITE("range view") {
 	}
 }
 
-TEST_SUITE("all_distinct algorithm") {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
+TEST_SUITE("all_distinct algorithm") {
 	TEST_CASE("standard hashable types, default predicate") {
 		REQUIRE((std::vector<int>{1, 2, 3, 4, 5} | dtl::all_distinct()));
 		REQUIRE((std::list<std::string>{"a", "b", "c"} | dtl::all_distinct()));
@@ -466,8 +470,6 @@ TEST_SUITE("all_distinct algorithm") {
 		REQUIRE_FALSE((std::vector<int>{1, 2, 3, 2, 1} | dtl::all_distinct()));
 		REQUIRE_FALSE((std::list<std::string>{"a", "b", "a"} | dtl::all_distinct()));
 	}
-
-
 
     TEST_CASE_TEMPLATE("overloads", T, std::vector<int>, std::vector<std::vector<int>>) {
 	    T v{{}, {}};
@@ -508,7 +510,9 @@ TEST_SUITE("all_distinct algorithm") {
 	}
 }
 
-TEST_SUITE("is_strictly_unique") {
+#pragma GCC diagnostic pop
+
+TEST_SUITE("is_sorted_unique") {
     TEST_CASE("sanity check") {
         CHECK(dtl::is_sorted_unique(std::vector{1, 2, 3, 4}));
         CHECK_FALSE(dtl::is_sorted_unique(std::vector{1, 2, 2, 3, 4}));

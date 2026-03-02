@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 // predicate based terminal algorithm
-#define DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(algo_name, impl_function)                                     \
+#define DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(algo_name, impl_function, ...)                                \
     namespace ranges_algo_detail {                                                                         \
         template<typename Pred>                                                                            \
         struct algo_name##_pipeline {                                                                      \
@@ -47,7 +47,7 @@
         };                                                                                                 \
     }                                                                                                      \
                                                                                                            \
-    inline constexpr ranges_algo_detail::algo_name##_fn algo_name;
+    __VA_ARGS__ inline constexpr ranges_algo_detail::algo_name##_fn algo_name;
 
 namespace dice::template_library {
 	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_of, std::ranges::all_of);
@@ -321,7 +321,8 @@ namespace dice::template_library {
 	 *
 	 * @return A lazy view containing the unique elements.
 	 */
-	inline constexpr ranges_algo_detail::unique_fn unique;
+    [[deprecated("This view is inefficient and will be removed. Manually construct a set, or use a combination of chunk_by and transform "
+                 "on sorted ranges.")]] inline constexpr ranges_algo_detail::unique_fn unique;
 
 }// namespace dice::template_library
 
@@ -525,7 +526,10 @@ namespace dice::template_library {
 	 * @param pred Optional binary predicate for equality comparison. Defaults to `std::ranges::equal_to`.
 	 * @return true if all elements are distinct, otherwise false.
 	 */
-	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_distinct, ranges_algo_detail::all_distinct_impl);
+    DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_distinct,
+                                         ranges_algo_detail::all_distinct_impl,
+                                         [[deprecated("This algorithm is inefficient and will be removed. Manually construct a set, or use "
+                                                      "std::ranges::adjacent_find in sorted ranges to check for distinctness.")]]);
 } // namespace dice::template_library
 
 // is_sorted_unique terminal algorithm
