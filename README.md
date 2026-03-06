@@ -31,6 +31,7 @@ It contains:
 - `stdint`: User defined literals for fixed size integers.
 - `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
 - `DICE_DBG`: Prints and returns the value of a given expression for quick and dirty debugging.
+- `opt_min`/`opt_max`/`opt_minmax`: Optional-aware min/max/minmax algorithms (variadic and range-based) that treat `std::nullopt` as "no value".
 
 ## Usage
 
@@ -233,6 +234,13 @@ that is only available from C++26 onwards.
 A macro for debugging inspired by rust's `dbg!` macro.
 It prints and returns the value of a given expression.
 
+
+### `opt_min`/`opt_max`/`opt_minmax`
+Optional-aware min/max/minmax algorithms. They accept any mix of plain values and `std::optional` values,
+treating `std::nullopt` as "no value". Available as variadic functions (`opt_min`, `opt_max`, `opt_minmax`)
+and range-based variants (`opt_min_range`, `opt_max_range`, `opt_minmax_range`).
+Returns `std::nullopt` (or an empty `opt_minmax_result`) when all inputs are empty.
+Examples can be found [here](examples/example_opt_minmax.cpp).
 
 ### Further Examples
 
