@@ -240,6 +240,8 @@ Optional-aware min/max/minmax algorithms. They accept any mix of plain values an
 treating `std::nullopt` as "no value". Available as variadic functions (`opt_min`, `opt_max`, `opt_minmax`)
 and range-based variants (`opt_min_range`, `opt_max_range`, `opt_minmax_range`).
 Returns `std::nullopt` (or an empty `opt_minmax_result`) when all inputs are empty.
+The result type is deduced automatically from the arguments. To specify it explicitly, pass the type
+as a template argument, e.g. `opt_min<double>(5, 3, 8)`.
 Examples can be found [here](examples/example_opt_minmax.cpp).
 
 ### Further Examples
