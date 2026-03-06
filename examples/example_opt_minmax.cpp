@@ -1,5 +1,6 @@
 #include <dice/template-library/opt_minmax.hpp>
 
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <vector>
@@ -43,4 +44,18 @@ int main()
     auto explicit_type = opt_min<double>(5, 3, 8);  // forced to std::optional<double>
     std::cout << "opt_min(5,3,8) [deduced]  = " << *deduced << "\n";
     std::cout << "opt_min<double>(5,3,8)    = " << *explicit_type << "\n";
+
+    // Custom comparator: pass as the first argument (replaces operator<)
+    auto cmin = opt_min(std::greater{}, 5, 3, 8);  // "min" under greater = largest value
+    auto cmax = opt_max(std::greater{}, 5, 3, 8);  // "max" under greater = smallest value
+    std::cout << "opt_min(greater, 5,3,8)   = " << *cmin << "\n";
+    std::cout << "opt_max(greater, 5,3,8)   = " << *cmax << "\n";
+
+    // Custom comparator with ranges
+    auto crmin = opt_min_range(v, std::greater{});
+    std::cout << "opt_min_range({10,20,5,15}, greater) = " << *crmin << "\n";
+
+    // Custom comparator with opt_minmax
+    auto [clo, chi] = opt_minmax(std::greater{}, 5, 3, 8, 1, 4);
+    std::cout << "opt_minmax(greater, 5,3,8,1,4) = {" << *clo << ", " << *chi << "}\n";
 }
