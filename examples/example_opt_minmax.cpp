@@ -37,4 +37,10 @@ int main()
     std::vector<std::optional<int>> opts{std::nullopt, std::optional{42}, std::optional{7}, std::nullopt};
     auto opt_rmin = opt_min_range(opts);
     std::cout << "opt_min_range({nullopt, 42, 7, nullopt}) = " << *opt_rmin << "\n";
+
+    // Explicit result type: deduced by default, or specify with a template argument
+    auto deduced = opt_min(5, 3, 8);                // deduced as std::optional<int>
+    auto explicit_type = opt_min<double>(5, 3, 8);  // forced to std::optional<double>
+    std::cout << "opt_min(5,3,8) [deduced]  = " << *deduced << "\n";
+    std::cout << "opt_min<double>(5,3,8)    = " << *explicit_type << "\n";
 }

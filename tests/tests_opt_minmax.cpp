@@ -137,6 +137,29 @@ namespace dice::template_library
                 auto result = opt_min(std::nullopt, std::nullopt);
                 CHECK(std::same_as<decltype(result), std::nullopt_t>);
             }
+
+            SUBCASE("typed: explicit T with plain args")
+            {
+                auto result = opt_min<double>(5, 3, 8);
+                CHECK(std::same_as<decltype(result), std::optional<double>>);
+                REQUIRE(result.has_value());
+                CHECK(*result == 3.0);
+            }
+
+            SUBCASE("typed: explicit T with mixed args")
+            {
+                auto result = opt_min<int>(10, std::optional{3}, std::nullopt);
+                CHECK(std::same_as<decltype(result), std::optional<int>>);
+                REQUIRE(result.has_value());
+                CHECK(*result == 3);
+            }
+
+            SUBCASE("typed: explicit T all nullopt")
+            {
+                auto result = opt_min<int>(std::nullopt, std::optional<int>{});
+                CHECK(std::same_as<decltype(result), std::optional<int>>);
+                CHECK(!result.has_value());
+            }
         }
 
         TEST_CASE("opt_max")
@@ -266,6 +289,29 @@ namespace dice::template_library
                 auto result = opt_max(std::nullopt, std::nullopt);
                 CHECK(std::same_as<decltype(result), std::nullopt_t>);
             }
+
+            SUBCASE("typed: explicit T with plain args")
+            {
+                auto result = opt_max<double>(5, 3, 8);
+                CHECK(std::same_as<decltype(result), std::optional<double>>);
+                REQUIRE(result.has_value());
+                CHECK(*result == 8.0);
+            }
+
+            SUBCASE("typed: explicit T with mixed args")
+            {
+                auto result = opt_max<int>(1, std::optional{10}, std::nullopt);
+                CHECK(std::same_as<decltype(result), std::optional<int>>);
+                REQUIRE(result.has_value());
+                CHECK(*result == 10);
+            }
+
+            SUBCASE("typed: explicit T all nullopt")
+            {
+                auto result = opt_max<int>(std::nullopt, std::optional<int>{});
+                CHECK(std::same_as<decltype(result), std::optional<int>>);
+                CHECK(!result.has_value());
+            }
         }
 
         TEST_CASE("opt_minmax")
@@ -388,7 +434,35 @@ namespace dice::template_library
             SUBCASE("2-mix: nullopt, nullopt")
             {
                 auto result = opt_minmax(std::nullopt, std::nullopt);
-                CHECK(std::same_as<decltype(result), empty_opt_minmax_result>);
+                CHECK(std::same_as<decltype(result), detail::empty_opt_minmax_result>);
+            }
+
+            SUBCASE("typed: explicit T with plain args")
+            {
+                auto result = opt_minmax<double>(5, 3, 8);
+                CHECK(std::same_as<decltype(result), opt_minmax_result<double>>);
+                REQUIRE(result.min.has_value());
+                REQUIRE(result.max.has_value());
+                CHECK(*result.min == 3.0);
+                CHECK(*result.max == 8.0);
+            }
+
+            SUBCASE("typed: explicit T with mixed args")
+            {
+                auto result = opt_minmax<int>(1, std::optional{10}, std::nullopt);
+                CHECK(std::same_as<decltype(result), opt_minmax_result<int>>);
+                REQUIRE(result.min.has_value());
+                REQUIRE(result.max.has_value());
+                CHECK(*result.min == 1);
+                CHECK(*result.max == 10);
+            }
+
+            SUBCASE("typed: explicit T all nullopt")
+            {
+                auto result = opt_minmax<int>(std::nullopt, std::optional<int>{});
+                CHECK(std::same_as<decltype(result), opt_minmax_result<int>>);
+                CHECK(!result.min.has_value());
+                CHECK(!result.max.has_value());
             }
         }
 

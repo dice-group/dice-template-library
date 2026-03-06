@@ -147,23 +147,25 @@ namespace dice::template_library
         return {std::nullopt, std::nullopt};
     }
 
-    /// @copydoc opt_min()
-    template <typename... Args>
-        requires (sizeof...(Args) > 0) && requires { typename std::common_type_t<detail::normalize_opt_t<Args>...>; }
+    /**
+     * Returns the minimum of the given arguments, treating std::nullopt as "no value".
+     * If T is explicitly specified, the result type is std::optional<T>.
+     * Otherwise, T is deduced as the common type of all arguments.
+     * @tparam T explicit value type, or void (default) to deduce from the arguments
+     * @param args values or optionals to compare
+     * @return std::optional containing the minimum, or std::nullopt if all are empty
+     */
+    template <typename T = void, typename... Args>
+        requires (sizeof...(Args) > 0) &&
+            (std::same_as<T, void> ? requires { typename std::common_type_t<detail::normalize_opt_t<Args>...>; } : true)
     [[nodiscard]] constexpr auto opt_min(Args const&... args)
     {
-        using CommonT = std::remove_cvref_t<std::common_type_t<detail::normalize_opt_t<Args>...>>;
-
-        if constexpr (std::same_as<CommonT, std::nullopt_t>)
+        if constexpr (!std::same_as<T, void>)
         {
-            return std::nullopt;
-        }
-        else
-        {
-            CommonT result = std::nullopt;
+            std::optional<T> result = std::nullopt;
             auto update = [&result](auto const& raw_val)
             {
-                CommonT val = raw_val;
+                std::optional<T> val(raw_val);
                 if (val && (!result || *val < *result))
                 {
                     result = val;
@@ -172,25 +174,50 @@ namespace dice::template_library
             (update(args), ...);
             return result;
         }
-    }
-
-    /// @copydoc opt_max()
-    template <typename... Args>
-        requires (sizeof...(Args) > 0) && requires { typename std::common_type_t<detail::normalize_opt_t<Args>...>; }
-    [[nodiscard]] constexpr auto opt_max(Args const&... args)
-    {
-        using CommonT = std::remove_cvref_t<std::common_type_t<detail::normalize_opt_t<Args>...>>;
-
-        if constexpr (std::same_as<CommonT, std::nullopt_t>)
-        {
-            return std::nullopt;
-        }
         else
         {
-            CommonT result = std::nullopt;
+            using CommonT = std::remove_cvref_t<std::common_type_t<detail::normalize_opt_t<Args>...>>;
+
+            if constexpr (std::same_as<CommonT, std::nullopt_t>)
+            {
+                return std::nullopt;
+            }
+            else
+            {
+                CommonT result = std::nullopt;
+                auto update = [&result](auto const& raw_val)
+                {
+                    CommonT val = raw_val;
+                    if (val && (!result || *val < *result))
+                    {
+                        result = val;
+                    }
+                };
+                (update(args), ...);
+                return result;
+            }
+        }
+    }
+
+    /**
+     * Returns the maximum of the given arguments, treating std::nullopt as "no value".
+     * If T is explicitly specified, the result type is std::optional<T>.
+     * Otherwise, T is deduced as the common type of all arguments.
+     * @tparam T explicit value type, or void (default) to deduce from the arguments
+     * @param args values or optionals to compare
+     * @return std::optional containing the maximum, or std::nullopt if all are empty
+     */
+    template <typename T = void, typename... Args>
+        requires (sizeof...(Args) > 0) &&
+            (std::same_as<T, void> ? requires { typename std::common_type_t<detail::normalize_opt_t<Args>...>; } : true)
+    [[nodiscard]] constexpr auto opt_max(Args const&... args)
+    {
+        if constexpr (!std::same_as<T, void>)
+        {
+            std::optional<T> result = std::nullopt;
             auto update = [&result](auto const& raw_val)
             {
-                CommonT val = raw_val;
+                std::optional<T> val(raw_val);
                 if (val && (!result || *result < *val))
                 {
                     result = val;
@@ -199,27 +226,51 @@ namespace dice::template_library
             (update(args), ...);
             return result;
         }
-    }
-
-    /// @copydoc opt_minmax()
-    template <typename... Args>
-        requires (sizeof...(Args) > 0) && requires { typename std::common_type_t<detail::normalize_opt_t<Args>...>; }
-    [[nodiscard]] constexpr auto opt_minmax(Args const&... args)
-    {
-        using CommonT = std::remove_cvref_t<std::common_type_t<detail::normalize_opt_t<Args>...>>;
-
-        if constexpr (std::same_as<CommonT, std::nullopt_t>)
-        {
-            return detail::empty_opt_minmax_result{};
-        }
         else
         {
-            using T = typename CommonT::value_type;
+            using CommonT = std::remove_cvref_t<std::common_type_t<detail::normalize_opt_t<Args>...>>;
+
+            if constexpr (std::same_as<CommonT, std::nullopt_t>)
+            {
+                return std::nullopt;
+            }
+            else
+            {
+                CommonT result = std::nullopt;
+                auto update = [&result](auto const& raw_val)
+                {
+                    CommonT val = raw_val;
+                    if (val && (!result || *result < *val))
+                    {
+                        result = val;
+                    }
+                };
+                (update(args), ...);
+                return result;
+            }
+        }
+    }
+
+    /**
+     * Returns both the minimum and maximum of the given arguments.
+     * If T is explicitly specified, the result type is opt_minmax_result<T>.
+     * Otherwise, T is deduced as the common type of all arguments.
+     * @tparam T explicit value type, or void (default) to deduce from the arguments
+     * @param args values or optionals to compare
+     * @return opt_minmax_result containing min and max, or nullopt for both if all are empty
+     */
+    template <typename T = void, typename... Args>
+        requires (sizeof...(Args) > 0) &&
+            (std::same_as<T, void> ? requires { typename std::common_type_t<detail::normalize_opt_t<Args>...>; } : true)
+    [[nodiscard]] constexpr auto opt_minmax(Args const&... args)
+    {
+        if constexpr (!std::same_as<T, void>)
+        {
             opt_minmax_result<T> result{std::nullopt, std::nullopt};
 
             auto update = [&result](auto const& raw_val)
             {
-                CommonT val = raw_val;
+                std::optional<T> val(raw_val);
                 if (val)
                 {
                     if (!result.min || *val < *result.min)
@@ -234,6 +285,38 @@ namespace dice::template_library
             };
             (update(args), ...);
             return result;
+        }
+        else
+        {
+            using CommonT = std::remove_cvref_t<std::common_type_t<detail::normalize_opt_t<Args>...>>;
+
+            if constexpr (std::same_as<CommonT, std::nullopt_t>)
+            {
+                return detail::empty_opt_minmax_result{};
+            }
+            else
+            {
+                using U = typename CommonT::value_type;
+                opt_minmax_result<U> result{std::nullopt, std::nullopt};
+
+                auto update = [&result](auto const& raw_val)
+                {
+                    CommonT val = raw_val;
+                    if (val)
+                    {
+                        if (!result.min || *val < *result.min)
+                        {
+                            result.min = val;
+                        }
+                        if (!result.max || *result.max < *val)
+                        {
+                            result.max = val;
+                        }
+                    }
+                };
+                (update(args), ...);
+                return result;
+            }
         }
     }
 
