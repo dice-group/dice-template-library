@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 // predicate based terminal algorithm
-#define DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(algo_name, impl_function, ...)                                \
+#define DTL_DEFINE_SINGLE_FUNC_BASED_RANGE_ALGO(algo_name, impl_function, default_func, ...)               \
     namespace ranges_algo_detail {                                                                         \
         template<typename Pred>                                                                            \
         struct algo_name##_pipeline {                                                                      \
@@ -23,23 +23,23 @@
             }                                                                                              \
                                                                                                            \
             template<std::ranges::input_range R>                                                           \
-            [[nodiscard]] friend constexpr bool operator|(R &&r, algo_name##_pipeline const &self) {       \
+            [[nodiscard]] friend constexpr auto operator|(R &&r, algo_name##_pipeline const &self) {       \
                 return impl_function(std::ranges::begin(r), std::ranges::end(r), self.pred_);              \
             }                                                                                              \
         };                                                                                                 \
                                                                                                            \
         struct algo_name##_fn {                                                                            \
-            template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = std::ranges::equal_to> \
-            [[nodiscard]] constexpr bool operator()(I first, S last, Pred pred = {}) const {               \
+            template<std::input_iterator I, std::sentinel_for<I> S, typename Pred = default_func>          \
+            [[nodiscard]] constexpr auto operator()(I first, S last, Pred pred = {}) const {               \
                 return impl_function(std::move(first), std::move(last), std::move(pred));                  \
             }                                                                                              \
                                                                                                            \
-            template<std::ranges::input_range R, typename Pred = std::ranges::equal_to>                    \
-            [[nodiscard]] constexpr bool operator()(R &&range, Pred pred = {}) const {                     \
+            template<std::ranges::input_range R, typename Pred = default_func>                             \
+            [[nodiscard]] constexpr auto operator()(R &&range, Pred pred = {}) const {                     \
                 return impl_function(std::ranges::begin(range), std::ranges::end(range), std::move(pred)); \
             }                                                                                              \
                                                                                                            \
-            template<typename Pred = std::ranges::equal_to>                                                \
+            template<typename Pred = default_func>                                                         \
             requires (!std::ranges::input_range<Pred> && !std::input_iterator<Pred>)                       \
             [[nodiscard]] constexpr auto operator()(Pred pred = {}) const {                                \
                 return algo_name##_pipeline{std::move(pred)};                                              \
@@ -50,9 +50,9 @@
     __VA_ARGS__ inline constexpr ranges_algo_detail::algo_name##_fn algo_name;
 
 namespace dice::template_library {
-	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_of, std::ranges::all_of);
-	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(any_of, std::ranges::any_of);
-	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(none_of, std::ranges::none_of);
+	DTL_DEFINE_SINGLE_FUNC_BASED_RANGE_ALGO(all_of, std::ranges::all_of, std::ranges::equal_to);
+	DTL_DEFINE_SINGLE_FUNC_BASED_RANGE_ALGO(any_of, std::ranges::any_of, std::ranges::equal_to);
+	DTL_DEFINE_SINGLE_FUNC_BASED_RANGE_ALGO(none_of, std::ranges::none_of, std::ranges::equal_to);
 }// namespace dice::template_library
 
 // empty / non_empty terminal algorithm
@@ -198,7 +198,7 @@ namespace dice::template_library {
      * @param pred Optional binary predicate for comparison. Defaults to `std::ranges::equal_to`.
      * @return true if all elements in the range are equal, otherwise false.
      */
-	DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_equal, ranges_algo_detail::all_equal_impl);
+	DTL_DEFINE_SINGLE_FUNC_BASED_RANGE_ALGO(all_equal, ranges_algo_detail::all_equal_impl, std::ranges::equal_to);
 }// namespace dice::template_library
 
 // unique adaptor
@@ -526,8 +526,9 @@ namespace dice::template_library {
 	 * @param pred Optional binary predicate for equality comparison. Defaults to `std::ranges::equal_to`.
 	 * @return true if all elements are distinct, otherwise false.
 	 */
-    DTL_DEFINE_PREDICATE_BASE_RANGE_ALGO(all_distinct,
+    DTL_DEFINE_SINGLE_FUNC_BASED_RANGE_ALGO(all_distinct,
                                          ranges_algo_detail::all_distinct_impl,
+                                         std::ranges::equal_to,
                                          [[deprecated("This algorithm is inefficient and will be removed. Manually construct a set, or use "
                                                       "std::ranges::adjacent_find in sorted ranges to check for distinctness.")]]);
 } // namespace dice::template_library

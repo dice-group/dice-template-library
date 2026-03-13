@@ -31,6 +31,7 @@ It contains:
 - `stdint`: User defined literals for fixed size integers.
 - `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
 - `DICE_DBG`: Prints and returns the value of a given expression for quick and dirty debugging.
+- `opt_min`/`opt_max`/`opt_minmax`: Optional-aware min/max/minmax algorithms (variadic and range-based) that treat `std::nullopt` as "no value".
 
 ## Usage
 
@@ -233,6 +234,18 @@ that is only available from C++26 onwards.
 A macro for debugging inspired by rust's `dbg!` macro.
 It prints and returns the value of a given expression.
 
+
+### `opt_min`/`opt_max`/`opt_minmax`
+Optional-aware min/max/minmax algorithms. They accept any mix of plain values and `std::optional` values,
+treating `std::nullopt` as "no value". Available as variadic functions (`opt_min`, `opt_max`, `opt_minmax`)
+and range-based variants (`opt_min_range`, `opt_max_range`, `opt_minmax_range`).
+Returns `std::nullopt` (or an empty `opt_minmax_result`) when all inputs are empty.
+The result type is deduced automatically from the arguments. To specify it explicitly, pass the type
+as a template argument, e.g. `opt_min<double>(5, 3, 8)`.
+All functions accept an optional custom comparator as the first argument (variadic) or second argument (range),
+e.g. `opt_min(std::greater{}, 5, 3, 8)` or `opt_min_range(v, std::greater{})`.
+The comparator replaces `operator<` and should return true if the first argument is less than the second.
+Examples can be found [here](examples/example_opt_minmax.cpp).
 
 ### Further Examples
 
