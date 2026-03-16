@@ -114,3 +114,6 @@ custom_add_test(tests_macro_util)
 
 add_executable(tests_dbg tests_dbg.cpp)
 custom_add_test(tests_dbg)
+
+add_executable(tests_opt_minmax tests_opt_minmax.cpp)
+custom_add_test(tests_opt_minmax)

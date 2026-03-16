@@ -31,6 +31,7 @@ It contains:
 - `stdint`: User defined literals for fixed size integers.
 - `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
 - `DICE_DBG`: Prints and returns the value of a given expression for quick and dirty debugging.
+- `opt_min`/`opt_max`/`opt_minmax`: Optional-aware min/max/minmax algorithms that treat `std::nullopt` as "no value".
 
 ## Usage
 
@@ -234,6 +235,18 @@ A macro for debugging inspired by rust's `dbg!` macro.
 It prints and returns the value of a given expression.
 
 
+### `opt_min`/`opt_max`/`opt_minmax`
+Optional-aware min/max/minmax algorithms. They treat `std::nullopt` as "no value".
+Like in the standard-library, they are available as 2-argument/initializer-list functions (`opt_min`, `opt_max`, `opt_minmax`),
+and range-based variants (`opt_min_element`, `opt_max_element`, `opt_minmax_element`).
+Returns `std::nullopt` when all inputs are empty.
+The result type is deduced automatically from the arguments. To specify it explicitly, pass the type
+as a template argument, e.g. `opt_min<double>({5, 3, 8})`.
+All functions accept an optional custom comparator as the last argument,
+e.g. `opt_min<int>({5, 3, 8}, std::greater{})` or `opt_min_element(v, std::greater{})`.
+The comparator replaces `operator<` and should return true if the first argument is less than the second.
+Examples can be found [here](examples/example_opt_minmax.cpp).
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -246,7 +259,7 @@ A C++23 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/2.1.1` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/2.2.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

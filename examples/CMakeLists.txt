@@ -190,3 +190,10 @@ target_link_libraries(example_dbg
         dice-template-library::dice-template-library
 )
 
+add_executable(example_opt_minmax
+        example_opt_minmax.cpp)
+target_link_libraries(example_opt_minmax
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
