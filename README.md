@@ -236,14 +236,14 @@ It prints and returns the value of a given expression.
 
 
 ### `opt_min`/`opt_max`/`opt_minmax`
-Optional-aware min/max/minmax algorithms. They accept any mix of plain values and `std::optional` values,
-treating `std::nullopt` as "no value". Available as variadic functions (`opt_min`, `opt_max`, `opt_minmax`)
-and range-based variants (`opt_min_range`, `opt_max_range`, `opt_minmax_range`).
-Returns `std::nullopt` (or an empty `opt_minmax_result`) when all inputs are empty.
+Optional-aware min/max/minmax algorithms. They treat `std::nullopt` as "no value".
+Like in the standard-library, they are available as 2-argument/initializer-list functions (`opt_min`, `opt_max`, `opt_minmax`),
+and range-based variants (`opt_min_element`, `opt_max_element`, `opt_minmax_element`).
+Returns `std::nullopt` when all inputs are empty.
 The result type is deduced automatically from the arguments. To specify it explicitly, pass the type
-as a template argument, e.g. `opt_min<double>(5, 3, 8)`.
-All functions accept an optional custom comparator as the first argument (variadic) or second argument (range),
-e.g. `opt_min(std::greater{}, 5, 3, 8)` or `opt_min_range(v, std::greater{})`.
+as a template argument, e.g. `opt_min<double>({5, 3, 8})`.
+All functions accept an optional custom comparator as the last argument,
+e.g. `opt_min<int>({5, 3, 8}, std::greater{})` or `opt_min_element(v, std::greater{})`.
 The comparator replaces `operator<` and should return true if the first argument is less than the second.
 Examples can be found [here](examples/example_opt_minmax.cpp).
 
