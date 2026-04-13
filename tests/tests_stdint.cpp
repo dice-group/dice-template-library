@@ -16,6 +16,7 @@ TEST_SUITE("stdint") {
 		static_assert(std::is_same_v<decltype(123_u32), uint32_t>);
 		static_assert(std::is_same_v<decltype(123_u64), uint64_t>);
 		static_assert(std::is_same_v<decltype(123_usize), size_t>);
+	    static_assert(std::is_same_v<decltype(123_uptr), uintptr_t>);
 	}
 
 	TEST_CASE("signed positive") {
@@ -24,6 +25,7 @@ TEST_SUITE("stdint") {
 		static_assert(std::is_same_v<decltype(123_i32), int32_t>);
 		static_assert(std::is_same_v<decltype(123_i64), int64_t>);
 		static_assert(std::is_same_v<decltype(123_isize), ptrdiff_t>);
+	    static_assert(std::is_same_v<decltype(123_iptr), intptr_t>);
 	}
 
 	TEST_CASE("signed negative") {
