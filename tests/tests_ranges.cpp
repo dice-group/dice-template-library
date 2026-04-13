@@ -542,3 +542,18 @@ TEST_SUITE("is_sorted_unique") {
         CHECK((v | dtl::is_sorted_unique(std::ranges::less{}, std::identity{})));
     }
 }
+
+TEST_SUITE("lexicographical_compare_three_way") {
+    inline constexpr std::string_view s1 = "Hello World";
+    inline constexpr std::string_view s2 = "Hello Cow";
+
+    TEST_CASE("sanity check") {
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2), s1 <=> s2);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2, std::compare_three_way{}, std::identity{}, std::identity{}), s1 <=> s2);
+    }
+
+    TEST_CASE("iterator overload") {
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end()), s1 <=> s2);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), std::compare_three_way{}, std::identity{}, std::identity{}), s1 <=> s2);
+    }
+}
