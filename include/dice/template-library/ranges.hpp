@@ -619,6 +619,78 @@ namespace dice::template_library {
      * @param proj projection
      */
 	inline constexpr ranges_algo_detail::is_sorted_unique_fn is_sorted_unique;
+
+    namespace ranges_algo_detail {
+        struct lexicographical_compare_three_way_fn {
+            /**
+             * Lexicographically compares two ranges range1 and range2
+             *
+             * @param range1 first range
+             * @param range2 second range
+             * @param cmp three-way comparator
+             * @param proj1 projection for first range
+             * @param proj2 projection for second range
+             * @return lexicographical three-way compare result of the two ranges
+             */
+            template<std::ranges::input_range R1, std::ranges::input_range R2, typename Proj1 = std::identity, typename Proj2 = std::identity, typename Cmp = std::compare_three_way>
+            [[nodiscard]] constexpr auto operator()(R1 &&range1, R2 &&range2, Cmp cmp = {}, Proj1 proj1 = {}, Proj2 proj2 = {}) const {
+                return lexicographical_compare_three_way_fn{}(std::ranges::begin(range1), std::ranges::end(range1), std::ranges::begin(range2), std::ranges::end(range2), cmp, proj1, proj2);
+            }
+
+            /**
+             * Lexicographically compares two ranges [first1, last1) and [first2, last2) using three-way comparison.
+             *
+             * @param first1 iterator to start of first range
+             * @param last1 sentinel for first range
+             * @param first2 iterator to start of second range
+             * @param last2 sentinel for second range
+             * @param cmp three-way comparator
+             * @param proj1 projection for first range
+             * @param proj2 projection for second range
+             * @return lexicographical three-way compare result of the two ranges
+             */
+            template<std::input_iterator I1, std::sentinel_for<I1> S1, std::input_iterator I2, std::sentinel_for<I2> S2, typename Proj1 = std::identity, typename Proj2 = std::identity, typename Cmp = std::compare_three_way>
+            [[nodiscard]] constexpr auto operator()(I1 first1, S1 last1, I2 first2, S2 last2, Cmp cmp = {}, Proj1 proj1 = {}, Proj2 proj2 = {}) const {
+                using proj1_res = std::indirect_result_t<Proj1, I1>;
+                using proj2_res = std::indirect_result_t<Proj2, I2>;
+                using cmp_cat = std::invoke_result_t<Cmp, proj1_res, proj2_res>;
+
+                while (first1 != last1 && first2 != last2) {
+                    auto const res = std::invoke(cmp, std::invoke(proj1, *first1), std::invoke(proj2, *first2));
+                    if (res != 0) {
+                        return res;
+                    }
+
+                    ++first1;
+                    ++first2;
+                }
+
+                bool const exhaust1 = first1 == last1;
+                bool const exhaust2 = first2 == last2;
+
+                if (exhaust1 && exhaust2) {
+                    return cmp_cat{std::strong_ordering::equal};
+                }
+                if (exhaust1) {
+                    return cmp_cat{std::strong_ordering::less};
+                }
+                return cmp_cat{std::strong_ordering::greater};
+            }
+        };
+    } // namespace ranges_algo_detail
+
+    /**
+     * Lexicographically compares two ranges range1/[first1, last1) and range2/[first2, last2) using three-way comparison.
+     *
+     * @param range1 or first1+last1 first range
+     * @param range2 or first2+last2 second range
+     * @param cmp three-way comparator
+     * @param proj1 projection for first range
+     * @param proj2 projection for second range
+     * @return lexicographical three-way compare result of the two ranges
+     */
+    inline constexpr ranges_algo_detail::lexicographical_compare_three_way_fn lexicographical_compare_three_way;
+
 }// namespace dice::template_library
 
 #endif// DICE_TEMPLATELIBRARY_HPP
