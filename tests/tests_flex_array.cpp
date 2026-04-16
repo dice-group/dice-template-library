@@ -190,12 +190,17 @@ TEST_SUITE("flex_array") {
 	}
 
 #if __has_include(<ankerl/svector.h>)
-	TEST_CASE("dynamic size not bounded") {
-		static_assert(sizeof(flex_array<int, 2, dynamic_extent>) == 2*sizeof(int) + sizeof(size_t));
-		static_assert(alignof(flex_array<int, 2, dynamic_extent>) == alignof(size_t));
-		static_assert(flex_array<int, 1, dynamic_extent>::mode == flex_array_mode::sbo_dynamic_size);
+#define EXTS std::integral_constant<size_t, dynamic_extent>, std::integral_constant<size_t, 4>
+#else
+#define EXTS std::integral_constant<size_t, dynamic_extent>
+#endif
 
-		using farray = flex_array<int, 4, dynamic_extent>;
+    TEST_CASE_TEMPLATE("dynamic size not bounded", Ext, EXTS) {
+		static_assert(sizeof(flex_array<int, Ext::value, dynamic_extent>) == sizeof(void *) + 2*sizeof(size_t));
+		static_assert(alignof(flex_array<int, Ext::value, dynamic_extent>) == alignof(size_t));
+        static_assert(flex_array<int, Ext::value, dynamic_extent>::mode == (Ext::value == dynamic_extent ? flex_array_mode::dynamic_size : flex_array_mode::sbo_dynamic_size));
+
+		using farray = flex_array<int, Ext::value, dynamic_extent>;
 
 		SUBCASE("default ctor") {
 			farray f;
@@ -240,29 +245,51 @@ TEST_SUITE("flex_array") {
 			REQUIRE_EQ(f <=> f, std::strong_ordering::equal);
 			REQUIRE_EQ(f3 <=> f, std::strong_ordering::greater);
 		}
+#if __has_include(<ankerl/svector.h>)
+	    SUBCASE("no-cmp") {
+		    struct uncomparable {};
+		    flex_array<uncomparable, 5, dynamic_extent> f; // checking if this compiles
+	    }
+#endif
 
-		SUBCASE("no-cmp") {
-			struct uncomparable {};
-			flex_array<uncomparable, 5, dynamic_extent> f; // checking if this compiles
-		}
 	}
 
 	TEST_CASE("converting ctors") {
 		SUBCASE("static -> dynamic") {
 			flex_array<int, 5> s{1, 2, 3, 4, 5};
 			flex_array<int, dynamic_extent, 6> d{s};
-			flex_array<int, 5, dynamic_extent> d2{s};
 
 			REQUIRE_EQ(d.size(), 5);
 			REQUIRE_EQ(d.max_size(), 6);
 			REQUIRE(std::ranges::equal(s, d));
-			REQUIRE(std::ranges::equal(s, d2));
 
 			d = s; // checking if this compiles
-			d2 = s;
+
+#if __has_include(<ankerl/svector.h>)
+		    flex_array<int, 5, dynamic_extent> d2{s};
+		    REQUIRE(std::ranges::equal(s, d2));
+		    d2 = s;
+#endif
 		}
 
-		SUBCASE("dynamic -> static") {
+	    SUBCASE("dynamic -> static") {
+		    flex_array<int, dynamic_extent, 5> d{1, 2, 3};
+		    flex_array<int, dynamic_extent> d2{1, 2, 3};
+
+		    flex_array<int, 3> s{d};
+		    flex_array<int, 3> s2{d2};
+
+		    REQUIRE(std::ranges::equal(s, d));
+		    REQUIRE(std::ranges::equal(s2, d2));
+
+		    REQUIRE_THROWS_AS((flex_array<int, 2>{d}), std::length_error);
+		    REQUIRE_THROWS_AS((flex_array<int, 4>{d}), std::length_error);
+		    REQUIRE_THROWS_AS((flex_array<int, 2>{d2}), std::length_error);
+		    REQUIRE_THROWS_AS((flex_array<int, 4>{d2}), std::length_error);
+		}
+
+#if __has_include(<ankerl/svector.h>)
+		SUBCASE("sbo dynamic -> static") {
 			flex_array<int, dynamic_extent, 5> d{1, 2, 3};
 			flex_array<int, 3, dynamic_extent> d2{1, 2, 3};
 
@@ -277,6 +304,6 @@ TEST_SUITE("flex_array") {
 			REQUIRE_THROWS_AS((flex_array<int, 2>{d2}), std::length_error);
 			REQUIRE_THROWS_AS((flex_array<int, 4>{d2}), std::length_error);
 		}
+#endif //__has_include(<ankerl/svector.h>)
 	}
-#endif // __has_include
 }
