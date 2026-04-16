@@ -651,9 +651,9 @@ namespace dice::template_library {
              */
             template<std::input_iterator I1, std::sentinel_for<I1> S1, std::input_iterator I2, std::sentinel_for<I2> S2, typename Proj1 = std::identity, typename Proj2 = std::identity, typename Cmp = std::compare_three_way>
             [[nodiscard]] constexpr auto operator()(I1 first1, S1 last1, I2 first2, S2 last2, Cmp cmp = {}, Proj1 proj1 = {}, Proj2 proj2 = {}) const {
-                using ref1 = std::indirect_result_t<Proj1, I1>;
-                using ref2 = std::indirect_result_t<Proj2, I2>;
-                using cmp_cat = std::invoke_result_t<Cmp, ref1, ref2>;
+                using proj1_res = std::indirect_result_t<Proj1, I1>;
+                using proj2_res = std::indirect_result_t<Proj2, I2>;
+                using cmp_cat = std::invoke_result_t<Cmp, proj1_res, proj2_res>;
 
                 while (first1 != last1 && first2 != last2) {
                     auto const res = std::invoke(cmp, std::invoke(proj1, *first1), std::invoke(proj2, *first2));
@@ -666,7 +666,7 @@ namespace dice::template_library {
                 }
 
                 bool const exhaust1 = first1 == last1;
-                bool const exhaust2 = first2 != last2;
+                bool const exhaust2 = first2 == last2;
 
                 if (exhaust1 && exhaust2) {
                     return cmp_cat{std::strong_ordering::equal};

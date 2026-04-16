@@ -544,16 +544,44 @@ TEST_SUITE("is_sorted_unique") {
 }
 
 TEST_SUITE("lexicographical_compare_three_way") {
-    inline constexpr std::string_view s1 = "Hello World";
-    inline constexpr std::string_view s2 = "Hello Cow";
-
     TEST_CASE("sanity check") {
-        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2), s1 <=> s2);
-        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2, std::compare_three_way{}, std::identity{}, std::identity{}), s1 <=> s2);
+        constexpr std::string_view strings[]{"", "A", "B", "AA"};
+
+        for (auto [lhs, rhs] : std::views::cartesian_product(strings, strings)) {
+            CAPTURE(lhs);
+            CAPTURE(rhs);
+
+            auto const expected = lhs <=> rhs;
+            auto const actual = dtl::lexicographical_compare_three_way(lhs, rhs);
+
+            CHECK_EQ(actual, expected);
+        }
     }
 
-    TEST_CASE("iterator overload") {
-        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end()), s1 <=> s2);
-        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), std::compare_three_way{}, std::identity{}, std::identity{}), s1 <=> s2);
+    TEST_CASE("overloads") {
+        constexpr std::string_view s1 = "A";
+        constexpr std::string_view s2 = "B";
+
+        auto cmp = [](char lhs, char rhs) {
+            return rhs <=> lhs;
+        };
+        auto proj1 = [](char c) {
+            return c + 1;
+        };
+        auto proj2 = [](char c) {
+            return c - 1;
+        };
+
+        // range overloads
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2), std::strong_ordering::less);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2, cmp), std::strong_ordering::greater);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2, cmp, proj1), std::strong_ordering::equal);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1, s2, cmp, proj1, proj2), std::strong_ordering::less);
+
+        // iterator overloads
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end()), std::strong_ordering::less);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), cmp), std::strong_ordering::greater);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), cmp, proj1), std::strong_ordering::equal);
+        CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), cmp, proj1, proj2), std::strong_ordering::less);
     }
 }
