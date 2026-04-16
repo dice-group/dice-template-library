@@ -245,26 +245,31 @@ TEST_SUITE("flex_array") {
 			REQUIRE_EQ(f <=> f, std::strong_ordering::equal);
 			REQUIRE_EQ(f3 <=> f, std::strong_ordering::greater);
 		}
+#if __has_include(<ankerl/svector.h>)
+	    SUBCASE("no-cmp") {
+		    struct uncomparable {};
+		    flex_array<uncomparable, 5, dynamic_extent> f; // checking if this compiles
+	    }
+#endif
 
-		SUBCASE("no-cmp") {
-			struct uncomparable {};
-			flex_array<uncomparable, 5, dynamic_extent> f; // checking if this compiles
-		}
 	}
 
 	TEST_CASE("converting ctors") {
 		SUBCASE("static -> dynamic") {
 			flex_array<int, 5> s{1, 2, 3, 4, 5};
 			flex_array<int, dynamic_extent, 6> d{s};
-			flex_array<int, 5, dynamic_extent> d2{s};
 
 			REQUIRE_EQ(d.size(), 5);
 			REQUIRE_EQ(d.max_size(), 6);
 			REQUIRE(std::ranges::equal(s, d));
-			REQUIRE(std::ranges::equal(s, d2));
 
 			d = s; // checking if this compiles
-			d2 = s;
+
+#if __has_include(<ankerl/svector.h>)
+		    flex_array<int, 5, dynamic_extent> d2{s};
+		    REQUIRE(std::ranges::equal(s, d2));
+		    d2 = s;
+#endif
 		}
 
 	    SUBCASE("dynamic -> static") {
