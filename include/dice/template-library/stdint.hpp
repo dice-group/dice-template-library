@@ -58,6 +58,14 @@ namespace dice::template_library::literals {
         return static_cast<ptrdiff_t>(value);
     }
 
+    constexpr uintptr_t operator""_uptr(unsigned long long value) noexcept {
+        return static_cast<uintptr_t>(value);
+    }
+
+    constexpr intptr_t operator""_iptr(unsigned long long value) noexcept {
+        return static_cast<intptr_t>(value);
+    }
+
 } // namespace dice::template_library::literals
 
 #endif // DICE_TEMPLATELIBRARY_STDINT_HPP
