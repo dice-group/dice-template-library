@@ -720,7 +720,7 @@ namespace dice::template_library {
             rhs = std::move(tmp);
         }
 
-        constexpr bool operator==(variant2 const &other) const noexcept {
+        constexpr bool operator==(variant2 const &other) const noexcept requires (std::equality_comparable<T> && std::equality_comparable<U>) {
             if (discriminant_ != other.discriminant_) {
                 return false;
             }
@@ -742,7 +742,7 @@ namespace dice::template_library {
             }
         }
 
-        constexpr auto operator<=>(variant2 const &other) const noexcept {
+        constexpr auto operator<=>(variant2 const &other) const noexcept requires (std::three_way_comparable<T> && std::three_way_comparable<U>) {
             using ret_type = std::common_comparison_category_t<std::compare_three_way_result_t<T>, std::compare_three_way_result_t<U>>;
 
             if (discriminant_ != other.discriminant_) {
