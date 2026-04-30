@@ -5,6 +5,7 @@
 #include <compare>
 #include <cstdint>
 #include <exception>
+#include <format>
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -902,5 +903,30 @@ namespace dice::template_library {
     using variant = typename detail_variant2::select_variant<Ts...>::type;
 
 } // namespace dice::template_library
+
+namespace std {
+    template<typename T, typename U, typename CharT>
+        requires (std::formattable<T, CharT> || std::formattable<U, CharT>)
+    struct formatter<::dice::template_library::variant2<T, U>, CharT> {
+        template<typename Ctx>
+        constexpr auto parse(Ctx &parse_ctx) {
+            return parse_ctx.begin();
+        }
+
+        template<typename Ctx>
+        auto format(::dice::template_library::variant2<T, U> const &var, Ctx &format_ctx) const {
+            if (var.valueless_by_exception()) {
+                return std::format_to(format_ctx.out(), "var2<valueless-by-exception>");
+            }
+            return ::dice::template_library::visit([&format_ctx]<typename X>(X const &value) {
+                if constexpr (std::formattable<X, CharT>) {
+                    return std::format_to(format_ctx.out(), "var2<{}>", value);
+                } else {
+                    return std::format_to(format_ctx.out(), "var2<non-formattable>");
+                }
+            }, var);
+        }
+    };
+} // namespace std
 
 #endif // DICE_TEMPLATELIBRARY_VARIANT2_HPP

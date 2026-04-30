@@ -289,4 +289,21 @@ TEST_SUITE("variant2") {
 	    static_assert(!std::is_trivially_destructible_v<var2>);
 	    static_assert(!std::is_trivially_copyable_v<var2>);
 	}
+
+    TEST_CASE("formatting") {
+	    struct non_formattable {
+	    };
+
+	    static_assert(!std::formattable<variant2<non_formattable, make_valueless>, char>);
+
+	    CHECK(std::format("{}", variant2<int, double>{42}) == "var2<42>");
+	    CHECK(std::format("{}", variant2<int, double>{1.5}) == "var2<1.5>");
+	    CHECK(std::format("{}", variant2<int, non_formattable>{5}) == "var2<5>");
+	    CHECK(std::format("{}", variant2<int, non_formattable>{non_formattable{}}) == "var2<non-formattable>");
+
+	    variant2<int, make_valueless> valueless{};
+	    try { valueless = make_valueless{std::nothrow}; } catch (...) {
+	    }
+	    CHECK(std::format("{}", valueless) == "var2<valueless-by-exception>");
+    }
 }
