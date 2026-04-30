@@ -906,7 +906,6 @@ namespace dice::template_library {
 
 namespace std {
     template<typename T, typename U, typename CharT>
-        requires (std::formattable<T, CharT> || std::formattable<U, CharT>)
     struct formatter<::dice::template_library::variant2<T, U>, CharT> {
         template<typename Ctx>
         constexpr auto parse(Ctx &parse_ctx) {
@@ -914,7 +913,7 @@ namespace std {
         }
 
         template<typename Ctx>
-        auto format(::dice::template_library::variant2<T, U> const &var, Ctx &format_ctx) const {
+        constexpr auto format(::dice::template_library::variant2<T, U> const &var, Ctx &format_ctx) const {
             if (var.valueless_by_exception()) {
                 return std::format_to(format_ctx.out(), "var2<valueless-by-exception>");
             }

@@ -294,7 +294,7 @@ TEST_SUITE("variant2") {
 	    struct non_formattable {
 	    };
 
-	    static_assert(!std::formattable<variant2<non_formattable, make_valueless>, char>);
+	    static_assert(std::formattable<variant2<non_formattable, make_valueless>, char>);
 
 	    CHECK(std::format("{}", variant2<int, double>{42}) == "var2<42>");
 	    CHECK(std::format("{}", variant2<int, double>{1.5}) == "var2<1.5>");
