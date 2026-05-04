@@ -7,6 +7,47 @@
 
 using namespace std::string_literals;
 
+struct make_valueless {
+    make_valueless() {
+        throw std::runtime_error{"aaa"};
+    }
+
+    explicit make_valueless(std::nothrow_t) noexcept {}
+
+    make_valueless(make_valueless const &) {
+        throw std::runtime_error{"aaa"};
+    }
+
+    make_valueless(make_valueless &&) {
+        throw std::runtime_error{"aaa"};
+    }
+
+    make_valueless &operator=(make_valueless const &) {
+        throw std::runtime_error{"aaa"};
+    }
+
+    make_valueless &operator=(make_valueless &&) {
+        throw std::runtime_error{"aaa"};
+    }
+
+    ~make_valueless() noexcept = default;
+
+    auto operator<=>(make_valueless const &) const noexcept = default;
+};
+
+template<>
+struct std::formatter<make_valueless> {
+    template<typename Ctx>
+    constexpr auto parse(Ctx &parse_ctx) {
+        return parse_ctx.begin();
+    }
+
+    template<typename Ctx>
+    auto format(make_valueless, Ctx &format_ctx) const {
+        return std::format_to(format_ctx.out(), "make_valueluess");
+    }
+};
+
 TEST_SUITE("variant2") {
 	using namespace dice::template_library;
 
@@ -28,34 +69,6 @@ TEST_SUITE("variant2") {
 		&& std::is_rvalue_reference_v<T> == std::is_rvalue_reference_v<U>
 		&& std::is_const_v<std::remove_reference_t<T>> == std::is_const_v<std::remove_reference_t<U>>;
 
-
-	struct make_valueless {
-		make_valueless() {
-			throw std::runtime_error{"aaa"};
-		}
-
-		explicit make_valueless(std::nothrow_t) noexcept {}
-
-		make_valueless(make_valueless const &) {
-			throw std::runtime_error{"aaa"};
-		}
-
-		make_valueless(make_valueless &&) {
-			throw std::runtime_error{"aaa"};
-		}
-
-		make_valueless &operator=(make_valueless const &) {
-			throw std::runtime_error{"aaa"};
-		}
-
-		make_valueless &operator=(make_valueless &&) {
-			throw std::runtime_error{"aaa"};
-		}
-
-		~make_valueless() noexcept = default;
-
-		auto operator<=>(make_valueless const &) const noexcept = default;
-	};
 
 	template<typename T, typename Variant>
 	void check_acessors(Variant &&x, T const &expected_val) {
@@ -291,19 +304,14 @@ TEST_SUITE("variant2") {
 	}
 
     TEST_CASE("formatting") {
-	    struct non_formattable {
-	    };
-
-	    static_assert(std::formattable<variant2<non_formattable, make_valueless>, char>);
-
-	    CHECK(std::format("{}", variant2<int, double>{42}) == "var2<42>");
-	    CHECK(std::format("{}", variant2<int, double>{1.5}) == "var2<1.5>");
-	    CHECK(std::format("{}", variant2<int, non_formattable>{5}) == "var2<5>");
-	    CHECK(std::format("{}", variant2<int, non_formattable>{non_formattable{}}) == "var2<non-formattable>");
+	    CHECK(std::format("{}", variant2<int, double>{42}) == "variant(42)");
+	    CHECK(std::format("{}", variant2<int, double>{1.5}) == "variant(1.5)");
 
 	    variant2<int, make_valueless> valueless{};
-	    try { valueless = make_valueless{std::nothrow}; } catch (...) {
+	    try {
+	        valueless = make_valueless{std::nothrow};
+	    } catch (...) {
 	    }
-	    CHECK(std::format("{}", valueless) == "var2<valueless-by-exception>");
+	    CHECK(std::format("{}", valueless) == "variant(valueless by exception)");
     }
 }

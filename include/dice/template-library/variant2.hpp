@@ -904,28 +904,23 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
-namespace std {
-    template<typename T, typename U, typename CharT>
-    struct formatter<::dice::template_library::variant2<T, U>, CharT> {
-        template<typename Ctx>
-        constexpr auto parse(Ctx &parse_ctx) {
-            return parse_ctx.begin();
-        }
+template<typename T, typename U> requires (std::formattable<T, char> && std::formattable<U, char>)
+struct std::formatter<::dice::template_library::variant2<T, U>> {
+    template<typename Ctx>
+    constexpr auto parse(Ctx &ctx) {
+        return ctx.begin();
+    }
 
-        template<typename Ctx>
-        constexpr auto format(::dice::template_library::variant2<T, U> const &var, Ctx &format_ctx) const {
-            if (var.valueless_by_exception()) {
-                return std::format_to(format_ctx.out(), "var2<valueless-by-exception>");
-            }
-            return ::dice::template_library::visit([&format_ctx]<typename X>(X const &value) {
-                if constexpr (std::formattable<X, CharT>) {
-                    return std::format_to(format_ctx.out(), "var2<{}>", value);
-                } else {
-                    return std::format_to(format_ctx.out(), "var2<non-formattable>");
-                }
-            }, var);
+    template<typename Ctx>
+    auto format(::dice::template_library::variant2<T, U> const &var, Ctx &ctx) const {
+        // formatting the same way libfmt does
+        if (var.valueless_by_exception()) {
+            return std::format_to(ctx.out(), "variant(valueless by exception)");
         }
-    };
-} // namespace std
+        return ::dice::template_library::visit([&ctx](auto const &value) {
+            return std::format_to(ctx.out(), "variant({})", value);
+        }, var);
+    }
+};
 
 #endif // DICE_TEMPLATELIBRARY_VARIANT2_HPP
