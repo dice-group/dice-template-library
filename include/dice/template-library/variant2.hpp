@@ -5,6 +5,7 @@
 #include <compare>
 #include <cstdint>
 #include <exception>
+#include <format>
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -720,7 +721,7 @@ namespace dice::template_library {
             rhs = std::move(tmp);
         }
 
-        constexpr bool operator==(variant2 const &other) const noexcept {
+        constexpr bool operator==(variant2 const &other) const noexcept requires (std::equality_comparable<T> && std::equality_comparable<U>) {
             if (discriminant_ != other.discriminant_) {
                 return false;
             }
@@ -742,7 +743,7 @@ namespace dice::template_library {
             }
         }
 
-        constexpr auto operator<=>(variant2 const &other) const noexcept {
+        constexpr auto operator<=>(variant2 const &other) const noexcept requires (std::three_way_comparable<T> && std::three_way_comparable<U>) {
             using ret_type = std::common_comparison_category_t<std::compare_three_way_result_t<T>, std::compare_three_way_result_t<U>>;
 
             if (discriminant_ != other.discriminant_) {
@@ -902,5 +903,24 @@ namespace dice::template_library {
     using variant = typename detail_variant2::select_variant<Ts...>::type;
 
 } // namespace dice::template_library
+
+template<typename T, typename U> requires (std::formattable<T, char> && std::formattable<U, char>)
+struct std::formatter<::dice::template_library::variant2<T, U>> {
+    template<typename Ctx>
+    constexpr auto parse(Ctx &ctx) {
+        return ctx.begin();
+    }
+
+    template<typename Ctx>
+    auto format(::dice::template_library::variant2<T, U> const &var, Ctx &ctx) const {
+        // formatting the same way libfmt does
+        if (var.valueless_by_exception()) {
+            return std::format_to(ctx.out(), "variant(valueless by exception)");
+        }
+        return ::dice::template_library::visit([&ctx](auto const &value) {
+            return std::format_to(ctx.out(), "variant({})", value);
+        }, var);
+    }
+};
 
 #endif // DICE_TEMPLATELIBRARY_VARIANT2_HPP
