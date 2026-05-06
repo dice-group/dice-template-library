@@ -159,6 +159,13 @@ TEST_SUITE("type_list") {
 		static_assert(std::is_same_v<tl::filter_t<t1, pred>, tl::type_list<int const, char const>>);
 	}
 
+    TEST_CASE("flatten") {
+	    static_assert(std::is_same_v<tl::flatten_t<empty_t>, empty_t>);
+	    static_assert(std::is_same_v<tl::flatten_t<tl::type_list<empty_t>>, empty_t>);
+	    static_assert(std::is_same_v<tl::flatten_t<tl::type_list<tl::type_list<int, double>, empty_t, tl::type_list<char, float>>>, tl::type_list<int, double, char, float>>);
+	    static_assert(std::is_same_v<tl::flatten_t<tl::type_list<tl::type_list<tl::type_list<int, double>>>>, tl::type_list<tl::type_list<int, double>>>);
+	}
+
 	TEST_CASE("generate") {
 		static_assert(std::is_same_v<tl::generate_t<0, [] { }>, empty_t>);
 

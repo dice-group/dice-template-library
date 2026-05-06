@@ -293,6 +293,22 @@ namespace dice::template_library::type_list {
     using filter_t = typename filter<TL, pred>::type;
 
 
+	/**
+	 * Flatten a type list of type lists of types into a type list of types.
+	 * @tparam TL type list of type lists
+	 */
+	template<typename TL>
+	struct flatten;
+
+	template<typename ...TLs>
+	struct flatten<type_list<TLs...>> {
+		using type = concat_t<TLs...>;
+	};
+
+	template<typename TL>
+	using flatten_t = typename flatten<TL>::type;
+
+
     namespace detail_generate {
         template<typename IdxSeq, auto func>
         struct generate_impl;
