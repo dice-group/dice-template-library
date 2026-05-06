@@ -302,6 +302,16 @@ TEST_SUITE("type_list") {
 		static_assert(std::is_same_v<tl::integer_sequence_to_type_list_t<iseq>, expected_iseq_tl>);
 	}
 
+    TEST_CASE("tuple_to_type_list") {
+	    using empty_tuple = std::tuple<>;
+	    using pair = std::pair<int, double>;
+	    using tuple = std::tuple<char, float, double>;
+
+	    static_assert(std::is_same_v<tl::tuple_to_type_list_t<empty_tuple>, empty_t>);
+	    static_assert(std::is_same_v<tl::tuple_to_type_list_t<tuple>, tl::type_list<char, float, double>>);
+	    static_assert(std::is_same_v<tl::tuple_to_type_list_t<pair>, tl::type_list<int, double>>);
+	}
+
 	TEST_CASE("for_each") {
 		using t1 = tl::type_list<int32_t, int64_t, int16_t>;
 

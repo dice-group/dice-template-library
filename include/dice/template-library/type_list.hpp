@@ -507,6 +507,25 @@ namespace dice::template_library::type_list {
 
 
 	/**
+	 * Convert a tuple-like thing into a type list of its component types.
+	 */
+	template<typename Tuple>
+    struct tuple_to_type_list;
+
+    template<typename Tuple>
+    requires requires {
+        { std::tuple_size_v<Tuple> } -> std::convertible_to<size_t>;
+    }
+    struct tuple_to_type_list<Tuple> {
+        using type = decltype([]<size_t... ixs>(std::index_sequence<ixs...>) {
+            return type_list<std::tuple_element_t<ixs, Tuple>...>{};
+        }(std::make_index_sequence<std::tuple_size_v<Tuple>>{}));
+    };
+
+    template<typename Tuple>
+    using tuple_to_type_list_t = typename tuple_to_type_list<Tuple>::type;
+
+	/**
      * A marker type to indicate a failed operation
      * when using opt
      */
