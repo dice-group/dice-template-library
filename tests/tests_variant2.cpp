@@ -43,7 +43,7 @@ struct std::formatter<make_valueless> {
     }
 
     template<typename Ctx>
-    auto format(make_valueless, Ctx &format_ctx) const {
+    auto format(make_valueless const &, Ctx &format_ctx) const {
         return std::format_to(format_ctx.out(), "make_valueluess");
     }
 };
