@@ -159,6 +159,13 @@ TEST_SUITE("type_list") {
 		static_assert(std::is_same_v<tl::filter_t<t1, pred>, tl::type_list<int const, char const>>);
 	}
 
+    TEST_CASE("flatten") {
+	    static_assert(std::is_same_v<tl::flatten_t<empty_t>, empty_t>);
+	    static_assert(std::is_same_v<tl::flatten_t<tl::type_list<empty_t>>, empty_t>);
+	    static_assert(std::is_same_v<tl::flatten_t<tl::type_list<tl::type_list<int, double>, empty_t, tl::type_list<char, float>>>, tl::type_list<int, double, char, float>>);
+	    static_assert(std::is_same_v<tl::flatten_t<tl::type_list<tl::type_list<tl::type_list<int, double>>>>, tl::type_list<tl::type_list<int, double>>>);
+	}
+
 	TEST_CASE("generate") {
 		static_assert(std::is_same_v<tl::generate_t<0, [] { }>, empty_t>);
 
@@ -300,6 +307,16 @@ TEST_SUITE("type_list") {
 
 		static_assert(std::is_same_v<tl::integer_sequence_to_type_list_t<empty_iseq>, empty_t>);
 		static_assert(std::is_same_v<tl::integer_sequence_to_type_list_t<iseq>, expected_iseq_tl>);
+	}
+
+    TEST_CASE("tuple_to_type_list") {
+	    using empty_tuple = std::tuple<>;
+	    using pair = std::pair<int, double>;
+	    using tuple = std::tuple<char, float, double>;
+
+	    static_assert(std::is_same_v<tl::tuple_to_type_list_t<empty_tuple>, empty_t>);
+	    static_assert(std::is_same_v<tl::tuple_to_type_list_t<tuple>, tl::type_list<char, float, double>>);
+	    static_assert(std::is_same_v<tl::tuple_to_type_list_t<pair>, tl::type_list<int, double>>);
 	}
 
 	TEST_CASE("for_each") {
