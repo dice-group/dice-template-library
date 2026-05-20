@@ -197,3 +197,10 @@ target_link_libraries(example_opt_minmax
         dice-template-library::dice-template-library
 )
 
+add_executable(example_pointer_tag_pair
+        example_pointer_tag_pair.cpp)
+target_link_libraries(example_pointer_tag_pair
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
