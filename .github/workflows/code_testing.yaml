@@ -1,6 +1,6 @@
 name: Build and run Tests
 
-on: [ pull_request ]
+on: [ pull_request, push ]
 
 concurrency:
   group: build-and-run-tests-${{ github.workflow }}-${{ github.ref }}

@@ -1,6 +1,6 @@
 name: Publish Conan branch package
 
-on: [ pull_request ]
+on: [ pull_request, push ]
 
 concurrency:
   group: publish-conan-branch-package-${{ github.workflow }}-${{ github.ref }}
