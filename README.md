@@ -32,6 +32,8 @@ It contains:
 - `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
 - `DICE_DBG`: Prints and returns the value of a given expression for quick and dirty debugging.
 - `opt_min`/`opt_max`/`opt_minmax`: Optional-aware min/max/minmax algorithms that treat `std::nullopt` as "no value".
+- `pointer_tag_pair`: A pointer and value pair that stores a small integer tag in the pointer alignment bits based on the API
+  from [P3125 (constexpr pointer tagging)](https://wg21.link/P3125).
 
 ## Usage
 
