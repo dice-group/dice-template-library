@@ -15,8 +15,14 @@ TEST_SUITE("pointer_tag_pair") {
     static s array[2];
 
     TEST_CASE("constructor") {
-        auto const [p, t] = pair_type(array, 3);
+        auto const [p, t] = pair_type{array, 3};
         REQUIRE(p == array);
         REQUIRE(t == 3);
+    }
+
+    TEST_CASE("nullptr conversion") {
+        pair_type x = nullptr;
+        REQUIRE_EQ(x.pointer(), nullptr);
+        REQUIRE_EQ(x.tag(), 0);
     }
 }
