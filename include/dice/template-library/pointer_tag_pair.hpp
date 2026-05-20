@@ -2,8 +2,9 @@
 #define DICE_TEMPLATE_LIBRARY_POINTERTAGPAIR_HPP
 
 #include <bit>
-#include <cstddef>
 #include <cassert>
+#include <compare>
+#include <cstddef>
 #include <tuple>
 #include <utility>
 
@@ -58,7 +59,7 @@ namespace dice::template_library {
 
         constexpr pointer_tag_pair() noexcept = default;
 
-        constexpr pointer_tag_pair(std::nullptr_t, Tag const tag = 0) noexcept
+        constexpr pointer_tag_pair(std::nullptr_t, Tag const tag = Tag{}) noexcept
             : pointer_tag_pair{static_cast<uintptr_t>(tag)} {
             assert(static_cast<uintptr_t>(tag) <= tag_mask);
         }
@@ -101,7 +102,6 @@ namespace dice::template_library {
         }
 
         constexpr std::strong_ordering operator<=>(pointer_tag_pair const &other) const noexcept = default;
-        constexpr bool operator==(pointer_tag_pair const &other) const noexcept = default;
     };
 
     template<size_t I, typename T, typename Tag, unsigned BitsRequested>
