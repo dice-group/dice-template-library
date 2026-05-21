@@ -40,4 +40,16 @@
 #define DICE_FILENAME __FILE__
 #endif // __FILE_NAME__
 
+
+#if defined(__has_include) && __has_include(<sanitizer/lsan_interface.h>)
+#include <sanitizer/lsan_interface.h>
+/**
+ * Tell the leak sanitizer to ignore that the given object is leaked.
+ */
+#define DICE_IGNORE_LEAK(ptr) __lsan_ignore_object(ptr)
+#else
+#define DICE_IGNORE_LEAK(ptr)
+#endif
+
+
 #endif // DICE_TEMPLATELIBRARY_MACROUTIL_HPP

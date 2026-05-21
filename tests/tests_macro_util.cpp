@@ -13,4 +13,14 @@ TEST_SUITE("macro_util") {
 		DICE_IDENT_CONCAT(hello_, MY_IDENT) = 12;
 		CHECK_EQ(hello_world, 12);
 	}
+
+    TEST_CASE("filename") {
+	    std::string_view const f = DICE_FILENAME;
+	    CHECK(f.ends_with("tests_macro_util.hpp"));
+	}
+
+    TEST_CASE("ignore leak") {
+	    auto *my_obj = new int{42};
+	    DICE_IGNORE_LEAK(my_obj);
+	}
 }
