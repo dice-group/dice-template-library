@@ -16,7 +16,7 @@ TEST_SUITE("macro_util") {
 
     TEST_CASE("filename") {
 	    std::string_view const f = DICE_FILENAME;
-	    CHECK(f.ends_with("tests_macro_util.hpp"));
+	    CHECK(f.ends_with("tests_macro_util.cpp"));
 	}
 
     TEST_CASE("ignore leak") {
