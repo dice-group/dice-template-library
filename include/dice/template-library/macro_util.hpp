@@ -41,7 +41,7 @@
 #endif // __FILE_NAME__
 
 
-#if defined(__has_include) && __has_include(<sanitizer/lsan_interface.h>)
+#if defined(__has_include) && __has_include(<sanitizer/lsan_interface.h>) && (defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer) || __has_feature(leak_sanitizer))
 #include <sanitizer/lsan_interface.h>
 /**
  * Tell the leak sanitizer to ignore that the given object is leaked.
