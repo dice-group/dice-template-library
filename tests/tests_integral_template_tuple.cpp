@@ -1,11 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/integral_template_tuple.hpp>
-
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <iostream>
+
+import dice.template_library;
 
 namespace dice::template_library {
 

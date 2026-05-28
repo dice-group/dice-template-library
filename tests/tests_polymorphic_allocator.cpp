@@ -1,11 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/polymorphic_allocator.hpp>
-
 #include <memory>
 #include <memory_resource>
 #include <random>
+
+import dice.template_library;
 
 template<typename T>
 struct mallocator {

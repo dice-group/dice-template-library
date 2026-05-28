@@ -1,10 +1,10 @@
-// Include the overload that makes it ostreamable.
-#include <dice/template-library/format_to_ostream.hpp>
-
 #include <format>
 #include <iostream>
 #include <sstream>
 #include <string>
+
+// Import the overload that makes it ostreamable.
+import dice.template_library;
 
 // A type that has no std::ostream operator<< defined
 struct not_ostreamable {

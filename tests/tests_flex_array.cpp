@@ -1,8 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/flex_array.hpp>
-
 #include <algorithm>
 #include <compare>
 #include <numeric>
@@ -10,6 +8,8 @@
 #include <span>
 #include <stdexcept>
 #include <vector>
+
+import dice.template_library;
 
 namespace dice::template_library {
 	// extern templates sometimes make problems if internal types are too eagerly instantiated

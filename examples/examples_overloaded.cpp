@@ -1,9 +1,8 @@
-#include <dice/template-library/overloaded.hpp>
-#include <dice/template-library/variant2.hpp>
-
 #include <cassert>
 #include <string>
 #include <variant>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

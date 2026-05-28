@@ -1,10 +1,10 @@
-#include <dice/template-library/channel.hpp>
-
 #include <algorithm>
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <cassert>
 
+import dice.template_library;
 
 int main() {
 	dice::template_library::channel<int> chan{8};

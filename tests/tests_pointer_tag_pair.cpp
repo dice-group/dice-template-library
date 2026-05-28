@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/pointer_tag_pair.hpp>
+import dice.template_library;
 
 TEST_SUITE("pointer_tag_pair") {
     using namespace dice::template_library;

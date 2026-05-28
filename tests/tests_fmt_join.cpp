@@ -1,7 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/fmt_join.hpp>
-
 #include <doctest/doctest.h>
 
 #include <format>
@@ -9,6 +7,8 @@
 #include <ranges>
 #include <string>
 #include <vector>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

@@ -3,8 +3,7 @@
 
 #include <type_traits>
 
-#include <dice/template-library/standard_layout_tuple.hpp>
-#include <dice/template-library/tuple_algorithm.hpp>
+import dice.template_library;
 
 TEST_SUITE("standard layout tuple") {
 	using namespace dice::template_library;

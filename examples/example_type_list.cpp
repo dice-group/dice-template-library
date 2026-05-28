@@ -1,10 +1,10 @@
-#include <dice/template-library/type_list.hpp>
-
 #include <cassert>
 #include <string>
 #include <tuple>
 #include <variant>
 #include <vector>
+
+import dice.template_library;
 
 namespace tl = dice::template_library::type_list;
 

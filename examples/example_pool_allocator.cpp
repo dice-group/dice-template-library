@@ -1,9 +1,9 @@
-#include <dice/template-library/pool_allocator.hpp>
-
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <vector>
+
+import dice.template_library;
 
 struct list {
 	uint64_t elem;

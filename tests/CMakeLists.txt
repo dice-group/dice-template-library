@@ -15,6 +15,7 @@ macro(CUSTOM_ADD_TEST)
       FATAL_ERROR
         "Call to 'CUSTOM_ADD_TEST' with ${ARGC} arguments instead of 1")
   endif()
+  target_compile_features(${ARGV0} PUBLIC cxx_std_23)
   add_test(NAME ${ARGV0} COMMAND ${ARGV0})
   target_link_libraries(
     ${ARGV0} PRIVATE doctest::doctest dice-template-library::dice-template-library)

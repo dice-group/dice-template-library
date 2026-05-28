@@ -1,10 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/lazy_conditional.hpp>
-
 #include <doctest/doctest.h>
 
 #include <type_traits>
+
+import dice.template_library;
 
 namespace dice::template_library {
 	TEST_SUITE("lazy_conditional") {

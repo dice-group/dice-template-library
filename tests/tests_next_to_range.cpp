@@ -1,13 +1,12 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/next_to_range.hpp>
-
-
 #include <algorithm>
 #include <optional>
 #include <ranges>
 #include <vector>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

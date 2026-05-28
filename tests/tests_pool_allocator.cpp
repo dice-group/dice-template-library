@@ -1,11 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/pool_allocator.hpp>
-
 #include <array>
 #include <cstddef>
 #include <type_traits>
+
+import dice.template_library;
 
 TEST_SUITE("pool allocator") {
 	TEST_CASE("basic pool functions work") {

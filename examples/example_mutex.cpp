@@ -1,7 +1,7 @@
-#include <dice/template-library/mutex.hpp>
-
 #include <cassert>
 #include <thread>
+
+import dice.template_library;
 
 int main() {
 	dice::template_library::mutex<int> mut{0};
