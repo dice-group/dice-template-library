@@ -1,4 +1,5 @@
 #include <cassert>
+#include <tuple>
 
 import dice.template_library;
 

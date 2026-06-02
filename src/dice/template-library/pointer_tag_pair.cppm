@@ -116,34 +116,34 @@ namespace dice::template_library {
     }
 } // namespace dice::template_library
 
-export extern "C++" {
-template<typename T, typename Tag, unsigned BitsRequested>
-struct std::tuple_size<dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> > {
-    static constexpr size_t value = 2;
-};
+export {
+    template<typename T, typename Tag, unsigned BitsRequested>
+    struct std::tuple_size<dice::template_library::pointer_tag_pair<T, Tag, BitsRequested>> {
+        static constexpr size_t value = 2;
+    };
 
-template<typename T, typename Tag, unsigned BitsRequested>
-struct std::tuple_size<dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> const> {
-    static constexpr size_t value = 2;
-};
+    template<typename T, typename Tag, unsigned BitsRequested>
+    struct std::tuple_size<dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> const> {
+        static constexpr size_t value = 2;
+    };
 
-template<typename T, typename Tag, unsigned BitsRequested>
-struct std::tuple_element<0, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> > {
-    using type = T *;
-};
+    template<typename T, typename Tag, unsigned BitsRequested>
+    struct std::tuple_element<0, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested>> {
+        using type = T *;
+    };
 
-template<typename T, typename Tag, unsigned BitsRequested>
-struct std::tuple_element<1, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> > {
-    using type = Tag;
-};
+    template<typename T, typename Tag, unsigned BitsRequested>
+    struct std::tuple_element<1, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested>> {
+        using type = Tag;
+    };
 
-template<typename T, typename Tag, unsigned BitsRequested>
-struct std::tuple_element<0, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> const> {
-    using type = T *;
-};
+    template<typename T, typename Tag, unsigned BitsRequested>
+    struct std::tuple_element<0, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> const> {
+        using type = T *;
+    };
 
-template<typename T, typename Tag, unsigned BitsRequested>
-struct std::tuple_element<1, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> const> {
-    using type = Tag;
-};
+    template<typename T, typename Tag, unsigned BitsRequested>
+    struct std::tuple_element<1, dice::template_library::pointer_tag_pair<T, Tag, BitsRequested> const> {
+        using type = Tag;
+    };
 }
