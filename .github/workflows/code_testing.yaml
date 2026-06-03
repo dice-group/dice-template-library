@@ -42,7 +42,7 @@ jobs:
           vcpkg: false
           ccache: false
           clangtidy: false
-          conan: 2.21.0
+          conan: 2.29.0
 
           cppcheck: false
 
