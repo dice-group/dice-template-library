@@ -9,6 +9,26 @@ export module dice.template_library:integral_sequence;
 export import :type_list;
 
 namespace dice::template_library {
+    namespace detail_integer_sequence {
+        template<std::integral Int, Int first, Int last>
+        constexpr auto make_integer_sequence() {
+            if constexpr (first == last) {
+                return std::integer_sequence<Int>{};
+            } else if constexpr (first < last) {
+                // Ascending [first, last)
+                auto const impl = []<Int... xs>(std::integer_sequence<Int, xs...>) {
+                    return std::integer_sequence<Int, (first + xs)...>{};
+                };
+                return impl(std::make_integer_sequence<Int, last - first>{});
+            } else {
+                // Descending (last, first]
+                auto const impl = []<Int... xs>(std::integer_sequence<Int, xs...>) {
+                    return std::integer_sequence<Int, (first - xs)...>{};
+                };
+                return impl(std::make_integer_sequence<Int, first - last>{});
+            }
+        }
+    }
 
 	/**
 	 * Generate an integer_sequence for a range
@@ -23,23 +43,7 @@ namespace dice::template_library {
 	 * - first > last: descending (last, first]
 	 */
 	export template<std::integral Int, Int first, Int last>
-	using make_integer_sequence = decltype([] {
-		if constexpr (first == last) {
-			return std::integer_sequence<Int>{};
-		} else if constexpr (first < last) {
-			// Ascending [first, last)
-			auto const impl = []<Int... xs>(std::integer_sequence<Int, xs...>) {
-				return std::integer_sequence<Int, (first + xs)...>{};
-			};
-			return impl(std::make_integer_sequence<Int, last - first>{});
-		} else {
-			// Descending (last, first]
-			auto const impl = []<Int... xs>(std::integer_sequence<Int, xs...>) {
-				return std::integer_sequence<Int, (first - xs)...>{};
-			};
-			return impl(std::make_integer_sequence<Int, first - last>{});
-		}
-	}());
+	using make_integer_sequence = decltype(detail_integer_sequence::make_integer_sequence<Int, first, last>());
 
 	/**
 	 * Generate a std::index_sequence, i.e., integer_sequence<std::size_t, ...> for a range
@@ -59,6 +63,10 @@ namespace dice::template_library {
 	 * Provides a unified interface for generating integer_sequence, index_sequence, type_list, and more.
 	 */
 	namespace detail_integral_template_util {
+	    template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
+	    constexpr auto make_type_list_fun = []<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
+	        return std::type_identity<T<ix>>{};
+	    };
 		/**
 		 * Generate a type_list by applying a template to each index in the sequence
 		 *
@@ -69,11 +77,7 @@ namespace dice::template_library {
 		 * Direction is automatic based on first vs last
 		 */
 		template<std::integral auto first, decltype(first) last, template<decltype(first)> typename T>
-		using make_type_list = type_list::transform_t<
-				make_integral_constant_list<decltype(first), first, last>,
-				[]<decltype(first) ix>(std::type_identity<std::integral_constant<decltype(first), ix>>) {
-					return std::type_identity<T<ix>>{};
-				}>;
+		using make_type_list = type_list::transform_t<make_integral_constant_list<decltype(first), first, last>, make_type_list_fun<first, last, T>>;
 
 		/**
 		 * Check if an index is valid for a given range

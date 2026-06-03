@@ -220,7 +220,7 @@ namespace dice::template_library {
 		}
 	};
 
-	export template<typename T, template<typename> typename Allocator>
+	template<typename T, template<typename> typename Allocator>
 	struct polymorphic_allocator<T, Allocator> {
 		using value_type = typename std::allocator_traits<Allocator<T>>::value_type;
 		using pointer = typename std::allocator_traits<Allocator<T>>::pointer;

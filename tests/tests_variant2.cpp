@@ -1,9 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-import dice.template_library;
-
 #include <string>
+#include <variant>
+
+import dice.template_library;
 
 using namespace std::string_literals;
 

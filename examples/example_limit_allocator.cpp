@@ -1,5 +1,6 @@
 #include <cassert>
 #include <vector>
+#include <typeinfo>
 
 import dice.template_library;
 
