@@ -1,5 +1,8 @@
 module;
+#if __has_include(<boost/interprocess/offset_ptr.hpp>)
 #include <boost/pool/pool.hpp>
+#define HAS_BOOST_INTERPROCESS_OFFSET
+#endif
 
 #include <algorithm>
 #include <array>
@@ -9,6 +12,7 @@ module;
 
 export module dice.template_library:pool_allocator;
 
+#ifdef HAS_BOOST_INTERPROCESS_OFFSET
 export namespace dice::template_library {
 
 	/**
@@ -197,3 +201,4 @@ export namespace dice::template_library {
 	};
 
 } // namespace dice::template_library
+#endif

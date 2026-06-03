@@ -1,3 +1,8 @@
+module;
+#if __has_include(<boost/interprocess/offset_ptr.hpp>)
+#define HAS_BOOST_INTERPROCESS_OFFSET
+#endif
+
 export module dice.template_library;
 
 export import :version;
@@ -24,7 +29,9 @@ export import :overloaded;
 export import :pointer_tag_pair;
 export import :variant2;
 export import :polymorphic_allocator;
+#ifdef HAS_BOOST_INTERPROCESS_OFFSET
 export import :pool_allocator;
+#endif
 export import :shared_mutex;
 export import :static_string;
 export import :switch_cases;

@@ -105,8 +105,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         )
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
-#include(cmake/install_interface_library.cmake)
-#install_interface_library(${PROJECT_NAME} ${PROJECT_NAME} ${PROJECT_NAME} "include")
+include(cmake/install_module_library.cmake)
+install_module_library(${PROJECT_NAME} ${PROJECT_NAME} ${PROJECT_NAME} "include")
 
 if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
   include(CTest)

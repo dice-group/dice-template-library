@@ -1,4 +1,6 @@
-#include <dice/template-library/switch_cases.hpp>
+#include <cstdlib>
+
+import dice.template_library;
 
 int main() {
 	int i = 7;
@@ -6,5 +8,5 @@ int main() {
 			i, [](auto i) -> int { return i * 2; },
 			[]() -> int { return -1; });
 	if (res != 14)
-		exit(1);
+		std::exit(1);
 }

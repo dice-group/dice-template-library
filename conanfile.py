@@ -14,7 +14,7 @@ class DiceTemplateLibrary(ConanFile):
     topics = "template", "template-library", "compile-time", "switch", "integral-tuple"
     settings = "os", "arch", "compiler", "build_type"
     generators = "CMakeDeps", "CMakeToolchain"
-    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE"
+    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE", "src/*"
     options = {
         "with_test_deps": [True, False],
         "with_svector": [True, False],
@@ -70,18 +70,15 @@ class DiceTemplateLibrary(ConanFile):
     def package(self):
         self._configure_cmake().install()
 
-        for dir in ("lib", "res", "share"):
-            rmdir(self, os.path.join(self.package_folder, dir))
-
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
 
     def package_info(self):
         self.cpp_info.bindirs = []
         self.cpp_info.libdirs = []
-    
-        self.cpp_info.set_property("cmake_find_mode", "both")
-        self.cpp_info.set_property("cmake_target_name", f"{self.name}::{self.name}")
-        self.cpp_info.set_property("cmake_file_name", self.name)
+
+        self.cpp_info.libs = ["dice-template-library"]
+        self.cpp_info.set_property("cmake_find_mode", "none")
+        self.cpp_info.builddirs = ["."]
 
         if self.options.with_svector:
             self.cpp_info.requires += ["svector::svector"]
