@@ -182,7 +182,7 @@ TEST_SUITE("next_to_range") {
 			CHECK_EQ(ints[2], 2);
 			CHECK_EQ(ints[3], 3);
 
-			std::ranges::equal(ints, std::vector{0, 1, 2, 3});
+			CHECK(std::ranges::equal(ints, std::vector{0, 1, 2, 3}));
 
 			ints.advance(0);
 			CHECK(std::ranges::equal(ints, std::vector{0, 1, 2, 3}));
