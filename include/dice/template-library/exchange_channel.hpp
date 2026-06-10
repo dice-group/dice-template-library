@@ -55,7 +55,7 @@ namespace dice::template_library {
                 // "Even if the shared variable is atomic, it must be modified while owning the mutex to correctly publish the modification to the waiting thread."
                 // - https://en.cppreference.com/w/cpp/thread/condition_variable
                 //
-                // Here closed_ is the shared variable used by has_value_ in another thread (the one waiting in try_pop)
+                // Here closed_ is the shared variable used by has_value_ in another thread (the one waiting in pop)
                 std::lock_guard lock{value_mutex_};
                 closed_.test_and_set(std::memory_order_release);
             }
@@ -196,6 +196,7 @@ namespace dice::template_library {
                 return *this;
             }
 
+            /// intentionally returns a reference instead of a const_reference to be able to extract it
             reference operator*() noexcept {
                 return *buf_;
             }
@@ -204,6 +205,7 @@ namespace dice::template_library {
                 return *buf_;
             }
 
+            /// intentionally returns a pointer instead of a const_pointer to be able to extract it
             pointer operator->() noexcept {
                 return &*buf_;
             }

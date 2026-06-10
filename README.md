@@ -19,6 +19,7 @@ It contains:
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
 - `channel`: A single producer, single consumer queue
+- `exchange_channel`: Like `channel`, but retains only the most recently sent value (unread values are overwritten)
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
@@ -148,6 +149,11 @@ statically known or a runtime variable depending on the `extent`/`max_extent` te
 ### `channel`
 A single-producer, single-consume queue. This can be used to communicate between threads in a more high level
 fashion than a mutex+container would allow.
+
+### `exchange_channel`
+Like `channel`, but only the most recently sent value is retained: pushing overwrites any unread value, so a slow
+consumer skips intermediate updates and only ever sees the latest state. Read it with `pop()` (blocking) or
+`try_pop()` (non-blocking), or iterate it as a range until it is `close()`d.
 
 ### `variant2`
 Like `std::variant` but specifically optimized for usage with two types/variants. 
