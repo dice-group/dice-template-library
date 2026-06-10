@@ -1,5 +1,5 @@
-#ifndef DICE_TEMPLATELIBRARY_WATCH_HPP
-#define DICE_TEMPLATELIBRARY_WATCH_HPP
+#ifndef DICE_TEMPLATELIBRARY_EXCHANGECHANNEL_HPP
+#define DICE_TEMPLATELIBRARY_EXCHANGECHANNEL_HPP
 
 #include <atomic>
 #include <cassert>
@@ -7,6 +7,9 @@
 #include <cstddef>
 #include <mutex>
 #include <optional>
+#include <iterator>
+#include <type_traits>
+#include <utility>
 
 namespace dice::template_library {
 
@@ -15,7 +18,7 @@ namespace dice::template_library {
      * that only retains the last sent value.
      */
     template<typename T>
-    struct watch {
+    struct exchange_channel {
         using value_type = T;
         using size_type = size_t;
         using difference_type = std::ptrdiff_t;
@@ -32,15 +35,15 @@ namespace dice::template_library {
         std::condition_variable has_value_; ///< condvar for value_.has_value()
 
     public:
-        watch() = default;
+        exchange_channel() = default;
 
         // there is no way to safely implement these with concurrent access
-        watch(watch const &other) = delete;
-        watch(watch &&other) = delete;
-        watch &operator=(watch const &other) = delete;
-        watch &operator=(watch &&other) noexcept = delete;
+        exchange_channel(exchange_channel const &other) = delete;
+        exchange_channel(exchange_channel &&other) = delete;
+        exchange_channel &operator=(exchange_channel const &other) = delete;
+        exchange_channel &operator=(exchange_channel &&other) noexcept = delete;
 
-        ~watch() noexcept = default;
+        ~exchange_channel() noexcept = default;
 
 		/**
          * Close the channel.
@@ -52,7 +55,7 @@ namespace dice::template_library {
                 // "Even if the shared variable is atomic, it must be modified while owning the mutex to correctly publish the modification to the waiting thread."
                 // - https://en.cppreference.com/w/cpp/thread/condition_variable
                 //
-                // Here closed_ is the shared variable used by queue_not_empty_ in another thread (the one waiting in try_pop)
+                // Here closed_ is the shared variable used by has_value_ in another thread (the one waiting in try_pop)
                 std::lock_guard lock{value_mutex_};
                 closed_.test_and_set(std::memory_order_release);
             }
@@ -82,7 +85,6 @@ namespace dice::template_library {
                 std::unique_lock lock{value_mutex_};
                 if (closed_.test(std::memory_order_relaxed)) [[unlikely]] {
                     // relaxed is enough because we hold the lock
-                    // wait was exited because closed_ was true (channel closed)
                     return false;
                 }
 
@@ -145,30 +147,30 @@ namespace dice::template_library {
         }
 
         struct iterator {
-            using watch_type = watch;
+            using channel_type = exchange_channel;
             using value_type = T;
             using difference_type = std::ptrdiff_t;
             using reference = T &;
             using const_reference = T const &;
-            using pointer = typename watch_type::pointer;
-            using const_pointer = typename watch_type::const_pointer;
+            using pointer = typename exchange_channel::pointer;
+            using const_pointer = typename exchange_channel::const_pointer;
             using iterator_category = std::input_iterator_tag;
 
         private:
-            watch_type *watch_;
+            exchange_channel *chan_;
             mutable std::optional<value_type> buf_; ///< this has to be mutable for this iterator to fullfill std::input_iterator
 
-            void advance() noexcept {
-                buf_ = watch_->pop();
+            void advance() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+                buf_ = chan_->pop();
             }
 
         public:
-            explicit iterator(watch_type *watch) noexcept : watch_{watch} {
+            explicit iterator(channel_type *chan) noexcept(std::is_nothrow_move_constructible_v<value_type>) : chan_{chan} {
                 advance();
             }
 
             iterator(iterator const &other) noexcept(std::is_nothrow_copy_constructible_v<value_type>)
-                : watch_{other.watch_},
+                : chan_{other.chan_},
                   buf_{other.buf_} {
             }
 
@@ -177,19 +179,19 @@ namespace dice::template_library {
                     return *this;
                 }
 
-                watch_ = other.watch_;
+                chan_ = other.chan_;
                 buf_ = other.buf_;
                 return *this;
             }
 
             iterator(iterator &&other) noexcept(std::is_nothrow_move_constructible_v<value_type>)
-                : watch_{other.watch_},
+                : chan_{other.chan_},
                   buf_{std::move(other.buf_)} {
             }
 
             iterator &operator=(iterator &&other) noexcept(std::is_nothrow_swappable_v<value_type>) {
                 assert(this != &other);
-                std::swap(watch_, other.watch_);
+                std::swap(chan_, other.chan_);
                 std::swap(buf_, other.buf_);
                 return *this;
             }
@@ -210,12 +212,12 @@ namespace dice::template_library {
                 return &*buf_;
             }
 
-            iterator &operator++() noexcept {
+            iterator &operator++() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
                 advance();
                 return *this;
             }
 
-            void operator++(int) noexcept {
+            void operator++(int) noexcept(std::is_nothrow_move_constructible_v<value_type>) {
                 advance();
             }
 
@@ -230,7 +232,7 @@ namespace dice::template_library {
          * @return an iterator over all present and future elements of this channel
          * @note iterator == end() is true once the channel is closed
          */
-        [[nodiscard]] iterator begin() noexcept {
+        [[nodiscard]] iterator begin() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             return iterator{this};
         }
 
@@ -241,4 +243,4 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
-#endif // DICE_TEMPLATELIBRARY_WATCH_HPP
+#endif // DICE_TEMPLATELIBRARY_EXCHANGECHANNEL_HPP

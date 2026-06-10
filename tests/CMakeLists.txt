@@ -121,5 +121,5 @@ custom_add_test(tests_dbg)
 add_executable(tests_opt_minmax tests_opt_minmax.cpp)
 custom_add_test(tests_opt_minmax)
 
-add_executable(tests_watch tests_watch.cpp)
-custom_add_test(tests_watch)
+add_executable(tests_exchange_channel tests_exchange_channel.cpp)
+custom_add_test(tests_exchange_channel)

@@ -1,11 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/watch.hpp>
+#include <dice/template-library/exchange_channel.hpp>
 
-TEST_SUITE("watch") {
+TEST_SUITE("exchange_channel") {
     TEST_CASE("sanity check") {
-        dice::template_library::watch<int> w;
+        dice::template_library::exchange_channel<int> w;
 
         w.push(1);
         CHECK_EQ(w.pop(), 1);
