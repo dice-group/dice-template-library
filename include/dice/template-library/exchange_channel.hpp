@@ -5,15 +5,15 @@
 #include <cassert>
 #include <condition_variable>
 #include <cstddef>
+#include <iterator>
 #include <mutex>
 #include <optional>
-#include <iterator>
 #include <type_traits>
 #include <utility>
 
 namespace dice::template_library {
 
-	/**
+    /**
      * A multi producer, multi consumer channel
      * that only retains the last sent value.
      */
@@ -28,11 +28,11 @@ namespace dice::template_library {
         using const_pointer = T const *;
 
     private:
-        std::mutex value_mutex_; ///< mutex for value_
-        std::optional<T> value_; ///< the last value that was sent
+        std::mutex value_mutex_;  ///< mutex for value_
+        std::optional<T> value_;  ///< the last value that was sent
 
-        std::atomic_flag closed_ = ATOMIC_FLAG_INIT; ///< true if this channel is closed
-        std::condition_variable has_value_; ///< condvar for value_.has_value()
+        std::atomic_flag closed_ = ATOMIC_FLAG_INIT;  ///< true if this channel is closed
+        std::condition_variable has_value_;           ///< condvar for value_.has_value()
 
     public:
         exchange_channel() = default;
@@ -45,7 +45,7 @@ namespace dice::template_library {
 
         ~exchange_channel() noexcept = default;
 
-		/**
+        /**
          * Close the channel.
          * After calling close calls to push() will return false
          * and calls to try_pop will return std::nullopt once the already present elements are exhausted
@@ -59,23 +59,23 @@ namespace dice::template_library {
                 std::lock_guard lock{value_mutex_};
                 closed_.test_and_set(std::memory_order_release);
             }
-            has_value_.notify_all(); // notify pop() so that it does not get stuck
+            has_value_.notify_all();  // notify pop() so that it does not get stuck
         }
 
-		/**
+        /**
          * @return true if this channel is closed
          */
         [[nodiscard]] bool closed() const noexcept {
             return closed_.test(std::memory_order_acquire);
         }
 
-		/**
+        /**
          * Emplace an element into the channel, replaces the current element in the channel if there is one.
          *
          * @param args constructor args
          * @return true if emplacing the element succeeded because the channel is not yet closed
          */
-        template<typename ...Args>
+        template<typename... Args>
         bool emplace(Args &&...args) noexcept(std::is_nothrow_constructible_v<value_type, decltype(std::forward<Args>(args))...>) {
             if (closed_.test(std::memory_order_acquire)) [[unlikely]] {
                 return false;
@@ -95,7 +95,7 @@ namespace dice::template_library {
             return true;
         }
 
-		/**
+        /**
          * Push a single element into the channel, replaces the current element in the channel if there is one.
          *
          * @param value the element to push
@@ -115,7 +115,7 @@ namespace dice::template_library {
             return emplace(std::move(value));
         }
 
-		/**
+        /**
          * Try to get a (previously pushed) element from the channel.
          * If there is no element available, blocks until there is one available or the channel is closed.
          *
@@ -123,7 +123,9 @@ namespace dice::template_library {
          */
         [[nodiscard]] std::optional<value_type> pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             std::unique_lock lock{value_mutex_};
-            has_value_.wait(lock, [this]() noexcept { return value_.has_value() || closed_.test(std::memory_order_relaxed); });
+            has_value_.wait(lock, [this]() noexcept {
+                return value_.has_value() || closed_.test(std::memory_order_relaxed);
+            });
 
             if (!value_.has_value()) [[unlikely]] {
                 // implies closed_ == true
@@ -158,14 +160,15 @@ namespace dice::template_library {
 
         private:
             exchange_channel *chan_;
-            mutable std::optional<value_type> buf_; ///< this has to be mutable for this iterator to fullfill std::input_iterator
+            mutable std::optional<value_type> buf_;  ///< this has to be mutable for this iterator to fullfill std::input_iterator
 
             void advance() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
                 buf_ = chan_->pop();
             }
 
         public:
-            explicit iterator(channel_type *chan) noexcept(std::is_nothrow_move_constructible_v<value_type>) : chan_{chan} {
+            explicit iterator(channel_type *chan) noexcept(std::is_nothrow_move_constructible_v<value_type>)
+                : chan_{chan} {
                 advance();
             }
 
@@ -230,7 +233,7 @@ namespace dice::template_library {
 
         using sentinel = std::default_sentinel_t;
 
-		/**
+        /**
          * @return an iterator over all present and future elements of this channel
          * @note iterator == end() is true once the channel is closed
          */
@@ -243,6 +246,6 @@ namespace dice::template_library {
         }
     };
 
-} // namespace dice::template_library
+}  // namespace dice::template_library
 
-#endif // DICE_TEMPLATELIBRARY_EXCHANGECHANNEL_HPP
+#endif  // DICE_TEMPLATELIBRARY_EXCHANGECHANNEL_HPP

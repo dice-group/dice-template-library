@@ -93,7 +93,9 @@ TEST_SUITE("exchange_channel") {
         dice::template_library::exchange_channel<int> ch;
 
         std::optional<int> result{-1};
-        std::thread consumer{[&] { result = ch.pop(); }};
+        std::thread consumer{[&] {
+            result = ch.pop();
+        }};
 
         ch.close();
         consumer.join();
