@@ -21,6 +21,15 @@ TEST_SUITE("macro_util") {
 
     TEST_CASE("ignore leak") {
 	    auto *my_obj = new int{42};
+	    dice::template_library::ignore_leak(my_obj);
+	}
+
+    TEST_CASE("ignore leak, deprecated macro") {
+	    auto *my_obj = new int{42};
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 	    DICE_IGNORE_LEAK(my_obj);
+#pragma GCC diagnostic pop
 	}
 }
