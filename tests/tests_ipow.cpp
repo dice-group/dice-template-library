@@ -1,41 +1,44 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/stdint.hpp>
+#include <dice/template-library/ipow.hpp>
 
 #include <cstddef>
 #include <cstdint>
-#include <type_traits>
 
-TEST_SUITE("stdint") {
-    using namespace dice::template_library::literals;
+TEST_SUITE("ipow") {
+    using namespace dice::template_library::math;
 
-    TEST_CASE("unsigned") {
-        static_assert(std::is_same_v<decltype(123_u8), uint8_t>);
-        static_assert(std::is_same_v<decltype(123_u16), uint16_t>);
-        static_assert(std::is_same_v<decltype(123_u32), uint32_t>);
-        static_assert(std::is_same_v<decltype(123_u64), uint64_t>);
-        static_assert(std::is_same_v<decltype(123_usize), size_t>);
-        static_assert(std::is_same_v<decltype(123_uptr), uintptr_t>);
+    template<typename T>
+    void check() {
+        if constexpr (std::is_unsigned_v<T>) {
+            T expected[] = {25, 65025, 16581375, 16129, 2048383, 1, 0, 1, 1, 0, 2};
+            T result[] = {
+                ipow(5, 2), ipow(255, 2), ipow(255, 3), ipow(127, 2), ipow(127, 3),
+                ipow(0, 0), ipow(0, 1), ipow(1, 0), ipow(2, 0), ipow(0, 2), ipow(2, 1),
+            };
+            for (size_t idx = 0; idx < std::size(expected); ++idx) {
+                REQUIRE_EQ(expected[idx], result[idx]);
+            }
+        } else {
+            T expected[] = {25, 65025, 16581375, 16129, 2048383, 1, 0, 1, 1, 0, 2, 1, 1, 1, -1, 1, 0};
+            T result[] = {
+                ipow(5, 2), ipow(255, 2), ipow(255, 3), ipow(127, 2), ipow(127, 3),
+                ipow(0, 0), ipow(0, 1), ipow(1, 0), ipow(2, 0), ipow(0, 2), ipow(2, 1),
+                ipow(-1, 0), ipow(1, -1), ipow(-1, 2), ipow(-1, 3), ipow(1, -2), ipow(2, -2),
+            };
+            for (size_t idx = 0; idx < std::size(expected); ++idx) {
+                REQUIRE_EQ(expected[idx], result[idx]);
+            }
+        }
     }
 
-    TEST_CASE("signed positive") {
-        static_assert(std::is_same_v<decltype(123_i8), int8_t>);
-        static_assert(std::is_same_v<decltype(123_i16), int16_t>);
-        static_assert(std::is_same_v<decltype(123_i32), int32_t>);
-        static_assert(std::is_same_v<decltype(123_i64), int64_t>);
-        static_assert(std::is_same_v<decltype(123_isize), ptrdiff_t>);
-        static_assert(std::is_same_v<decltype(123_iptr), intptr_t>);
-    }
-
-    TEST_CASE("signed negative") {
-        // Note: due to integer promotion this does not work because -123_i{8,16} get promoted to int.
-        // There is nothing we can do about it because user defined literals do not accept signed integers.
-        //
-        //static_assert(std::is_same_v<decltype(-123_i8), int8_t>);
-        //static_assert(std::is_same_v<decltype(-123_i16), int16_t>);
-
-        static_assert(std::is_same_v<decltype(-123_i32), int32_t>);
-        static_assert(std::is_same_v<decltype(-123_i64), int64_t>);
-        static_assert(std::is_same_v<decltype(-123_isize), ptrdiff_t>);
+    TEST_CASE("type case") {
+        check<size_t>();
+        check<uint64_t>();
+        check<uint32_t>();
+        check<int>();
+        check<int32_t>();
+        check<int64_t>();
     }
 }

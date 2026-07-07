@@ -1,12 +1,12 @@
 #ifndef DICE_TEMPLATE_LIBRARY_IPOW_H
 #define DICE_TEMPLATE_LIBRARY_IPOW_H
 
-#include <type_traits>
+#include <concepts>
+#include <limits>
+#include <stdexcept>
 
 namespace dice::template_library::math {
-    template <typename T>
-    requires std::integral<T>
-    constexpr auto ipow(T base, T exp) {
+    constexpr auto ipow(std::integral auto base, std::integral auto exp) {
             using ReturnType = decltype(base);
 
             // Handle negative exponents
@@ -14,9 +14,9 @@ namespace dice::template_library::math {
                 if (base == 1) {
                     return static_cast<ReturnType>(1);
                 }
-                // if (base == -1) {
-                //     return static_cast<ReturnType>((exp % 2 != 0) ? -1 : 1);
-                // }
+                if (base == -1) {
+                    return static_cast<ReturnType>((exp % 2 != 0) ? -1 : 1);
+                }
                 return static_cast<ReturnType>(0);
             }
 
