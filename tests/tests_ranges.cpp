@@ -1,8 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/ranges.hpp>
-
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -12,6 +10,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

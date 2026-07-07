@@ -1,9 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/overloaded.hpp>
-
 #include <variant>
+
+import dice.template_library;
 
 TEST_SUITE("overloaded") {
 	TEST_CASE("variant") {

@@ -1,7 +1,7 @@
-#include <dice/template-library/integral_template_variant.hpp>
-
 #include <array>
 #include <iostream>
+
+import dice.template_library;
 
 using namespace dice::template_library;
 

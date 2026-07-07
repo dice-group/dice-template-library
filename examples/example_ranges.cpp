@@ -1,8 +1,8 @@
-#include <dice/template-library/ranges.hpp>
-
 #include <algorithm>
 #include <cassert>
 #include <vector>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

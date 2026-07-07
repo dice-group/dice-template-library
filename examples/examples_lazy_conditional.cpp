@@ -1,7 +1,7 @@
-#include <dice/template-library/lazy_conditional.hpp>
-
 #include <type_traits>
 #include <vector>
+
+import dice.template_library;
 
 namespace dice::template_library {
 

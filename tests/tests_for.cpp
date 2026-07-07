@@ -1,12 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/for.hpp>
-
 #include <doctest/doctest.h>
 
 #include <vector>
 #include <cstdint>
 
+import dice.template_library;
 
 namespace dice::template_library {
 	TEST_SUITE("testing of compile time for_types") {

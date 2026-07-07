@@ -1,5 +1,3 @@
-#include <dice/template-library/polymorphic_allocator.hpp>
-
 #include <boost/interprocess/allocators/allocator.hpp>
 #include <boost/interprocess/containers/vector.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
@@ -7,6 +5,8 @@
 #include <array>
 #include <iostream>
 #include <vector>
+
+import dice.template_library;
 
 template<typename T>
 using shm_allocator_type = boost::interprocess::allocator<T, boost::interprocess::managed_shared_memory::segment_manager>;

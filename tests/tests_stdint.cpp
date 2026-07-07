@@ -1,11 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/stdint.hpp>
-
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+
+import dice.template_library.literals;
 
 TEST_SUITE("stdint") {
 	using namespace dice::template_library::literals;

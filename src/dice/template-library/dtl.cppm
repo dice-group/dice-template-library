@@ -1,0 +1,38 @@
+module;
+#if __has_include(<boost/interprocess/offset_ptr.hpp>)
+#define HAS_BOOST_INTERPROCESS_OFFSET
+#endif
+
+export module dice.template_library;
+
+export import :version;
+export import :channel;
+export import :flex_array;
+export import :fmt_join;
+export import :for_loop;
+export import :format_to_ostream;
+export import :functional;
+export import :type_traits;
+export import :inplace_poly;
+export import :type_list;
+export import :integral_template_tuple;
+export import :standard_layout_tuple;
+export import :tuple_algo;
+export import :lazy_conditional;
+export import :integral_template_variant;
+export import :limit_allocator;
+export import :mutex;
+export import :next_to_range;
+export import :ranges;
+export import :opt_minmax;
+export import :overloaded;
+export import :pointer_tag_pair;
+export import :variant2;
+export import :polymorphic_allocator;
+#ifdef HAS_BOOST_INTERPROCESS_OFFSET
+export import :pool_allocator;
+#endif
+export import :shared_mutex;
+export import :static_string;
+export import :switch_cases;
+export import :integral_sequence;

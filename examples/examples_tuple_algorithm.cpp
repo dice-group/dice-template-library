@@ -1,9 +1,9 @@
-#include <dice/template-library/tuple_algorithm.hpp>
-
 #include <cassert>
 #include <iostream>
 #include <limits>
 #include <tuple>
+
+import dice.template_library;
 
 void tuple_fold() {
 	std::tuple<int, double, float, long> tup{5, 1.2, 1.3F, 1L};

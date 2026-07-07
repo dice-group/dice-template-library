@@ -1,9 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/functional.hpp>
-
 #include <type_traits>
+
+import dice.template_library;
 
 double func(int x, double d) {
 	return x + d;

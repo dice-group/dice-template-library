@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/limit_allocator.hpp>
+import dice.template_library;
 
 TEST_SUITE("limit_allocator sanity check") {
 	using namespace dice::template_library;

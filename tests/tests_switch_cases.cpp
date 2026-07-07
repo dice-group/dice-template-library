@@ -1,8 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/switch_cases.hpp>
-
 #include <doctest/doctest.h>
+
+import dice.template_library;
 
 namespace dice::template_library {
 	TEST_SUITE("testing of the compiled switch") {

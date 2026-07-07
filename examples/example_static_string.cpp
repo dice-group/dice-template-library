@@ -1,8 +1,8 @@
-#include <dice/template-library/static_string.hpp>
-
 #include <cassert>
 #include <iostream>
 #include <string>
+
+import dice.template_library;
 
 int main() {
 	assert(sizeof(dice::template_library::static_string) < sizeof(std::string));

@@ -1,0 +1,10 @@
+module;
+#include <array>
+export module dice.template_library:version;
+
+export namespace dice::template_library {
+    inline constexpr char name[] = "@PROJECT_NAME@";
+    inline constexpr char version[] = "@PROJECT_VERSION@";
+    inline constexpr std::array<int, 3> version_tuple = {@PROJECT_VERSION_MAJOR@, @PROJECT_VERSION_MINOR@, @PROJECT_VERSION_PATCH@};
+    inline constexpr int pobr_version = @POBR_VERSION@; ///< persisted object binary representation version
+} // namespace dice::template_library

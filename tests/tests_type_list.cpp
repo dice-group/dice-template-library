@@ -1,8 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/type_list.hpp>
-
 #include <cstddef>
 #include <cstdint>
 #include <memory_resource>
@@ -12,6 +10,8 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+import dice.template_library;
 
 TEST_SUITE("type_list") {
 	namespace tl = dice::template_library::type_list;

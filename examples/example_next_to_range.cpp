@@ -1,10 +1,10 @@
-#include <dice/template-library/next_to_range.hpp>
-
 #include <cstddef>
 #include <iostream>
 #include <iterator>
 #include <optional>
 #include <ranges>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

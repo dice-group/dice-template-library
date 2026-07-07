@@ -2,8 +2,7 @@
 #include <string>
 #include <variant>
 
-#include <dice/template-library/overloaded.hpp>
-#include <dice/template-library/variant2.hpp>
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 using namespace std::literals;

@@ -1,14 +1,14 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/channel.hpp>
-
 #include <iterator>
 #include <optional>
 #include <ranges>
 #include <string>
 #include <thread>
 #include <vector>
+
+import dice.template_library;
 
 TEST_SUITE("mpmc_channel") {
 	using namespace dice::template_library;

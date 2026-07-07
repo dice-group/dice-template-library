@@ -1,8 +1,8 @@
-#include <dice/template-library/limit_allocator.hpp>
-
 #include <cassert>
 #include <vector>
+#include <typeinfo>
 
+import dice.template_library;
 
 int main() {
 	std::vector<int, dice::template_library::limit_allocator<int>> vec{dice::template_library::limit_allocator<int>{3 * sizeof(int)}};

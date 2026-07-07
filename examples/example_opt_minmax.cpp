@@ -1,9 +1,9 @@
-#include <dice/template-library/opt_minmax.hpp>
-
 #include <functional>
 #include <iostream>
 #include <optional>
 #include <vector>
+
+import dice.template_library;
 
 int main()
 {

@@ -1,12 +1,12 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/inplace_polymorphic.hpp>
-
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
-#include <memory>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

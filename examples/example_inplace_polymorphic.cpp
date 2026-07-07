@@ -1,7 +1,7 @@
-#include <dice/template-library/inplace_polymorphic.hpp>
-
 #include <iostream>
 #include <string>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

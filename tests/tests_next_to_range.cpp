@@ -1,13 +1,12 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/next_to_range.hpp>
-
-
 #include <algorithm>
 #include <optional>
 #include <ranges>
 #include <vector>
+
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 
@@ -183,7 +182,7 @@ TEST_SUITE("next_to_range") {
 			CHECK_EQ(ints[2], 2);
 			CHECK_EQ(ints[3], 3);
 
-			std::ranges::equal(ints, std::vector{0, 1, 2, 3});
+			CHECK(std::ranges::equal(ints, std::vector{0, 1, 2, 3}));
 
 			ints.advance(0);
 			CHECK(std::ranges::equal(ints, std::vector{0, 1, 2, 3}));

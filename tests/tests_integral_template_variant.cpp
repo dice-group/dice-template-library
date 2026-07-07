@@ -1,10 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/integral_template_variant.hpp>
-
 #include <doctest/doctest.h>
 
 #include <algorithm>
+
+import dice.template_library;
 
 namespace dice::template_library {
 

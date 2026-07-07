@@ -1,8 +1,8 @@
-#include <dice/template-library/stdint.hpp>
-
 #include <cassert>
 #include <cstdint>
 #include <type_traits>
+
+import dice.template_library.literals;
 
 int main() {
 	using namespace dice::template_library::literals;

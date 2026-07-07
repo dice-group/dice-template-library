@@ -1,10 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <dice/template-library/opt_minmax.hpp>
-
 #include <doctest/doctest.h>
 
 #include <vector>
+
+import dice.template_library;
 
 namespace dice::template_library {
     TEST_SUITE("opt_minmax") {

@@ -1,7 +1,7 @@
-#include <dice/template-library/for.hpp>
-
 #include <cstdint>
 #include <iostream>
+
+import dice.template_library;
 
 using namespace dice::template_library;
 

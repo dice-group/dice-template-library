@@ -1,8 +1,9 @@
-#include <dice/template-library/functional.hpp>
 #include <algorithm>
 #include <cassert>
 #include <ranges>
 #include <vector>
+
+import dice.template_library;
 
 int func(int x, int y) {
 	return x + y;

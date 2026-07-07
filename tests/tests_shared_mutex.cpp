@@ -1,8 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/shared_mutex.hpp>
 #include <type_traits>
+
+import dice.template_library;
 
 TEST_SUITE("shared_mutex") {
 	using namespace dice::template_library;

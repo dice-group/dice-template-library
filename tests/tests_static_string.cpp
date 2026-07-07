@@ -1,9 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/static_string.hpp>
-
 #include <ranges>
+
+import dice.template_library;
 
 TEST_SUITE("static_string") {
 	using namespace dice::template_library;
@@ -37,7 +37,7 @@ TEST_SUITE("static_string") {
 
 	template<typename Allocator>
 	void check_non_empty_string(basic_static_string<char, std::char_traits<char>, Allocator> const &actual, std::string_view expected) {
-		assert(!expected.empty());
+		REQUIRE(!expected.empty());
 
 		REQUIRE_EQ(actual.size(), expected.size());
 		REQUIRE_EQ(actual, actual);

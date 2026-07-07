@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include <dice/template-library/fmt_join.hpp>
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 using namespace std::literals;

@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/format_to_ostream.hpp>
+import dice.template_library;
 
 struct definitely_not_ostreamable {
 	int x;

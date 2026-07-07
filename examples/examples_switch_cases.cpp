@@ -1,6 +1,6 @@
-#include <dice/template-library/switch_cases.hpp>
-
 #include <iostream>
+
+import dice.template_library;
 
 using namespace dice::template_library;
 

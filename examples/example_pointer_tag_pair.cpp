@@ -1,6 +1,7 @@
 #include <cassert>
+#include <tuple>
 
-#include <dice/template-library/pointer_tag_pair.hpp>
+import dice.template_library;
 
 namespace dtl = dice::template_library;
 

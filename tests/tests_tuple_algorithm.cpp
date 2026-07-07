@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <dice/template-library/tuple_algorithm.hpp>
+import dice.template_library;
 
 namespace dice::template_library {
 

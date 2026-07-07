@@ -1,8 +1,8 @@
-#include <dice/template-library/integral_sequence.hpp>
-
 #include <array>
 #include <iostream>
 #include <variant>
+
+import dice.template_library;
 
 using namespace dice::template_library;
 
