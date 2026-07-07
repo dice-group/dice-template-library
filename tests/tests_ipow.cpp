@@ -33,12 +33,22 @@ TEST_SUITE("ipow") {
         }
     }
 
-    TEST_CASE("type case") {
+    TEST_CASE("type case" ) {
         check<size_t>();
         check<uint64_t>();
         check<uint32_t>();
         check<int>();
         check<int32_t>();
         check<int64_t>();
+    }
+
+    TEST_CASE("numeric limits") {
+        //signed
+        CHECK_THROWS_AS(ipow(std::numeric_limits<int>::max(), 2), std::overflow_error);
+        //CHECK_THROWS_AS(ipow(10, std::numeric_limits<int>::min()));
+        CHECK_THROWS_AS(ipow(std::numeric_limits<int>::min(), 2), std::overflow_error);
+        CHECK_THROWS_AS(ipow(-9999, 3), std::underflow_error);
+        //unsigned
+        CHECK_THROWS_AS(ipow(std::numeric_limits<size_t>::max(), 2), std::overflow_error);
     }
 }

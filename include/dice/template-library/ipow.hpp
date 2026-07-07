@@ -34,6 +34,7 @@ namespace dice::template_library::math {
                     if (a > 0 && b < 0 && b < std::numeric_limits<ReturnType>::min() / a) {
                         throw std::underflow_error("Integer underflow detected.");
                     }
+                    //todo: i don't think this is possible
                     if (a < 0 && b > 0 && a < std::numeric_limits<ReturnType>::min() / b) {
                         throw std::underflow_error("Integer underflow detected.");
                     }
