@@ -1,6 +1,6 @@
 name: Detect POBR diff
 
-on: [ pull_request, push ]
+on: pull_request
 
 concurrency:
   group: detect-pobr-diff-${{ github.workflow }}-${{ github.ref }}
