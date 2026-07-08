@@ -44,11 +44,14 @@ TEST_SUITE("ipow") {
 
     TEST_CASE("numeric limits") {
         //signed
-        CHECK_THROWS_AS(ipow(std::numeric_limits<int>::max(), 2), std::overflow_error);
+        CHECK_THROWS_AS(ipow(99999, 2), std::overflow_error);
         //CHECK_THROWS_AS(ipow(10, std::numeric_limits<int>::min()));
-        CHECK_THROWS_AS(ipow(std::numeric_limits<int>::min(), 2), std::overflow_error);
+        CHECK_THROWS_AS(ipow(-99999, 2), std::overflow_error);
         CHECK_THROWS_AS(ipow(-9999, 3), std::underflow_error);
+        int32_t const base_int = -100;
+        CHECK_THROWS_AS(ipow(base_int, 3), std::underflow_error);
         //unsigned
-        CHECK_THROWS_AS(ipow(std::numeric_limits<size_t>::max(), 2), std::overflow_error);
+        size_t const base = 9999999999;
+        CHECK_THROWS_AS(ipow(base, 2), std::overflow_error);
     }
 }

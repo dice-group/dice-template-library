@@ -29,21 +29,26 @@ namespace dice::template_library::math {
                 if constexpr (std::is_signed_v<ReturnType>) {
                     // Signed integer checks
                     if (a > 0 && b > 0 && a > std::numeric_limits<ReturnType>::max() / b) {
+                        std::cout << "1... " << a << " " << b << std::endl;
                         throw std::overflow_error("Integer overflow detected.");
                     }
                     if (a > 0 && b < 0 && b < std::numeric_limits<ReturnType>::min() / a) {
+                        std::cout << "2... " << a << " " << b << std::endl;
                         throw std::underflow_error("Integer underflow detected.");
                     }
                     //todo: i don't think this is possible
                     if (a < 0 && b > 0 && a < std::numeric_limits<ReturnType>::min() / b) {
+                        std::cout << "3... " << a << " " << b << std::endl;
                         throw std::underflow_error("Integer underflow detected.");
                     }
                     if (a < 0 && b < 0 && a < std::numeric_limits<ReturnType>::max() / b) {
+                        std::cout << "4... "<< a << " " << b << std::endl;
                         throw std::overflow_error("Integer overflow detected.");
                     }
                 } else {
                     // Unsigned integer check (only overflow is possible)
                     if (a > std::numeric_limits<ReturnType>::max() / b) {
+                        std::cout << "5... " << a << " " << b << std::endl;
                         throw std::overflow_error("Integer overflow detected.");
                     }
                 }
