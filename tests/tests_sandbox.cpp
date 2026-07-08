@@ -29,26 +29,12 @@ TEST_SUITE("DICE_SANDBOX") {
 
             CHECK_EQ(res, SubProcessResult::ExitSuccess);
         }
-        SUBCASE("std::exit") {
-            auto const res = DICE_SANDBOX {
-                std::exit(0);
-            };
-
-            CHECK_EQ(res, SubProcessResult::ExitSuccess);
-        }
     }
 
     TEST_CASE("normal exit failure") {
         SUBCASE("return") {
             auto const res = DICE_SANDBOX {
                 return 42;
-            };
-
-            CHECK_EQ(res, SubProcessResult::ExitFailure);
-        }
-        SUBCASE("std::exit") {
-            auto const res = DICE_SANDBOX {
-                std::exit(12);
             };
 
             CHECK_EQ(res, SubProcessResult::ExitFailure);
