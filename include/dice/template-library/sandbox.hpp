@@ -1,5 +1,5 @@
-#ifndef DICE_TEMPLATELIBRARY_ASSERTABORTED_HPP
-#define DICE_TEMPLATELIBRARY_ASSERTABORTED_HPP
+#ifndef DICE_TEMPLATELIBRARY_SANDBOX_HPP
+#define  DICE_TEMPLATELIBRARY_SANDBOX_HPP
 
 #include <errno.h>
 #include <signal.h>
@@ -79,6 +79,9 @@ namespace dice::template_library {
             static_assert(std::is_invocable_r_v<void, F> || std::is_invocable_r_v<int, F>,
                           "Function must be invocable like a main() function");
 
+            // ensure no stale data is in output streams
+            flush_all_streams();
+
             int const pid = fork();
             if (pid < 0) {
                 throw std::system_error{errno, std::system_category(), "Unable to fork"};
@@ -87,14 +90,8 @@ namespace dice::template_library {
             if (pid == 0) {
                 // child process
 
-                // flush all buffered C file streams (including stdout)
-                fflush(nullptr);
-
                 // remove signal handles that may have been installed (e.g. by doctest)
                 clear_all_signal_handlers();
-
-                // ensure no stale data is in output streams
-                flush_all_streams();
 
                 // invoke user provided function
 
@@ -136,8 +133,14 @@ namespace dice::template_library {
  * Run the provided code in a separate process.
  * This can, for example, be used to ensure that a particular piece of code triggers an assertion.
  *
+ * @return enum describing how the subprocess exited
+ * @note exceptions are turned into SubProcessResult::Aborted
+ *
  * @pre The application is single threaded when this is called,
  *      or at least the other threads are not holding any global locks.
+ *
+ * @pre The provided function must not use std::exit to exit the subprocess, use return instead.
+ *      Ignoring this precondition causes destructors to run and potentially close resources the parent still needs.
  *
  * @example
  * @code
@@ -150,4 +153,4 @@ namespace dice::template_library {
  */
 #define DICE_SANDBOX ::dice::template_library::detail_sandbox::SandBox{} + [=]() mutable
 
-#endif // DICE_TEMPLATELIBRARY_ASSERTABORTED_HPP
+#endif //  DICE_TEMPLATELIBRARY_SANDBOX_HPP
