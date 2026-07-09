@@ -2,6 +2,7 @@
 #define DICE_TEMPLATELIBRARY_ZST_HPP
 
 #include <cstdint>
+#include <functional>
 #include <type_traits>
 
 namespace dice::template_library {
@@ -150,6 +151,24 @@ namespace dice::template_library {
 		template<typename T, typename U>
 		using like_t = typename like<T &&, U &>::type;
 	} // namespace detail_forward_like
+
+	template<typename R, typename F, typename ...Args>
+	struct is_strict_invocable_r {
+	    static constexpr bool value = requires (F func, Args ...args) {
+	    	{ std::invoke(func, args...) } -> std::same_as<R>;
+	    };
+	};
+
+    /**
+	 * Like std::is_invocable_r_v, but does not allow conversions of the return type.
+	 *
+	 * @tparam R return type
+	 * @tparam F function type
+	 * @tparam Args argument types
+	 * @note using this style instead of just a concept for 1-1 compat with stdlib
+	 */
+	template<typename R, typename F, typename ...Args>
+	inline constexpr bool is_strict_invocable_r_v = is_strict_invocable_r<R, F, Args...>::value;
 
 	/**
 	 *  Forward with the cv-qualifiers and value category of another type.
