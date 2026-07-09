@@ -17,8 +17,10 @@ TEST_SUITE("ipow") {
         if constexpr (std::is_unsigned_v<T>) {
             T expected[] = {25, 65025, 16581375, 16129, 2048383, 1, 0, 1, 1, 0, 2};
             T result[] = {
-                ipow(static_cast<T>(5), 2), ipow(static_cast<T>(255), 2), ipow(static_cast<T>(255), 3), ipow(static_cast<T>(127), 2), ipow(static_cast<T>(127), 3),
-                ipow(static_cast<T>(0), 0), ipow(static_cast<T>(0), 1), ipow(static_cast<T>(1), 0), ipow(static_cast<T>(2), 0), ipow(static_cast<T>(0), 2), ipow(static_cast<T>(2), 1),
+                ipow(static_cast<T>(5), 2), ipow(static_cast<T>(255), 2), ipow(static_cast<T>(255), 3),
+                ipow(static_cast<T>(127), 2), ipow(static_cast<T>(127), 3),
+                ipow(static_cast<T>(0), 0), ipow(static_cast<T>(0), 1), ipow(static_cast<T>(1), 0),
+                ipow(static_cast<T>(2), 0), ipow(static_cast<T>(0), 2), ipow(static_cast<T>(2), 1),
             };
             for (size_t idx = 0; idx < std::size(expected); ++idx) {
                 REQUIRE_EQ(expected[idx], result[idx]);
@@ -26,9 +28,12 @@ TEST_SUITE("ipow") {
         } else {
             T expected[] = {25, 65025, 16581375, 16129, 2048383, 1, 0, 1, 1, 0, 2, 1, 1, 1, -1, 1, 0};
             T result[] = {
-                ipow(static_cast<T>(5), 2), ipow(static_cast<T>(255), 2), ipow(static_cast<T>(255), 3), ipow(static_cast<T>(127), 2), ipow(static_cast<T>(127), 3),
-                ipow(static_cast<T>(0), 0), ipow(static_cast<T>(0), 1), ipow(static_cast<T>(1), 0), ipow(static_cast<T>(2), 0), ipow(static_cast<T>(0), 2), ipow(static_cast<T>(2), 1),
-                ipow(static_cast<T>(-1), 0), ipow(static_cast<T>(1), -1), ipow(static_cast<T>(-1), 2), ipow(static_cast<T>(-1), 3), ipow(static_cast<T>(1), -2), ipow(static_cast<T>(2), -2),
+                ipow(static_cast<T>(5), 2), ipow(static_cast<T>(255), 2), ipow(static_cast<T>(255), 3),
+                ipow(static_cast<T>(127), 2), ipow(static_cast<T>(127), 3),
+                ipow(static_cast<T>(0), 0), ipow(static_cast<T>(0), 1), ipow(static_cast<T>(1), 0),
+                ipow(static_cast<T>(2), 0), ipow(static_cast<T>(0), 2), ipow(static_cast<T>(2), 1),
+                ipow(static_cast<T>(-1), 0), ipow(static_cast<T>(1), -1), ipow(static_cast<T>(-1), 2),
+                ipow(static_cast<T>(-1), 3), ipow(static_cast<T>(1), -2), ipow(static_cast<T>(2), -2),
             };
             for (size_t idx = 0; idx < std::size(expected); ++idx) {
                 REQUIRE_EQ(expected[idx], result[idx]);
@@ -41,7 +46,7 @@ TEST_SUITE("ipow") {
     template<typename T>
     struct ref_ipow_result {
         ipow_outcome outcome;
-        T value;  ///< only meaningful if outcome == representable
+        T value; ///< only meaningful if outcome == representable
     };
 
     /**
@@ -77,8 +82,9 @@ TEST_SUITE("ipow") {
         auto const wide_base = static_cast<__int128>(base);
         unsigned __int128 const abs_base = static_cast<unsigned __int128>(wide_base < 0 ? -wide_base : wide_base);
         unsigned __int128 const bound = negative
-            ? static_cast<unsigned __int128>(-static_cast<__int128>(std::numeric_limits<T>::min()))
-            : static_cast<unsigned __int128>(std::numeric_limits<T>::max());
+                                            ? static_cast<unsigned __int128>(-static_cast<__int128>(std::numeric_limits<
+                                                T>::min()))
+                                            : static_cast<unsigned __int128>(std::numeric_limits<T>::max());
 
         unsigned __int128 magnitude = 1;
         for (int64_t i = 0; i < exp; ++i) {
@@ -102,8 +108,10 @@ TEST_SUITE("ipow") {
     template<typename T>
     T random_base(std::mt19937_64 &rng) {
         if (std::uniform_int_distribution<int>{0, 15}(rng) == 0) {
-            constexpr T specials[] = {0, 1, 2, static_cast<T>(-1), static_cast<T>(-2),
-                                      std::numeric_limits<T>::min(), std::numeric_limits<T>::max()};
+            constexpr T specials[] = {
+                0, 1, 2, static_cast<T>(-1), static_cast<T>(-2),
+                std::numeric_limits<T>::min(), std::numeric_limits<T>::max()
+            };
             return specials[std::uniform_int_distribution<size_t>{0, std::size(specials) - 1}(rng)];
         }
 
