@@ -61,6 +61,9 @@ custom_add_test(tests_fmt_join)
 add_executable(tests_channel tests_channel.cpp)
 custom_add_test(tests_channel)
 
+add_executable(tests_ipow tests_ipow.cpp)
+custom_add_test(tests_ipow)
+
 add_executable(tests_variant2 tests_variant2.cpp)
 custom_add_test(tests_variant2)
 
@@ -123,3 +126,6 @@ custom_add_test(tests_opt_minmax)
 
 add_executable(tests_exchange_channel tests_exchange_channel.cpp)
 custom_add_test(tests_exchange_channel)
+
+add_executable(tests_sandbox tests_sandbox.cpp)
+custom_add_test(tests_sandbox)

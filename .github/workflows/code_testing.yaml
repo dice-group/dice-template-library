@@ -29,10 +29,10 @@ jobs:
 
     steps:
       - name: Add compiler repos
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v1.0.3
 
       - name: Install CMake
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@v4.3.3
         with:
           cmakeVersion: 3.29.3
 
@@ -43,7 +43,7 @@ jobs:
           compiler: ${{ matrix.config.compiler }}
 
       - name: Configure conan
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@v1.0.3
         with:
           conan-version: 2.21.0
 
@@ -53,15 +53,15 @@ jobs:
 
       - name: Cache conan data
         id: cache-conan
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.conan2/p
           key: ${{ matrix.config.os }}-${{ matrix.config.compiler }}
 
-      - uses: actions/checkout@v4.1.6
+      - uses: actions/checkout@v7
 
       - name: Get dependency provider
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@main
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@v1.0.3
 
       - name: Configure CMake
         run: cmake -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined" -DCMAKE_BUILD_TYPE=Debug -DWITH_SVECTOR=ON -DWITH_BOOST=ON -DBUILD_TESTING=On -DBUILD_EXAMPLES=On -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -G Ninja -B build .
