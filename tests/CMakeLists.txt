@@ -61,6 +61,9 @@ custom_add_test(tests_fmt_join)
 add_executable(tests_channel tests_channel.cpp)
 custom_add_test(tests_channel)
 
+add_executable(tests_ipow tests_ipow.cpp)
+custom_add_test(tests_ipow)
+
 add_executable(tests_variant2 tests_variant2.cpp)
 custom_add_test(tests_variant2)
 

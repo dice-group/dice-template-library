@@ -35,6 +35,7 @@ It contains:
 - `opt_min`/`opt_max`/`opt_minmax`: Optional-aware min/max/minmax algorithms that treat `std::nullopt` as "no value".
 - `pointer_tag_pair`: A pointer and value pair that stores a small integer tag in the pointer alignment bits based on the API
   from [P3125 (constexpr pointer tagging)](https://wg21.link/P3125).
+- `ipow`: Integer exponentiation (power by squaring) with over-/underflow detection.
 
 ## Usage
 
@@ -254,6 +255,22 @@ All functions accept an optional custom comparator as the last argument,
 e.g. `opt_min<int>({5, 3, 8}, std::greater{})` or `opt_min_element(v, std::greater{})`.
 The comparator replaces `operator<` and should return true if the first argument is less than the second.
 Examples can be found [here](examples/example_opt_minmax.cpp).
+
+### `ipow`
+Integer power by squaring, computed entirely in integer arithmetic (no conversion to floating point).
+The result has the same type as `base`. Negative exponents truncate towards zero, i.e. the result is `0`
+unless `|base| == 1`. Over- and underflow are detected and reported by throwing `std::overflow_error`
+or `std::underflow_error` respectively, instead of silently wrapping or invoking undefined behaviour.
+
+```cpp
+ipow(2, 10);    // 1024
+ipow(2u, 10);   // 1024u (the result type matches base)
+ipow(-2, 3);    // -8
+ipow(5, -1);    // 0 (negative exponent truncates towards zero)
+ipow(2, 100);   // throws std::overflow_error
+```
+
+Note: not supported by MSVC because it relies on `__builtin_mul_overflow`.
 
 ### Further Examples
 

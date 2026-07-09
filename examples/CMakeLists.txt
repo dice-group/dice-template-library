@@ -211,3 +211,10 @@ target_link_libraries(example_pointer_tag_pair
         dice-template-library::dice-template-library
 )
 
+add_executable(example_ipow
+        example_ipow.cpp)
+target_link_libraries(example_ipow
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
