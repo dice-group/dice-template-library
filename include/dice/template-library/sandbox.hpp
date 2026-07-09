@@ -43,9 +43,15 @@ namespace dice::template_library {
 #endif
             }();
 
+            sigset_t empty_sigs;
+            sigemptyset(&empty_sigs);
+
+            // unblock global, inhibited signals
+            ::sigprocmask(SIG_SETMASK, &empty_sigs, nullptr);
+
             struct sigaction sa{};
             sa.sa_handler = SIG_DFL;
-            sigemptyset(&sa.sa_mask);
+            sa.sa_mask = empty_sigs; // unblock local, inhibited signals
             sa.sa_flags = 0;
 
             for (int i = 1; i < max_sig; ++i) {
