@@ -40,8 +40,7 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
 endif ()
 
-add_library(${PROJECT_NAME} INTERFACE
-        include/dice/template-library/ipow.hpp)
+add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME} INTERFACE
