@@ -2,8 +2,8 @@
 #define DICE_TEMPLATE_LIBRARY_IPOW_H
 
 #include <concepts>
-#include <limits>
 #include <stdexcept>
+#include <utility>
 
 namespace dice::template_library {
     /**
