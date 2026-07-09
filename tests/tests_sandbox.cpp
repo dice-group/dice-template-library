@@ -12,6 +12,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 TEST_SUITE("DICE_SANDBOX") {
     using namespace dice::template_library;
@@ -173,5 +174,25 @@ TEST_SUITE("DICE_SANDBOX") {
         auto const n = ::read(fd, buf, 5);
         CHECK_EQ(n, 5);
         CHECK_EQ(std::string_view{buf}, "hello");
+    }
+
+    TEST_CASE("real segfault on a protected page") {
+        // Unlike a nullptr write (which -fsanitize=null flags on gcc), writing to a
+        // valid but PROT_NONE-mapped page is a genuine hardware fault that neither
+        // ASan nor UBSan intercept, so it maps to SegmentationFault on every compiler
+        // and sanitizer configuration.
+        void *const page = ::mmap(nullptr, sizeof(int), PROT_NONE,
+                                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        REQUIRE(page != MAP_FAILED);
+
+        DICE_DEFER {
+            ::munmap(page, sizeof(int));
+        };
+
+        auto const res = DICE_SANDBOX {
+            *static_cast<int volatile *>(page) = 42; // write to inaccessible page -> SIGSEGV
+        };
+
+        CHECK_EQ(res, SubProcessResult::SegmentationFault);
     }
 }

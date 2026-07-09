@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATELIBRARY_SANDBOX_HPP
 #define  DICE_TEMPLATELIBRARY_SANDBOX_HPP
 
+#include <dice/template-library/type_traits.hpp>
+
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -9,7 +11,9 @@
 
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <system_error>
+#include <utility>
 
 namespace dice::template_library {
 
@@ -61,8 +65,9 @@ namespace dice::template_library {
             // OS file descriptors do not need to be flushed
         }
 
+        // the noexcept is important: if func throws, this turns it into std::terminate signalling SIGABRT
         template<typename F>
-            requires (std::is_invocable_r_v<void, F> || std::is_invocable_r_v<int, F>)
+            requires (is_strict_invocable_r_v<void, F> || is_strict_invocable_r_v<int, F>)
         [[nodiscard]] int invoke_like_main(F &&func) noexcept {
             if constexpr (std::is_same_v<std::invoke_result_t<F>, void>) {
                 std::invoke(std::forward<F>(func));
@@ -96,6 +101,9 @@ namespace dice::template_library {
                 // invoke user provided function
 
                 int const exit_code = invoke_like_main(std::move(func));
+
+                // flush again, to avoid loosing output if the function does not abort
+                flush_all_streams();
 
                 // ensure no destructors can run even if func does not abort
                 _exit(exit_code);
@@ -151,6 +159,6 @@ namespace dice::template_library {
  * assert(res == SubProcessResult::Aborted);
  * @endcode
  */
-#define DICE_SANDBOX ::dice::template_library::detail_sandbox::SandBox{} + [=]() mutable
+#define DICE_SANDBOX ::dice::template_library::detail_sandbox::SandBox{} + [&]()
 
 #endif //  DICE_TEMPLATELIBRARY_SANDBOX_HPP
