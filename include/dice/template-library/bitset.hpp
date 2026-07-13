@@ -4,6 +4,7 @@
 #include <dice/template-library/flex_array.hpp>
 #include <bit>
 #include <functional>
+#include <numeric>
 
 namespace dice::template_library {
 
@@ -129,7 +130,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        auto bitset_op_cntl(F&& ops) -> std::invoke_result_t<F> {
+        auto bitset_op_cntl(F&& ops) -> std::invoke_result_t<F, typename storage::const_reference> {
             using result_t = std::invoke_result_t<F, bitset*>;
 
             if constexpr (std::is_void_v<result_t>) {
@@ -157,9 +158,24 @@ namespace dice::template_library {
             return *(inner_.data() + s) & 1uz << o;
         }
 
-        size_t count(T const& segment) {
-            
+        size_t count(storage::const_reference segment) {
+            if constexpr (std::integral<typename storage::value_type>) {
+                return std::popcount(segment);
+            }
+
+            auto const bytes = reinterpret_cast<const std::uint8_t*>(&segment);
+
+            return std::accumulate(bytes, bytes + segment_size, 0);
         }
+
+#ifdef __SIZEOF_INT128__
+        size_t count(__uint128_t const& segment) {
+            uint64_t const lo = static_cast<uint64_t>(segment);
+            uint64_t const hi = static_cast<uint64_t>(segment >> 64);
+
+            return std::popcount(lo) + std::popcount(hi);
+        }
+#endif
 
     public:
         void set(global_ix const ix) {
@@ -179,8 +195,9 @@ namespace dice::template_library {
         }
 
         size_t count() {
+            size_t accumulated{0};
             for (auto const &segment : inner_) {
-
+                accumulated += bitset_op_cntl(&bitset::count, segment);
             }
         }
     };
