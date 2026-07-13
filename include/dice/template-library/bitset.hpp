@@ -22,6 +22,72 @@ namespace dice::template_library {
         using offset    = size_t;
 
     private:
+        struct bitset_iterator {
+        private:
+            storage::pointer cur_segment_;
+            offset          cur_offset_{};
+            bitset *const backing_bitset_;
+
+        public:
+            explicit bitset_iterator(storage &bitset) noexcept :
+                cur_segment_{bitset.data()}, backing_bitset_{&bitset} {}
+
+            explicit bitset_iterator(storage &bitset, offset const& o) :
+                cur_segment_{bitset.data()}, backing_bitset_{&bitset}{
+                if constexpr (o >= segment_size) {
+                    throw std::out_of_range{"bitset_iterator: o >= segment_size"};
+                }
+                cur_offset_ = o;
+            }
+
+            explicit bitset_iterator(storage &bitset, offset const& o, segment const& s) :
+                backing_bitset_{&bitset}{
+                if constexpr (o >= segment_size) {
+                    throw std::out_of_range{"bitset_iterator: o >= segment_size"};
+                }
+
+                if constexpr (cur_segment_ + s >= bitset.size()) {
+                    throw std::out_of_range{"bitset_iterator: segment out of bounds"};
+                }
+
+                cur_offset_ = o;
+                cur_segment_ = bitset.data() + s;
+            }
+
+            void operator=(bool const b) const noexcept {
+                if (b) {
+                    backing_bitset_->set(std::distance(cur_segment_, backing_bitset_->inner_.data()), cur_offset_);
+                    return;
+                }
+                backing_bitset_->unset(std::distance(cur_segment_, backing_bitset_->inner_.data()), cur_offset_);
+            }
+
+            bool operator*() const noexcept {
+                return backing_bitset_->test(std::distance(cur_segment_, backing_bitset_->inner_.data()), cur_offset_);
+            }
+
+            bitset_iterator& operator++(int) noexcept {
+                if (++cur_offset_ >= segment_size_in_bits) {
+                    ++cur_segment_;
+                    cur_offset_ = 0;
+                    return *this;
+                }
+                return *this;
+            }
+
+            bool consumed() const noexcept {
+                return cur_segment_ >= backing_bitset_;
+            }
+
+            friend bool operator==(std::default_sentinel_t, bitset_iterator const& it) {
+                return it == std::default_sentinel_t{};
+            }
+
+            friend bool operator==(bitset_iterator const& it, std::default_sentinel_t) {
+                return it.consumed();
+            }
+        };
+
         struct AutoModeTag {};
         struct DefaultModeTag {};
 
@@ -178,6 +244,8 @@ namespace dice::template_library {
 #endif
 
     public:
+        using iterator = bitset_iterator;
+
         void set(global_ix const ix) {
             bitset_mod_cntl(AutoModeTag{}, &bitset::set, ix);
         }
@@ -199,6 +267,14 @@ namespace dice::template_library {
             for (auto const &segment : inner_) {
                 accumulated += bitset_op_cntl(&bitset::count, segment);
             }
+        }
+
+        constexpr iterator begin() {
+            return iterator{*this};
+        }
+
+        constexpr std::default_sentinel_t end() {
+            return std::default_sentinel_t{};
         }
     };
 
