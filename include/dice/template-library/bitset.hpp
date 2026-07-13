@@ -200,7 +200,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        auto bitset_op_cntl(F&& ops) -> std::invoke_result_t<F, typename storage::const_reference> {
+        auto bitset_op_cntl(F &&ops) -> std::invoke_result_t<F, typename storage::const_reference> {
             using result_t = std::invoke_result_t<F, bitset*>;
 
             if constexpr (std::is_void_v<result_t>) {
@@ -270,6 +270,19 @@ namespace dice::template_library {
             return segment_size_in_bits;
         }
 
+        [[nodiscard]] size_t segment_countl_zero(storage::const_reference segment) {
+            if constexpr (std::integral<typename storage::value_type>) {
+                return std::countl_zero(segment);
+            }
+        }
+
+        [[nodiscard]] size_t segment_countr_zero(storage::const_reference segment) {
+            if constexpr (std::integral<typename storage::value_type>) {
+                return std::countr_zero(segment);
+            }
+        }
+
+
     public:
         using iterator = bitset_iterator;
 
@@ -298,7 +311,7 @@ namespace dice::template_library {
             return accumulated;
         }
 
-        size_t set_first_free() {
+        [[nodiscard]] size_t set_first_free() {
             for (auto const &segment : inner_) {
                 auto offset = bitset_op_cntl(&bitset::set_first_free, segment);
 
@@ -328,6 +341,44 @@ namespace dice::template_library {
             }
 
             return storage_size_in_bits;
+        }
+
+        template<typename F, typename M, typename Tp>
+        requires std::is_same_v<std::invoke_result_t<F, typename storage::const_reference>, Tp> &&
+            std::invocable<M, Tp, Tp>
+        Tp segment_handler(F &&handler, M &&merge) {
+            Tp merge_val{};
+            for (auto const &segment : inner_) {
+                std::invoke(std::forward<M>(merge)(
+                    merge_val,
+                    std::invoke(std::forward<F>(handler), segment)));
+            }
+
+            return merge_val;
+        }
+
+        [[nodiscard]] size_t countr_zero() const {
+            segment_handler([this](T const& segment) {
+                return bitset_op_cntl(&bitset::countr_zero, segment);
+            }, [](size_t const v1, size_t const v2) {
+                return v1 + v2;
+            });
+        }
+
+        [[nodiscard]] size_t countl_zero() const {
+            segment_handler([this](T const& segment) {
+                return bitset_op_cntl(&bitset::countl_zero, segment);
+            }, [](size_t const v1, size_t const v2) {
+                return v1 + v2;
+            });
+        }
+
+        [[nodiscard]] size_t countr_one() const {
+
+        }
+
+        [[nodiscard]] size_t countl_one() const {
+
         }
 
         constexpr iterator begin() {
