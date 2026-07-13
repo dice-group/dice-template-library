@@ -150,6 +150,10 @@ namespace dice::template_library {
             }
         }
 
+        [[nodiscard]] static constexpr global_ix calc_global_idx(segment const s, offset const o) {
+            return s * segment_size_in_bits + o;
+        }
+
         template<typename F>
         auto bitset_mod_cntl(AutoModeTag, F&& ops, global_ix const ix) -> std::invoke_result_t<F, bitset*, size_t, size_t> {
             if (!fits_in_storage(ix)) {
@@ -220,18 +224,24 @@ namespace dice::template_library {
             *(inner_.data() + s) &= ~(1uz << o);
         }
 
-        bool test(segment const s, offset const o) {
+        [[nodiscard]] bool test(segment const s, offset const o) {
             return *(inner_.data() + s) & 1uz << o;
         }
 
-        size_t count(storage::const_reference segment) {
+        [[nodiscard]] size_t count(storage::const_reference segment) {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::popcount(segment);
             }
 
-            auto const bytes = reinterpret_cast<const std::uint8_t*>(&segment);
+            auto byte = reinterpret_cast<const std::uint8_t*>(&segment);
+            auto const end = byte + segment_size;
 
-            return std::accumulate(bytes, bytes + segment_size, 0);
+            auto accumulated{0uz};
+            for (; byte != end; ++byte) {
+                accumulated += std::popcount(*byte);
+            }
+
+            return accumulated;
         }
 
 #ifdef __SIZEOF_INT128__
@@ -242,6 +252,23 @@ namespace dice::template_library {
             return std::popcount(lo) + std::popcount(hi);
         }
 #endif
+
+        [[nodiscard]] size_t segment_free(storage::const_reference segment) {
+            if constexpr (std::integral<typename storage::value_type>) {
+                return std::countr_zero(~segment);
+            }
+
+            auto byte = reinterpret_cast<const std::uint8_t*>(&segment);
+            auto const end = byte + segment_size;
+
+            for (; byte != end; ++byte) {
+                if (auto const segment_free = static_cast<uint8_t>(~(*byte)); segment_free != 0) {
+                    return std::countr_zero(segment_free);
+                }
+            }
+
+            return segment_size_in_bits;
+        }
 
     public:
         using iterator = bitset_iterator;
@@ -258,15 +285,49 @@ namespace dice::template_library {
             bitset_mod_cntl(AutoModeTag{}, &bitset::unset, ix);
         }
 
-        bool test(global_ix const ix) {
+        [[nodiscard]] bool test(global_ix const ix) {
             return bitset_mod_cntl(AutoModeTag{}, &bitset::test, ix);
         }
 
-        size_t count() {
+        [[nodiscard]] size_t count() {
             size_t accumulated{0};
             for (auto const &segment : inner_) {
                 accumulated += bitset_op_cntl(&bitset::count, segment);
             }
+
+            return accumulated;
+        }
+
+        size_t set_first_free() {
+            for (auto const &segment : inner_) {
+                auto offset = bitset_op_cntl(&bitset::set_first_free, segment);
+
+                if (offset != segment_size_in_bits) {
+                    auto seg = std::distance(inner_.data(), &segment);
+                    set(seg, offset);
+                    return calc_global_idx(seg, offset);
+                }
+            }
+
+            if constexpr (storage::has_dynamic_extent) {
+                if constexpr (!has_storage_limit) {
+                    inner_.resize(inner_.size() + 1);
+                    *(inner_.end() - 1) = 0x01;
+
+                    return calc_global_idx(std::distance(inner_.end(), inner_.data(), 0));
+                }
+                else {
+                    if (inner_.size() == inner_.max_size()) {
+                        return storage_size_in_bits;
+                    }
+                    *inner_.end() = 0x01;
+                    inner_.resize(inner_.size() + 1);
+
+                    return calc_global_idx(std::distance(inner_.end(), inner_.data()), 0);
+                }
+            }
+
+            return storage_size_in_bits;
         }
 
         constexpr iterator begin() {
