@@ -8,6 +8,21 @@
 
 namespace dice::template_library {
 
+    template<typename Tp>
+        struct MergeFunctor {
+        Tp operator()(Tp const v1, Tp const v2) const noexcept {
+            return v1 + v2;
+        };
+    };
+
+    template<>
+    struct MergeFunctor<bool> {
+        bool operator()(bool const v1, bool const v2) const {
+            assert(v1 == v2);
+            return v1;
+        }
+    };
+
     template<typename T, size_t extent, size_t segments>
     struct bitset {
         static constexpr bool   has_storage_limit = segments != dynamic_extent;
@@ -358,27 +373,27 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] size_t countr_zero() const {
-            segment_handler([this](T const& segment) {
+            return segment_handler([this](T const& segment) {
                 return bitset_op_cntl(&bitset::countr_zero, segment);
-            }, [](size_t const v1, size_t const v2) {
-                return v1 + v2;
-            });
+            }, MergeFunctor<size_t>{});
         }
 
         [[nodiscard]] size_t countl_zero() const {
-            segment_handler([this](T const& segment) {
+            return segment_handler([this](T const& segment) {
                 return bitset_op_cntl(&bitset::countl_zero, segment);
-            }, [](size_t const v1, size_t const v2) {
-                return v1 + v2;
-            });
+            }, MergeFunctor<size_t>{});
         }
 
         [[nodiscard]] size_t countr_one() const {
-
+            return segment_handler([this](T const& segment) {
+                return bitset_op_cntl(&bitset::countr_one, segment);
+            }, MergeFunctor<size_t>{});
         }
 
         [[nodiscard]] size_t countl_one() const {
-
+            return segment_handler([this](T const& segment) {
+                return bitset_op_cntl(&bitset::countl_one, segment);
+            }, MergeFunctor<size_t>{});
         }
 
         constexpr iterator begin() {
