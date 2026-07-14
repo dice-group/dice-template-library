@@ -23,6 +23,11 @@ namespace dice::template_library {
         }
     };
 
+    struct bitset_const {
+        static constexpr size_t bit_mode = 0x00;
+        static constexpr size_t segment_mode = 0x01;
+    };
+
     template<typename T, size_t extent, size_t segments>
     struct bitset {
         static constexpr bool   has_storage_limit = segments != dynamic_extent;
@@ -35,9 +40,6 @@ namespace dice::template_library {
         using global_ix = size_t;
         using segment   = size_t;
         using offset    = size_t;
-
-        static constexpr size_t bit_mode = 0x00;
-        static constexpr size_t segment_mode = 0x01;
 
     private:
         struct bitset_iterator {
@@ -85,9 +87,9 @@ namespace dice::template_library {
             }
 
             // shared iterator for mode=0 (bits) mode>=1 (segments)
-            template<size_t mode>
+            template<size_t mode=bitset_const::bit_mode>
             bitset_iterator& operator++() noexcept {
-                if constexpr (mode == bit_mode) {
+                if constexpr (mode == bitset_const::bit_mode) {
                     if (++cur_offset_ >= segment_size_in_bits) {
                         ++cur_segment_;
                         cur_offset_ = 0;
@@ -99,7 +101,7 @@ namespace dice::template_library {
                 return *this;
             }
 
-            template<size_t mode>
+            template<size_t mode=bitset_const::bit_mode>
             bitset_iterator& operator+=(size_t const skip) noexcept {
                 auto skip_handler = [this](size_t skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
@@ -117,7 +119,7 @@ namespace dice::template_library {
                     cur_offset_ = offset;
                 };
 
-                if constexpr (mode == bit_mode) {
+                if constexpr (mode == bitset_const::bit_mode) {
                     skip_handler(skip);
                 }
                 else {
@@ -125,6 +127,10 @@ namespace dice::template_library {
                 }
 
                 return *this;
+            }
+
+            T const& get() {
+                return *cur_segment_;
             }
 
             bool consumed() const noexcept {
@@ -471,6 +477,22 @@ namespace dice::template_library {
         constexpr std::default_sentinel_t end() {
             return std::default_sentinel_t{};
         }
+
+        constexpr size_t size() const noexcept {
+            return inner_.size() * 8;
+        }
+
+        constexpr size_t size_in_bits() const noexcept {
+            return size() * 8;
+        }
+
+        constexpr size_t inner_size() const noexcept {
+            return segment_size;
+        }
+
+        constexpr size_t inner_size_in_bits() const noexcept {
+            return segment_size_in_bits;
+        }
     };
 
     static constexpr bitset<size_t, dynamic_extent, dynamic_extent> create_bitset(std::initializer_list<size_t> const list) {
@@ -497,26 +519,73 @@ template<typename T, size_t extent, size_t max_extent>
 struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
     bool hex = false;
     bool debug = false;
+    bool binary = false;
 
     constexpr auto parse(std::format_parse_context& ctx) {
         auto it = ctx.begin();
         while (it != ctx.end()) {
-            if (*it != 'x' && *it != '?') {
+            if (*it != 'x' && *it != '?' && *it != 'b') {
                 throw std::format_error("Invalid format args for dice::template_library::bitset.");
             }
 
             if (*it == '?') {
                 debug = true;
             }
-            else {
+
+            if (*it == 'b') {
                 hex = true;
+            }
+            else {
+                binary = true;
             }
             ++it;
         }
     }
 
     auto format(dice::template_library::bitset<T, extent, max_extent> const& storage, std::format_context& ctx) const {
+        auto it = storage.begin();
+        auto end = storage.end();
+        auto segments = storage.size();
+        auto segment_size = storage.inner_size();
 
+        auto out = ctx.out();
+        *out++ = '[';
+        *out++ = '\n';
+
+        if (debug) {
+            out = std::format_to(out, "Segments : {}\n", segments);
+            out = std::format_to(out, "Segment size : {}\n", segment_size);
+
+            if (hex) {
+                out = std::format_to(out, "Segment Representation -> Hex(0xFF)\n");
+            }
+            else {
+                out = std::format_to(out, "Segment Representation -> Bin(0b00)\n");
+            }
+            *out++ = '\n';
+        }
+
+        while (it != end) {
+            *out++ = '[';
+            auto const& segment = it.get();
+            if (hex) {
+                if constexpr (std::integral<T>) {
+                   out = std::format_to(out, "{:x}", segment);
+                }
+                // proper align
+                ++it.template operator++<dice::template_library::bitset_const::segment_mode>();
+            }
+            else if (binary) {
+                for (auto segment_bit{0uz}; segment_bit < segment_size; ++segment_bit) {
+                    *out++ = *it ? '1' : '0';
+                    ++it;
+                }
+            }
+            *out++ = ']';
+            *out++ = '\n';
+        }
+        *out++ = ']';
+        *out++ = '\n';
     }
 };
 
