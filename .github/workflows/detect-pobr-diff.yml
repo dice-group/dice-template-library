@@ -8,7 +8,7 @@ concurrency:
 
 jobs:
   detect-pobr-diff:
-    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/abi-diff.yml@v1.0.4
+    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/abi-diff.yml@v2.0.0
     with:
       os: ubuntu-24.04
       setup_tools: true
@@ -28,5 +28,6 @@ jobs:
       abi-version-header: include/dice/template-library/version.hpp
       abi-version-const: dice::template_library::pobr_version
     secrets:
-      CONAN_USER: ""
-      CONAN_PW: ""
+      CONAN_CICD_USERNAME: ${{ secrets.CONAN_CICD_USERNAME }}
+      CONAN_CICD_PASSWORD: ${{ secrets.CONAN_CICD_PASSWORD }}
+      CONAN_CICD_ENDPOINT: ${{ secrets.CONAN_CICD_ENDPOINT }}
