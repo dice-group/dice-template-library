@@ -5,6 +5,7 @@
 #include <bit>
 #include <functional>
 #include <numeric>
+#include <format>
 
 namespace dice::template_library {
 
@@ -452,6 +453,33 @@ namespace dice::template_library {
     template<typename T>
     static constexpr bitset<T, dynamic_extent, dynamic_extent> create_bitset(std::initializer_list<T> const list) {
         return bitset<T, dynamic_extent, dynamic_extent>{list};
+    }
+}
+
+template<typename T, size_t extent, size_t max_extent>
+struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
+    bool hex = false;
+    bool debug = false;
+
+    constexpr auto parse(std::format_parse_context& ctx) {
+        auto it = ctx.begin();
+        while (it != ctx.end()) {
+            if (*it != 'x' && *it != '?') {
+                throw std::format_error("Invalid format args for dice::template_library::bitset.");
+            }
+
+            if (*it == '?') {
+                debug = true;
+            }
+            else {
+                hex = true;
+            }
+            ++it;
+        }
+    }
+
+    auto format(dice::template_library::bitset<T, extent, max_extent> const& storage, std::format_context& ctx) const {
+
     }
 };
 
