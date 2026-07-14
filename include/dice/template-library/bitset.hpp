@@ -36,6 +36,9 @@ namespace dice::template_library {
         using segment   = size_t;
         using offset    = size_t;
 
+        static constexpr size_t bit_mode = 0x00;
+        static constexpr size_t segment_mode = 0x01;
+
     private:
         struct bitset_iterator {
         private:
@@ -81,12 +84,46 @@ namespace dice::template_library {
                 return backing_bitset_->test(std::distance(cur_segment_, backing_bitset_->inner_.data()), cur_offset_);
             }
 
-            bitset_iterator& operator++(int) noexcept {
-                if (++cur_offset_ >= segment_size_in_bits) {
-                    ++cur_segment_;
-                    cur_offset_ = 0;
+            // shared iterator for mode=0 (bits) mode>=1 (segments)
+            template<size_t mode>
+            bitset_iterator& operator++() noexcept {
+                if constexpr (mode == bit_mode) {
+                    if (++cur_offset_ >= segment_size_in_bits) {
+                        ++cur_segment_;
+                        cur_offset_ = 0;
+                        return *this;
+                    }
                     return *this;
                 }
+                ++cur_segment_;
+                return *this;
+            }
+
+            template<size_t mode>
+            bitset_iterator& operator+=(size_t const skip) noexcept {
+                auto skip_handler = [this](size_t skip_size) {
+                    auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
+
+                    if (global_ix >= storage_size_in_bits) {
+                        cur_segment_ = segments;
+                        cur_offset_ = 0;
+                        return;
+                    }
+
+                    auto offset = calc_which_offset(global_ix);
+                    auto seg = calc_which_segment(global_ix);
+
+                    cur_segment_ = seg;
+                    cur_offset_ = offset;
+                };
+
+                if constexpr (mode == bit_mode) {
+                    skip_handler(skip);
+                }
+                else {
+                    skip_handler(skip * segment_size_in_bits);
+                }
+
                 return *this;
             }
 
