@@ -285,13 +285,13 @@ namespace dice::template_library {
             return segment_size_in_bits;
         }
 
-        [[nodiscard]] size_t segment_countl_zero(storage::const_reference segment) {
+        [[nodiscard]] size_t segment_countl_zero(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countl_zero(segment);
             }
         }
 
-        [[nodiscard]] size_t segment_countr_zero(storage::const_reference segment) {
+        [[nodiscard]] size_t segment_countr_zero(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(segment);
             }
@@ -373,25 +373,25 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] size_t countr_zero() const {
-            return segment_handler([this](T const& segment) {
+            return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countr_zero, segment);
             }, MergeFunctor<size_t>{});
         }
 
         [[nodiscard]] size_t countl_zero() const {
-            return segment_handler([this](T const& segment) {
+            return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countl_zero, segment);
             }, MergeFunctor<size_t>{});
         }
 
         [[nodiscard]] size_t countr_one() const {
-            return segment_handler([this](T const& segment) {
+            return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countr_one, segment);
             }, MergeFunctor<size_t>{});
         }
 
         [[nodiscard]] size_t countl_one() const {
-            return segment_handler([this](T const& segment) {
+            return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countl_one, segment);
             }, MergeFunctor<size_t>{});
         }
