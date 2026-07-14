@@ -18,8 +18,7 @@ namespace dice::template_library {
     template<>
     struct MergeFunctor<bool> {
         bool operator()(bool const v1, bool const v2) const {
-            assert(v1 == v2);
-            return v1;
+            return v1 & v2;
         }
     };
 
@@ -297,6 +296,19 @@ namespace dice::template_library {
             }
         }
 
+        [[nodiscard]] bool all_set(storage::const_reference segment) const noexcept {
+            return segment_free(segment) == segment_size_in_bits;
+        }
+
+        [[nodiscard]] bool any_set(storage::const_reference segment) const noexcept {
+            auto const free = segment_free(segment);
+
+            return free > 0 && free < segment_size_in_bits;
+        }
+
+        [[nodiscard]] bool none_set(storage::const_reference segment) const noexcept {
+            return segment_free(segment) == 0x00;
+        }
 
     public:
         using iterator = bitset_iterator;
@@ -328,7 +340,7 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t set_first_free() {
             for (auto const &segment : inner_) {
-                auto offset = bitset_op_cntl(&bitset::set_first_free, segment);
+                auto offset = bitset_op_cntl(&bitset::segment_free, segment);
 
                 if (offset != segment_size_in_bits) {
                     auto seg = std::distance(inner_.data(), &segment);
@@ -340,7 +352,7 @@ namespace dice::template_library {
             if constexpr (storage::has_dynamic_extent) {
                 if constexpr (!has_storage_limit) {
                     inner_.resize(inner_.size() + 1);
-                    *(inner_.end() - 1) = 0x01;
+                    *static_cast<uint8_t*>(inner_.end() - 1) = 0x01;
 
                     return calc_global_idx(std::distance(inner_.end(), inner_.data(), 0));
                 }
@@ -348,7 +360,7 @@ namespace dice::template_library {
                     if (inner_.size() == inner_.max_size()) {
                         return storage_size_in_bits;
                     }
-                    *inner_.end() = 0x01;
+                    *static_cast<uint8_t*>(inner_.end()) = 0x01;
                     inner_.resize(inner_.size() + 1);
 
                     return calc_global_idx(std::distance(inner_.end(), inner_.data()), 0);
@@ -361,8 +373,8 @@ namespace dice::template_library {
         template<typename F, typename M, typename Tp>
         requires std::is_same_v<std::invoke_result_t<F, typename storage::const_reference>, Tp> &&
             std::invocable<M, Tp, Tp>
-        Tp segment_handler(F &&handler, M &&merge) {
-            Tp merge_val{};
+        Tp segment_handler(F &&handler, M &&merge, Tp initial) {
+            Tp merge_val{initial};
             for (auto const &segment : inner_) {
                 std::invoke(std::forward<M>(merge)(
                     merge_val,
@@ -375,25 +387,43 @@ namespace dice::template_library {
         [[nodiscard]] size_t countr_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countr_zero, segment);
-            }, MergeFunctor<size_t>{});
+            }, MergeFunctor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countl_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countl_zero, segment);
-            }, MergeFunctor<size_t>{});
+            }, MergeFunctor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countr_one() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countr_one, segment);
-            }, MergeFunctor<size_t>{});
+            }, MergeFunctor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countl_one() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countl_one, segment);
-            }, MergeFunctor<size_t>{});
+            }, MergeFunctor<size_t>{}, 0);
+        }
+
+        [[nodiscard]] bool all_set() const {
+            return segment_handler([this](typename storage::const_reference segment) {
+                return bitset_op_cntl(&bitset::all_set, segment);
+            }, MergeFunctor<bool>{}, true);
+        }
+
+        [[nodiscard]] bool any_set() const {
+            return segment_handler([this](typename storage::const_reference segment) {
+                return bitset_op_cntl(&bitset::any_set, segment);
+            }, MergeFunctor<bool>{}, true);
+        }
+
+        [[nodiscard]] bool none_set() const {
+            return segment_handler([this](typename storage::const_reference segment) {
+                return bitset_op_cntl(&bitset::none_set, segment);
+            }, MergeFunctor<bool>{}, true);
         }
 
         constexpr iterator begin() {
