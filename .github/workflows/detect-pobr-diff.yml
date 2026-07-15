@@ -28,6 +28,4 @@ jobs:
       abi-version-header: include/dice/template-library/version.hpp
       abi-version-const: dice::template_library::pobr_version
     secrets:
-      CONAN_CICD_USERNAME: ${{ secrets.CONAN_CICD_USERNAME }}
-      CONAN_CICD_PASSWORD: ${{ secrets.CONAN_CICD_PASSWORD }}
       CONAN_CICD_ENDPOINT: ${{ secrets.CONAN_CICD_ENDPOINT }}
