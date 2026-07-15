@@ -45,6 +45,8 @@ namespace dice::template_library {
 
         using storage_word = std::conditional_t<segment_align >= alignof(std::uint64_t), std::uint64_t,
             std::conditional_t<segment_align >= alignof(std::uint32_t), std::uint32_t, std::uint8_t>>;
+        using storage_word_pointer = storage_word *;
+        using storage_word_const_pointer = storage_word const *;
 
     private:
         struct bitset_iterator {
@@ -316,8 +318,8 @@ namespace dice::template_library {
         }
 #endif
 
-        [[nodiscard]] std::pair<storage_word*, storage_word*> segment_slots(storage::const_reference segment) {
-            auto word = reinterpret_cast<const storage_word*>(&segment);
+        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) {
+            auto word = reinterpret_cast<storage_word_const_pointer>(&segment);
             auto const end = word + segment_steps;
 
             return std::pair{word, end};
@@ -329,7 +331,7 @@ namespace dice::template_library {
             auto [word, end] = segment_slots(segment);
 
             for (; word != end; ++word) {
-                std::invoke(std::forward<M>(m),merge_val, std::invoke<F>(std::forward<F>(f), *word));
+                merge_val = std::invoke(std::forward<M>(m),merge_val, std::invoke(std::forward<F>(f), *word));
             }
 
             return merge_val;
@@ -356,7 +358,7 @@ namespace dice::template_library {
                 return std::countl_zero(segment);
             }
 
-            return slot_handler(segment, [](storage_word* word) -> size_t {
+            return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countl_zero(*word);
             }, MergeFunctor<size_t>{}, 0uz);
         }
@@ -366,7 +368,7 @@ namespace dice::template_library {
                 return std::countr_zero(segment);
             }
 
-            return slot_handler(segment, [](storage_word* word) -> size_t {
+            return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countr_zero(*word);
             }, MergeFunctor<size_t>{}, 0uz);
         }
@@ -376,7 +378,7 @@ namespace dice::template_library {
                 return std::countr_zero(segment);
             }
 
-            return slot_handler(segment, [](storage_word* word) -> size_t {
+            return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countl_one(*word);
             }, MergeFunctor<size_t>{}, 0uz);
         }
@@ -386,7 +388,7 @@ namespace dice::template_library {
                 return std::countr_zero(segment);
             }
 
-            return slot_handler(segment, [](storage_word* word) -> size_t {
+            return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countr_one(*word);
             }, MergeFunctor<size_t>{}, 0uz);
         }
