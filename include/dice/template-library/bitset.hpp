@@ -356,25 +356,39 @@ namespace dice::template_library {
                 return std::countl_zero(segment);
             }
 
-
+            return slot_handler(segment, [](storage_word* word) -> size_t {
+                return std::countl_zero(*word);
+            }, MergeFunctor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t countr_zero(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(segment);
             }
+
+            return slot_handler(segment, [](storage_word* word) -> size_t {
+                return std::countr_zero(*word);
+            }, MergeFunctor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t countl_one(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(segment);
             }
+
+            return slot_handler(segment, [](storage_word* word) -> size_t {
+                return std::countl_one(*word);
+            }, MergeFunctor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t countr_one(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(segment);
             }
+
+            return slot_handler(segment, [](storage_word* word) -> size_t {
+                return std::countr_one(*word);
+            }, MergeFunctor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] bool all_set(storage::const_reference segment) const noexcept {
