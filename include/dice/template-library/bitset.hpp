@@ -32,6 +32,8 @@ namespace dice::template_library {
     struct bitset {
         static constexpr bool   has_storage_limit = segments != dynamic_extent;
         static constexpr size_t segment_size = sizeof(T);
+        static constexpr size_t segment_align = alignof(T);
+        static constexpr size_t segment_steps = segment_size / segment_align;
         static constexpr size_t segment_size_in_bits = segment_size * 8;
         static constexpr size_t storage_size = !has_storage_limit ? dynamic_extent : segment_size * segments;
         static constexpr size_t storage_size_in_bits = !has_storage_limit ? dynamic_extent : storage_size * 8;
@@ -40,6 +42,9 @@ namespace dice::template_library {
         using global_ix = size_t;
         using segment   = size_t;
         using offset    = size_t;
+
+        using storage_word = std::conditional_t<segment_align >= alignof(std::uint64_t), std::uint64_t,
+            std::conditional_t<segment_align >= alignof(std::uint32_t), std::uint32_t, std::uint8_t>>;
 
     private:
         struct bitset_iterator {
@@ -311,16 +316,34 @@ namespace dice::template_library {
         }
 #endif
 
+        [[nodiscard]] std::pair<storage_word*, storage_word*> segment_slots(storage::const_reference segment) {
+            auto word = reinterpret_cast<const storage_word*>(&segment);
+            auto const end = word + segment_steps;
+
+            return std::pair{word, end};
+        }
+
+        template<typename F, typename M, typename Tp>
+        [[nodiscard]] Tp slot_handler(storage::const_reference segment, F &&f, M&& m, Tp initial) {
+            Tp merge_val{initial};
+            auto [word, end] = segment_slots(segment);
+
+            for (; word != end; ++word) {
+                std::invoke(std::forward<M>(m),merge_val, std::invoke<F>(std::forward<F>(f), *word));
+            }
+
+            return merge_val;
+        }
+
         [[nodiscard]] size_t segment_free(storage::const_reference segment) {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(~segment);
             }
 
-            auto byte = reinterpret_cast<const std::uint8_t*>(&segment);
-            auto const end = byte + segment_size;
+            auto [word, end] = segment_slots(segment);
 
-            for (; byte != end; ++byte) {
-                if (auto const segment_free = static_cast<uint8_t>(~(*byte)); segment_free != 0) {
+            for (; word != end; ++word) {
+                if (auto const segment_free = static_cast<const storage_word>(~(*word)); segment_free != 0) {
                     return std::countr_zero(segment_free);
                 }
             }
@@ -328,13 +351,27 @@ namespace dice::template_library {
             return segment_size_in_bits;
         }
 
-        [[nodiscard]] size_t segment_countl_zero(storage::const_reference segment) const noexcept {
+        [[nodiscard]] size_t countl_zero(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countl_zero(segment);
             }
+
+
         }
 
-        [[nodiscard]] size_t segment_countr_zero(storage::const_reference segment) const noexcept {
+        [[nodiscard]] size_t countr_zero(storage::const_reference segment) const noexcept {
+            if constexpr (std::integral<typename storage::value_type>) {
+                return std::countr_zero(segment);
+            }
+        }
+
+        [[nodiscard]] size_t countl_one(storage::const_reference segment) const noexcept {
+            if constexpr (std::integral<typename storage::value_type>) {
+                return std::countr_zero(segment);
+            }
+        }
+
+        [[nodiscard]] size_t countr_one(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(segment);
             }
@@ -420,7 +457,7 @@ namespace dice::template_library {
         Tp segment_handler(F &&handler, M &&merge, Tp initial) {
             Tp merge_val{initial};
             for (auto const &segment : inner_) {
-                std::invoke(std::forward<M>(merge)(
+                merge_val = std::invoke(std::forward<M>(merge)(
                     merge_val,
                     std::invoke(std::forward<F>(handler), segment)));
             }
