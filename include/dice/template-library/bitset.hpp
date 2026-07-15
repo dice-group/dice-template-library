@@ -658,19 +658,27 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
 
         while (it != end) {
             *out++ = '[';
-            auto const& segment = it.get();
             if (hex) {
+                auto const& segment = it.get();
                 if constexpr (std::integral<T>) {
                    out = std::format_to(out, "{:x}", segment);
                 }
-                // proper align
-                ++it.template operator++<dice::template_library::bitset_const::segment_mode>();
+                else {
+                    auto [word, end] = storage.segment_slots(segment);
+
+                    for (; word != end; ++word) {
+                        out = std::format_to(out, "{:x}", *word);
+                    }
+                }
+                it.template operator++<dice::template_library::bitset_const::segment_mode>();
             }
             else if (binary) {
                 for (auto segment_bit{0uz}; segment_bit < segment_size; ++segment_bit) {
-                    *out++ = *it ? '1' : '0';
-                    ++it;
+                    *out++ = *it++ ? '1' : '0';
                 }
+            }
+            else {
+                ++it;
             }
             *out++ = ']';
             *out++ = '\n';
