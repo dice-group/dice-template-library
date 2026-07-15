@@ -175,7 +175,7 @@ namespace dice::template_library {
                 return 0;
             }
 
-            auto const bit_off = bit_pos - ix;
+            auto const bit_off = ix - bit_pos;
 
             return [bit_off] {
                 if constexpr (std::has_single_bit(segment_size_in_bits)) {
@@ -392,7 +392,7 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t segment_countl_one(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
-                return std::countr_zero(segment);
+                return std::countl_one(segment);
             }
 
             return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
@@ -402,7 +402,7 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t segment_countr_one(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
-                return std::countr_zero(segment);
+                return std::countr_one(segment);
             }
 
             return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
@@ -498,7 +498,7 @@ namespace dice::template_library {
             if constexpr (storage::has_dynamic_extent) {
                 if constexpr (!has_storage_limit) {
                     inner_.resize(inner_.size() + 1);
-                    *static_cast<uint8_t*>(inner_.end() - 1) = 0x01;
+                    *static_cast<storage_word_const_pointer>(inner_.end() - 1) = 0x01;
 
                     return calc_global_idx(std::distance(inner_.data(), inner_.end()), 0);
                 }
@@ -506,10 +506,10 @@ namespace dice::template_library {
                     if (inner_.size() == inner_.max_size()) {
                         return storage_size_in_bits;
                     }
-                    *static_cast<uint8_t*>(inner_.end()) = 0x01;
+                    *static_cast<storage_word_const_pointer>(inner_.end()) = 0x01;
                     inner_.resize(inner_.size() + 1);
 
-                    return calc_global_idx(std::distance(inner_.end(), inner_.data()), 0);
+                    return calc_global_idx(std::distance(inner_.data(), inner_.end()), 0);
                 }
             }
 
@@ -620,10 +620,10 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
                 debug = true;
             }
 
-            if (*it == 'b') {
+            if (*it == 'x') {
                 hex = true;
             }
-            else {
+            else if (*it == 'b'){
                 binary = true;
             }
             ++it;
@@ -634,7 +634,8 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
         auto it = storage.begin();
         auto end = storage.end();
         auto segments = storage.size();
-        auto segment_size = storage.inner_size();
+        auto segment_size = storage.inner();
+        auto segment_size_in_bits = storage.inner_size_in_bits();
 
         auto out = ctx.out();
         *out++ = '[';
@@ -670,11 +671,12 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
                 it.template operator++<dice::template_library::bitset_const::segment_mode>();
             }
             else if (binary) {
-                for (auto segment_bit{0uz}; segment_bit < segment_size; ++segment_bit) {
+                for (auto segment_bit{0uz}; segment_bit < segment_size_in_bits; ++segment_bit) {
                     *out++ = *it++ ? '1' : '0';
                 }
             }
             else {
+                // if no mode is supported and somehow it goes throught consider just to step through, for compatible
                 ++it;
             }
             *out++ = ']';
