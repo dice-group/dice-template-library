@@ -10,14 +10,14 @@
 namespace dice::template_library {
 
     template<typename Tp>
-        struct MergeFunctor {
+        struct merge_functor {
         Tp operator()(Tp const v1, Tp const v2) const noexcept {
             return v1 + v2;
         };
     };
 
     template<>
-    struct MergeFunctor<bool> {
+    struct merge_functor<bool> {
         bool operator()(bool const v1, bool const v2) const {
             return v1 & v2;
         }
@@ -370,7 +370,7 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countl_zero(*word);
-            }, MergeFunctor<size_t>{}, 0uz);
+            }, merge_functor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t countr_zero(storage::const_reference segment) const noexcept {
@@ -380,7 +380,7 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countr_zero(*word);
-            }, MergeFunctor<size_t>{}, 0uz);
+            }, merge_functor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t countl_one(storage::const_reference segment) const noexcept {
@@ -390,7 +390,7 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countl_one(*word);
-            }, MergeFunctor<size_t>{}, 0uz);
+            }, merge_functor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t countr_one(storage::const_reference segment) const noexcept {
@@ -400,7 +400,7 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word_const_pointer word) -> size_t {
                 return std::countr_one(*word);
-            }, MergeFunctor<size_t>{}, 0uz);
+            }, merge_functor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] bool all_set(storage::const_reference segment) const noexcept {
@@ -522,43 +522,43 @@ namespace dice::template_library {
         [[nodiscard]] size_t countr_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countr_zero, segment);
-            }, MergeFunctor<size_t>{}, 0);
+            }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countl_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countl_zero, segment);
-            }, MergeFunctor<size_t>{}, 0);
+            }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countr_one() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countr_one, segment);
-            }, MergeFunctor<size_t>{}, 0);
+            }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countl_one() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::countl_one, segment);
-            }, MergeFunctor<size_t>{}, 0);
+            }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] bool all_set() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::all_set, segment);
-            }, MergeFunctor<bool>{}, true);
+            }, merge_functor<bool>{}, true);
         }
 
         [[nodiscard]] bool any_set() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::any_set, segment);
-            }, MergeFunctor<bool>{}, true);
+            }, merge_functor<bool>{}, true);
         }
 
         [[nodiscard]] bool none_set() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::none_set, segment);
-            }, MergeFunctor<bool>{}, true);
+            }, merge_functor<bool>{}, true);
         }
 
         constexpr iterator begin() {
@@ -664,9 +664,9 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
                    out = std::format_to(out, "{:x}", segment);
                 }
                 else {
-                    auto [word, end] = storage.segment_slots(segment);
+                    auto [word, word_end] = storage.segment_slots(segment);
 
-                    for (; word != end; ++word) {
+                    for (; word != word_end; ++word) {
                         out = std::format_to(out, "{:x}", *word);
                     }
                 }
