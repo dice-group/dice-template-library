@@ -109,6 +109,13 @@ namespace dice::template_library {
             }
 
             template<size_t mode=bitset_const::bit_mode>
+            bitset_iterator operator++(int) noexcept {
+                auto tmp = *this;
+                operator++<mode>();
+                return tmp;
+            }
+
+            template<size_t mode=bitset_const::bit_mode>
             bitset_iterator& operator+=(size_t const skip) noexcept {
                 auto skip_handler = [this](size_t skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
@@ -141,11 +148,11 @@ namespace dice::template_library {
             }
 
             bool consumed() const noexcept {
-                return cur_segment_ >= backing_bitset_;
+                return cur_segment_ >= backing_bitset_->inner_.data() + backing_bitset_->size();
             }
 
             friend bool operator==(std::default_sentinel_t, bitset_iterator const& it) {
-                return it == std::default_sentinel_t{};
+                return it == std::default_sentinel;
             }
 
             friend bool operator==(bitset_iterator const& it, std::default_sentinel_t) {
@@ -155,6 +162,9 @@ namespace dice::template_library {
 
         struct AutoModeTag {};
         struct DefaultModeTag {};
+
+        struct Set{};
+        struct Unset{};
 
         storage inner_;
 
@@ -409,6 +419,34 @@ namespace dice::template_library {
 
     public:
         using iterator = bitset_iterator;
+        static constexpr Set mode_set = Set{};
+        static constexpr Unset mode_unset = Unset{};
+
+        constexpr bitset(std::initializer_list<T> const segment_v) : inner_{segment_v} {}
+        constexpr bitset(Set, size_t const size) requires(!has_storage_limit) : inner_{} {
+            inner_.resize(size);
+            auto it = begin();
+            auto it_end = end();
+
+            while (it != it_end) {
+                *it++ = true;
+            }
+        }
+        constexpr bitset(Unset, size_t const size) requires(!has_storage_limit) : inner_{} {
+            inner_.resize(size);
+            auto it = begin();
+            auto it_end = end();
+
+            while (it != it_end) {
+                *it++ = false;
+            }
+        }
+
+        constexpr bitset(bitset const&) = default;
+        constexpr bitset(bitset &&) = default;
+        constexpr bitset &operator=(bitset const&) = default;
+        constexpr bitset &operator=(bitset &&) = default;
+        constexpr ~bitset() = default;
 
         void set(global_ix const ix) {
             bitset_mod_cntl(AutoModeTag{}, &bitset::set, ix);
@@ -423,7 +461,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] bool test(global_ix const ix) {
-            return bitset_mod_cntl(AutoModeTag{}, &bitset::test, ix);
+            return bitset_mod_cntl(DefaultModeTag{}, &bitset::test, ix);
         }
 
         [[nodiscard]] size_t count() {
@@ -528,7 +566,7 @@ namespace dice::template_library {
         }
 
         constexpr std::default_sentinel_t end() {
-            return std::default_sentinel_t{};
+            return std::default_sentinel;
         }
 
         constexpr size_t size() const noexcept {
