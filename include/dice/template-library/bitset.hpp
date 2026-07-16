@@ -195,10 +195,10 @@ namespace dice::template_library {
 
             return [bit_off] {
                 if constexpr (std::has_single_bit(segment_size_in_bits)) {
-                    return bit_off >> std::countr_zero(segment_size_in_bits);
+                    return (bit_off + segment_size_in_bits - 1) >> std::countr_zero(segment_size_in_bits);
                 }
                 else {
-                    return bit_off / segment_size_in_bits;
+                    return (bit_off + segment_size_in_bits - 1) / segment_size_in_bits;
                 }
             }();
         }
@@ -316,7 +316,7 @@ namespace dice::template_library {
             return *(inner_.data() + s) & 1uz << o;
         }
 
-        [[nodiscard]] size_t segment_count(storage::const_reference segment) {
+        [[nodiscard]] size_t segment_count(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::popcount(segment);
             }
@@ -327,7 +327,7 @@ namespace dice::template_library {
         }
 
 #ifdef __SIZEOF_INT128__
-        size_t segment_count(__uint128_t const& segment) {
+        [[nodiscard]] size_t segment_count(__uint128_t const& segment) const noexcept {
             uint64_t const lo = static_cast<uint64_t>(segment);
             uint64_t const hi = static_cast<uint64_t>(segment >> 64);
 
@@ -338,7 +338,7 @@ namespace dice::template_library {
         template<typename F, typename M, typename Tp, typename Ops=add_op>
         requires std::is_same_v<std::invoke_result_t<F, typename storage::const_reference>, Tp> &&
             std::invocable<M, Tp, Tp>
-        Tp segment_handler(F &&handler, M &&merge, Tp initial) const {
+        [[nodiscard]] Tp segment_handler(F &&handler, M &&merge, Tp initial) const {
             Tp merge_val{initial};
             for (auto const &segment : inner_) {
                 merge_val = std::invoke(std::forward<M>(merge), Ops{}, merge_val,
@@ -367,6 +367,38 @@ namespace dice::template_library {
                 ++outer_it;
             }
             return true;
+        }
+
+        template<typename F, typename Pr>
+        bool segment_handler(F &&handler, Pr &&pred) const {
+            auto self_it = begin();
+            auto end_sentinel = end();
+
+            while (self_it != end_sentinel) {
+                if (auto const val = std::invoke(std::forward<F>(handler), self_it.get()); !std::invoke(std::forward<Pr>(pred), val)) {
+                    return false;
+                }
+                ++self_it;
+            }
+            return true;
+        }
+
+        template<typename F, typename Pr, typename M, typename Tp>
+        Tp segment_handler(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
+            auto self_it = begin();
+            auto end_sentinel = end();
+
+            Tp merge_val{initial};
+
+            while (self_it != end_sentinel) {
+                Tp const val = std::invoke(std::forward<F>(handler), self_it.get());
+                merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
+                if (!std::invoke(std::forward<Pr>(pred), val)) {
+                    return merge_val;
+                }
+                ++self_it;
+            }
+            return merge_val;
         }
 
         template<typename F, typename M, typename Tp, typename Ops=add_op>
@@ -546,7 +578,6 @@ namespace dice::template_library {
                 }
             }
 
-            // if dynamic extent we should dynamically check if we can add a further segment
             if constexpr (storage::has_dynamic_extent) {
                 if constexpr (!has_storage_limit) {
                     inner_.resize(inner_.size() + 1);
@@ -558,8 +589,8 @@ namespace dice::template_library {
                     if (inner_.size() == inner_.max_size()) {
                         return storage_size_in_bits;
                     }
-                    *reinterpret_cast<storage_word_pointer>(inner_.end()) = 0x01;
                     inner_.resize(inner_.size() + 1);
+                    *reinterpret_cast<storage_word_pointer>(inner_.end() - 1) = 0x01;
 
                     return calc_global_idx(std::distance(inner_.data(), inner_.end()), 0);
                 }
