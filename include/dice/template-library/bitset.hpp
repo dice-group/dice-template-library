@@ -62,10 +62,10 @@ namespace dice::template_library {
             bitset *const backing_bitset_;
 
         public:
-            explicit bitset_iterator(storage &bitset) noexcept :
+            explicit bitset_iterator(bitset &bitset) noexcept :
                 backing_bitset_{&bitset} {}
 
-            explicit bitset_iterator(storage &bitset, offset const& o) :
+            explicit bitset_iterator(bitset &bitset, offset const& o) :
                 backing_bitset_{&bitset}{
                 if (o >= segment_size_in_bits) {
                     throw std::out_of_range{"bitset_iterator: o >= segment_size"};
@@ -73,7 +73,7 @@ namespace dice::template_library {
                 cur_offset_ = o;
             }
 
-            explicit bitset_iterator(storage &bitset, offset const& o, segment const& s) :
+            explicit bitset_iterator(bitset &bitset, offset const& o, segment const& s) :
                 backing_bitset_{&bitset}{
                 if (o >= segment_size_in_bits) {
                     throw std::out_of_range{"bitset_iterator: o >= segment_size"};
@@ -418,7 +418,7 @@ namespace dice::template_library {
             return true;
         }
 
-        template<typename F, typename Pr, typename M, typename Tp>
+        template<typename F, typename Pr, typename M, typename Tp, typename Ops=add_op>
         Tp segment_handler(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
             auto self_it = begin();
             auto end_sentinel = end();
@@ -427,7 +427,7 @@ namespace dice::template_library {
 
             while (self_it != end_sentinel) {
                 Tp const val = std::invoke(std::forward<F>(handler), self_it.get());
-                merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
+                merge_val = std::invoke(std::forward<M>(merge), Ops{}, merge_val, val);
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
@@ -488,16 +488,16 @@ namespace dice::template_library {
             return true;
         }
 
-        [[nodiscard]] size_t segment_free(storage::const_reference segment) {
+        [[nodiscard]] size_t segment_free(storage::const_reference segment) const {
             if constexpr (std::integral<typename storage::value_type>) {
                 return std::countr_zero(~segment);
             }
 
             return slot_handler(segment, [](storage_word word) -> size_t {
-                auto const segment_free = static_cast<const storage_word>(~(*word));
+                auto const segment_free = static_cast<const storage_word>(~word);
                 return std::countr_zero(segment_free);
             }, [](size_t const val) {
-                return val != 0;
+                return val == sizeof(storage_word) * 8;
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -509,7 +509,7 @@ namespace dice::template_library {
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countl_zero(word);
             }, [](size_t const val) {
-                return val == sizeof(storage_word);
+                return val == sizeof(storage_word) * 8;
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -521,7 +521,7 @@ namespace dice::template_library {
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countr_zero(word);
             }, [](size_t const val) {
-                return val == sizeof(storage_word);
+                return val == sizeof(storage_word) * 8;
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -533,7 +533,7 @@ namespace dice::template_library {
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countl_one(word);
             }, [](size_t const val) {
-                return val == sizeof(storage_word);
+                return val == sizeof(storage_word) * 8;
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -545,7 +545,7 @@ namespace dice::template_library {
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countr_one(word);
             }, [](size_t const val) {
-                return val == sizeof(storage_word);
+                return val == sizeof(storage_word) * 8;
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -575,7 +575,7 @@ namespace dice::template_library {
             auto it_end = end();
 
             while (it != it_end) {
-                *it++ = true;
+                it++ = true;
             }
         }
         constexpr bitset(Unset, size_t const size) requires(!has_storage_limit) : inner_{} {
@@ -584,7 +584,7 @@ namespace dice::template_library {
             auto it_end = end();
 
             while (it != it_end) {
-                *it++ = false;
+                it++ = false;
             }
         }
 
@@ -594,7 +594,7 @@ namespace dice::template_library {
         constexpr bitset &operator=(bitset &&) = default;
         constexpr ~bitset() = default;
 
-        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) {
+        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) const noexcept {
             auto word = reinterpret_cast<storage_word_const_pointer>(&segment);
             auto const end = word + segment_steps;
 
