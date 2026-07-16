@@ -493,15 +493,12 @@ namespace dice::template_library {
                 return std::countr_zero(~segment);
             }
 
-            auto [word, end] = segment_slots(segment);
-
-            for (auto c{0uz}; word != end; ++word, ++c) {
-                if (auto const segment_free = static_cast<const storage_word>(~(*word)); segment_free != 0) {
-                    return (sizeof(storage_word) * 8) * c + std::countr_zero(segment_free);
-                }
-            }
-
-            return segment_size_in_bits;
+            return slot_handler(segment, [](storage_word word) -> size_t {
+                auto const segment_free = static_cast<const storage_word>(~(*word));
+                return std::countr_zero(segment_free);
+            }, [](size_t const val) {
+                return val != 0;
+            }, merge_functor<size_t>{}, 0uz);
         }
 
         [[nodiscard]] size_t segment_countl_zero(storage::const_reference segment) const noexcept {
@@ -511,6 +508,8 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countl_zero(word);
+            }, [](size_t const val) {
+                return val == sizeof(storage_word);
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -521,6 +520,8 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countr_zero(word);
+            }, [](size_t const val) {
+                return val == sizeof(storage_word);
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -531,6 +532,8 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countl_one(word);
+            }, [](size_t const val) {
+                return val == sizeof(storage_word);
             }, merge_functor<size_t>{}, 0uz);
         }
 
@@ -541,6 +544,8 @@ namespace dice::template_library {
 
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::countr_one(word);
+            }, [](size_t const val) {
+                return val == sizeof(storage_word);
             }, merge_functor<size_t>{}, 0uz);
         }
 
