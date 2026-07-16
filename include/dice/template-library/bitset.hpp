@@ -38,7 +38,7 @@ namespace dice::template_library {
         static constexpr bool   has_storage_limit = segments != dynamic_extent;
         static constexpr size_t segment_size = sizeof(T);
         static constexpr size_t segment_align = alignof(T);
-        static constexpr size_t segment_steps = segment_size / segment_align;
+        static constexpr size_t segment_steps = segment_size / segment_align; ///> how many chunks fit within one segment
         static constexpr size_t segment_size_in_bits = segment_size * 8;
         static constexpr size_t storage_size = !has_storage_limit ? dynamic_extent : segment_size * segments;
         static constexpr size_t storage_size_in_bits = !has_storage_limit ? dynamic_extent : storage_size * 8;
@@ -89,7 +89,6 @@ namespace dice::template_library {
 
             void operator=(bool const b) const noexcept {
                 if (b) {
-                    ;
                     backing_bitset_->set(calc_global_idx(cur_segment_, cur_offset_));
                     return;
                 }
@@ -300,20 +299,56 @@ namespace dice::template_library {
             }
         }
 
+        [[nodiscard]] static size_t offset_in_chunk(offset const o) noexcept {
+            return o % segment_align;
+        }
+
+        [[nodiscard]] static size_t which_chunk(offset const o) noexcept {
+            return o / segment_align;
+        }
+
+        storage_word_pointer get_chunk_raw(segment const s, offset const o) const noexcept {
+            return reinterpret_cast<storage_word_pointer>(inner_.data() + s) + which_chunk(o);
+        }
+
         void segment_set(segment const s, offset const o) noexcept {
-            *(inner_.data() + s) |= 1uz << o;
+            if constexpr (std::is_integral_v<T>) {
+                *(inner_.data() + s) |= 1uz << o;
+            }
+            else {
+                auto chunk_raw = get_chunk_raw(s, o);
+                *chunk_raw |= 1uz << offset_in_chunk(o);
+            }
         }
 
         void segment_flip(segment const s, offset const o) noexcept {
-            *(inner_.data() + s) ^= 1uz << o;
+            if constexpr (std::is_integral_v<T>) {
+                *(inner_.data() + s) ^= 1uz << o;
+            }
+            else {
+                auto chunk_raw = get_chunk_raw(s, o);
+                *chunk_raw ^= 1uz << offset_in_chunk(o);
+            }
         }
 
         void segment_unset(segment const s, offset const o) noexcept {
-            *(inner_.data() + s) &= ~(1uz << o);
+            if constexpr (std::is_integral_v<T>) {
+                *(inner_.data() + s) &= ~(1uz << o);
+            }
+            else {
+                auto chunk_raw = get_chunk_raw(s, o);
+                *chunk_raw &= ~(1uz << offset_in_chunk(o));
+            }
         }
 
         [[nodiscard]] bool segment_test(segment const s, offset const o) noexcept {
-            return *(inner_.data() + s) & 1uz << o;
+            if constexpr (std::is_integral_v<T>) {
+                return *(inner_.data() + s) & 1uz << o;
+            }
+            else {
+                auto chunk_raw = get_chunk_raw(s, o);
+                return *chunk_raw & 1uz << offset_in_chunk(o);
+            }
         }
 
         [[nodiscard]] size_t segment_count(storage::const_reference segment) const noexcept {
@@ -413,6 +448,22 @@ namespace dice::template_library {
             return merge_val;
         }
 
+        template<typename F, typename Pr, typename M, typename Tp, typename Ops=add_op>
+        [[nodiscard]] Tp slot_handler(storage::const_reference segment, F &&f, Pr &&pred, M&& m, Tp initial) const {
+            Tp merge_val{initial};
+            auto [word, end] = segment_slots(segment);
+
+            for (; word != end; ++word) {
+                Tp const val = std::invoke(std::forward<F>(f), *word);
+                merge_val = std::invoke(std::forward<M>(m), Ops{}, merge_val, val);
+                if (!std::invoke(std::forward<Pr>(pred), val)) {
+                    return merge_val;
+                }
+            }
+
+            return merge_val;
+        }
+
         template<typename Ops=add_op>
         void slot_handler(storage::reference segment, storage::const_reference other) {
             auto merge_func = dice::template_library::merge_functor<storage_word>{};
@@ -444,9 +495,9 @@ namespace dice::template_library {
 
             auto [word, end] = segment_slots(segment);
 
-            for (; word != end; ++word) {
+            for (auto c{0uz}; word != end; ++word, ++c) {
                 if (auto const segment_free = static_cast<const storage_word>(~(*word)); segment_free != 0) {
-                    return std::countr_zero(segment_free);
+                    return (sizeof(storage_word) * 8) * c + std::countr_zero(segment_free);
                 }
             }
 
