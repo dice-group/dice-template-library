@@ -602,42 +602,56 @@ namespace dice::template_library {
         [[nodiscard]] size_t countr_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countr_zero, segment);
+            }, [](size_t const val) {
+                return val == segment_size_in_bits;
             }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countl_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countl_zero, segment);
+            }, [](size_t const val) {
+                return val == segment_size_in_bits;
             }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countr_one() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countr_one, segment);
+            }, [](size_t const val) {
+                return val == segment_size_in_bits;
             }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] size_t countl_one() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countl_one, segment);
+            }, [](size_t const val) {
+                return val == segment_size_in_bits;
             }, merge_functor<size_t>{}, 0);
         }
 
         [[nodiscard]] bool all_set() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_all_set, segment);
-            }, merge_functor<bool>{}, true);
+            }, [](bool const val) {
+                return val;
+            },merge_functor<bool>{}, true);
         }
 
         [[nodiscard]] bool any_set() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_any_set, segment);
+            }, [](bool const val) {
+                return val;
             }, merge_functor<bool>{}, true);
         }
 
         [[nodiscard]] bool none_set() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_none_set, segment);
+            }, [](bool const val) {
+                return val;
             }, merge_functor<bool>{}, true);
         }
 
