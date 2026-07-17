@@ -965,6 +965,7 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
         auto segments = storage.size();
         auto segment_size = storage.inner_size();
         auto segment_size_in_bits = storage.inner_size_in_bits();
+        auto storage_size_in_bits = storage.storage_size_in_bits;
 
         auto out = ctx.out();
         *out++ = '[';
@@ -972,7 +973,8 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
 
         if (debug) {
             out = std::format_to(out, "Segments : {}\n", segments);
-            out = std::format_to(out, "Segment size : {}\n", segment_size);
+            out = std::format_to(out, "Segment size : {}\n", segment_size_in_bits);
+            out = std::format_to(out, "Storage size : {}\n", storage_size_in_bits);
 
             if (hex) {
                 out = std::format_to(out, "Segment Representation -> Hex(0xFF)\n");
@@ -988,13 +990,13 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
             if (hex) {
                 auto const& segment = it.get();
                 if constexpr (std::integral<T>) {
-                   out = std::format_to(out, "{:x}", segment);
+                   out = std::format_to(out, "{:#0{}x}", segment, (storage.segment_align * 8 / 4));
                 }
                 else {
                     auto [word, word_end] = storage.segment_slots(segment);
 
                     for (; word != word_end; ++word) {
-                        out = std::format_to(out, "{:x}", *word);
+                        out = std::format_to(out, "{:#0{}x}", *word, (storage.segment_align * 8) / 4);
                     }
                 }
                 it.template operator++<dice::template_library::bitset_const::segment_mode>();
