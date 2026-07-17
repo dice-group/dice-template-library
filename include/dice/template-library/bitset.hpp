@@ -362,15 +362,15 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t segment_count(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
+#ifdef __SIZEOF_INT128__
                 if constexpr (std::is_same_v<typename storage::value_type, __uint128_t>) {
                     uint64_t const lo = static_cast<uint64_t>(segment);
                     uint64_t const hi = static_cast<uint64_t>(segment >> 64);
 
                     return std::popcount(lo) + std::popcount(hi);
                 }
-                else {
-                    return std::popcount(segment);
-                }
+#endif
+                return std::popcount(segment);
             }
 
             return slot_handler(segment, [](storage_word word) -> size_t {
