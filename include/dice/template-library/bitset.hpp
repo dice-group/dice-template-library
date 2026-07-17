@@ -118,9 +118,31 @@ namespace dice::template_library {
             }
 
             template<size_t mode=bitset_const::bit_mode>
+            bitset_iterator& operator--() noexcept {
+                if constexpr (mode == bitset_const::bit_mode) {
+                    if (cur_offset_ == 0) {
+                        --cur_segment_;
+                        cur_offset_ = segment_size_in_bits-1;
+                        return *this;
+                    }
+                    --cur_offset_;
+                    return *this;
+                }
+                --cur_segment_;
+                return *this;
+            }
+
+            template<size_t mode=bitset_const::bit_mode>
             bitset_iterator operator++(int) noexcept {
                 auto tmp = *this;
                 operator++<mode>();
+                return tmp;
+            }
+
+            template<size_t mode=bitset_const::bit_mode>
+            bitset_iterator operator--(int) noexcept {
+                auto tmp = *this;
+                operator--<mode>();
                 return tmp;
             }
 
@@ -152,9 +174,39 @@ namespace dice::template_library {
                 return *this;
             }
 
+            template<size_t mode=bitset_const::bit_mode>
+            bitset_iterator& operator-=(size_t const skip) noexcept {
+                auto skip_handler = [this](size_t const skip_size) {
+                    auto global_ix = calc_global_idx(cur_segment_, cur_offset_);
+
+                    global_ix = global_ix >= skip_size ? global_ix - skip_size : 0;
+
+                    auto offset = calc_which_offset(global_ix);
+                    auto seg = calc_which_segment(global_ix);
+
+                    cur_segment_ = seg;
+                    cur_offset_ = offset;
+                };
+
+                if constexpr (mode == bitset_const::bit_mode) {
+                    skip_handler(skip);
+                }
+                else {
+                    skip_handler(skip * segment_size_in_bits);
+                }
+
+                return *this;
+            }
+
             bitset_iterator operator+(size_t rh_add) const noexcept {
                 bitset_iterator tmp = *this;
                 tmp += rh_add;
+                return tmp;
+            }
+
+            bitset_iterator operator-(size_t rh_sub) const noexcept {
+                bitset_iterator tmp = *this;
+                tmp -= rh_sub;
                 return tmp;
             }
 
@@ -316,8 +368,12 @@ namespace dice::template_library {
             return o / (segment_align * 8);
         }
 
-        storage_word_pointer get_chunk_raw(segment const s, offset const o) const noexcept {
+        storage_word_pointer get_chunk_raw(segment const s, offset const o) noexcept {
             return reinterpret_cast<storage_word_pointer>(inner_.data() + s) + which_chunk(o);
+        }
+
+        storage_word_const_pointer get_chunk_raw(segment const s, offset const o) const noexcept {
+            return reinterpret_cast<storage_word_const_pointer>(inner_.data() + s) + which_chunk(o);
         }
 
         void segment_set(segment const s, offset const o) noexcept {
@@ -393,6 +449,27 @@ namespace dice::template_library {
 
         template<typename F>
         bool segment_handler(F &&handler, bitset const& other) {
+            auto self_it = begin();
+            auto outer_it = other.begin();
+
+            if (size() != other.size()) {
+                return false;
+            }
+
+            auto end_sentinel = end();
+
+            while (self_it != end_sentinel) {
+                if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
+                    return false;
+                }
+                self_it.template operator++<bitset_const::segment_mode>();
+                outer_it.template operator++<bitset_const::segment_mode>();
+            }
+            return true;
+        }
+
+        template<typename F>
+        bool segment_handler(F &&handler, bitset const& other) const {
             auto self_it = begin();
             auto outer_it = other.begin();
 
@@ -498,7 +575,7 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t segment_free(storage::const_reference segment) const {
             if constexpr (std::integral<typename storage::value_type>) {
-                return std::countr_zero(~segment);
+                return std::countr_zero(static_cast<storage::value_type>(~segment));
             }
 
             return slot_handler(segment, [](storage_word word) -> size_t {
@@ -601,8 +678,15 @@ namespace dice::template_library {
         constexpr bitset &operator=(bitset &&) = default;
         constexpr ~bitset() = default;
 
-        [[nodiscard]] std::pair<storage_word_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) const noexcept {
+        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) const noexcept {
             auto word = reinterpret_cast<storage_word_const_pointer>(&segment);
+            auto const end = word + segment_steps;
+
+            return std::pair{word, end};
+        }
+
+        [[nodiscard]] std::pair<storage_word_pointer, storage_word_pointer> segment_slots(storage::reference segment) const noexcept {
+            auto word = reinterpret_cast<storage_word_pointer>(&segment);
             auto const end = word + segment_steps;
 
             return std::pair{word, end};
@@ -746,11 +830,11 @@ namespace dice::template_library {
             return size() * segment_size_in_bits;
         }
 
-        constexpr size_t inner_size() const noexcept {
+        static constexpr size_t inner_size() noexcept {
             return segment_size;
         }
 
-        constexpr size_t inner_size_in_bits() const noexcept {
+        static constexpr size_t inner_size_in_bits() noexcept {
             return segment_size_in_bits;
         }
 
@@ -761,18 +845,19 @@ namespace dice::template_library {
         }
 
         bitset& operator<<=(size_t shift) {
-            std::move(begin() + shift, begin() + size_in_bits(), begin());
+            //std::move(begin() + shift, begin() + size_in_bits(), begin());
             return *this;
         }
 
         bitset& operator>>=(size_t shift) {
-            std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
+            //std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
             return *this;
         }
 
         bitset& operator &=(bitset const& alt_storage) noexcept {
             segment_handler([this](typename storage::reference segment_first, typename storage::const_reference segment_second) {
                 slot_handler<bit_and_op>(segment_first, segment_second);
+                return true;
             }, alt_storage);
             return *this;
         }
@@ -780,6 +865,7 @@ namespace dice::template_library {
         bitset& operator |=(bitset const& alt_storage) noexcept {
             segment_handler([this](typename storage::reference segment_first, typename storage::const_reference segment_second) {
                 slot_handler<bit_or_op>(segment_first, segment_second);
+                return true;
             }, alt_storage);
             return *this;
         }
