@@ -65,6 +65,21 @@ namespace dice::template_library {
             bitset_pointer const backing_bitset_;
 
         public:
+            struct bit_ref {
+                bitset_pointer backing_bitset_;
+                segment seg_;
+                offset  off_;
+
+                operator bool() const noexcept {
+                    return backing_bitset_->test(calc_global_idx(seg_, off_));
+                }
+                bit_ref const& operator=(bool b) const noexcept {
+                    if (b) backing_bitset_->set(calc_global_idx(seg_, off_));
+                    else   backing_bitset_->unset(calc_global_idx(seg_, off_));
+                    return *this;
+                }
+            };
+
             explicit bitset_iterator(std::conditional_t<is_const,bitset const&, bitset&> bitset) noexcept :
                 backing_bitset_{&bitset} {}
 
@@ -98,8 +113,8 @@ namespace dice::template_library {
                 backing_bitset_->unset(calc_global_idx(cur_segment_, cur_offset_));
             }
 
-            bool operator*() const noexcept {
-                return backing_bitset_->test(calc_global_idx(cur_segment_, cur_offset_));
+            bit_ref operator*() const noexcept {
+                return bit_ref {backing_bitset_, cur_segment_, cur_offset_};
             }
 
             // shared iterator for mode=0 (bits) mode>=1 (segments)
@@ -649,6 +664,7 @@ namespace dice::template_library {
     public:
         using iterator = bitset_iterator<false>;
         using const_iterator = bitset_iterator<true>;
+        using bitref = bitset_iterator<true>::bit_ref;
         static constexpr Set mode_set = Set{};
         static constexpr Unset mode_unset = Unset{};
 
@@ -659,7 +675,7 @@ namespace dice::template_library {
             auto it_end = end();
 
             while (it != it_end) {
-                it++ = true;
+                *it++ = true;
             }
         }
         constexpr bitset(Unset, size_t const size) requires(!has_storage_limit) : inner_{} {
@@ -668,7 +684,7 @@ namespace dice::template_library {
             auto it_end = end();
 
             while (it != it_end) {
-                it++ = false;
+                *it++ = false;
             }
         }
 
@@ -845,12 +861,12 @@ namespace dice::template_library {
         }
 
         bitset& operator<<=(size_t shift) {
-            //std::move(begin() + shift, begin() + size_in_bits(), begin());
+            std::move(begin() + shift, begin() + size_in_bits(), begin());
             return *this;
         }
 
         bitset& operator>>=(size_t shift) {
-            //std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
+            std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
             return *this;
         }
 
