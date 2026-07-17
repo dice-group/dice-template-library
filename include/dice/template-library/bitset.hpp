@@ -162,12 +162,18 @@ namespace dice::template_library {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
-            T& get() {
+            T& get() requires(!is_const) {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
             bool consumed() const noexcept {
                 return cur_segment_ >= backing_bitset_->size();
+            }
+
+            friend bool operator==(bitset_iterator const& lhs, bitset_iterator const& rhs){
+                return lhs.backing_bitset_ == rhs.backing_bitset_ &&
+                       lhs.cur_segment_ == rhs.cur_segment_ &&
+                       lhs.cur_offset_ == rhs.cur_offset_;
             }
 
             friend bool operator==(std::default_sentinel_t, bitset_iterator const& it) {
@@ -356,22 +362,21 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t segment_count(storage::const_reference segment) const noexcept {
             if constexpr (std::integral<typename storage::value_type>) {
-                return std::popcount(segment);
+                if constexpr (std::is_same_v<typename storage::value_type, __uint128_t>) {
+                    uint64_t const lo = static_cast<uint64_t>(segment);
+                    uint64_t const hi = static_cast<uint64_t>(segment >> 64);
+
+                    return std::popcount(lo) + std::popcount(hi);
+                }
+                else {
+                    return std::popcount(segment);
+                }
             }
 
             return slot_handler(segment, [](storage_word word) -> size_t {
                 return std::popcount(word);
-            }, merge_functor<storage_word>{}, 0uz);
+            }, merge_functor<storage_word>{}, 0uz, add_op{});
         }
-
-#ifdef __SIZEOF_INT128__
-        [[nodiscard]] size_t segment_count(__uint128_t const& segment) const noexcept {
-            uint64_t const lo = static_cast<uint64_t>(segment);
-            uint64_t const hi = static_cast<uint64_t>(segment >> 64);
-
-            return std::popcount(lo) + std::popcount(hi);
-        }
-#endif
 
         template<typename F, typename M, typename Tp, typename Ops>
         requires std::is_same_v<std::invoke_result_t<F, typename storage::const_reference>, Tp> &&
@@ -387,7 +392,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        bool segment_handler(F &&handler, bitset const& other) const {
+        bool segment_handler(F &&handler, bitset const& other) {
             auto self_it = begin();
             auto outer_it = other.begin();
 
@@ -596,7 +601,7 @@ namespace dice::template_library {
         constexpr bitset &operator=(bitset &&) = default;
         constexpr ~bitset() = default;
 
-        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) const noexcept {
+        [[nodiscard]] std::pair<storage_word_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) const noexcept {
             auto word = reinterpret_cast<storage_word_const_pointer>(&segment);
             auto const end = word + segment_steps;
 
@@ -632,7 +637,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] size_t set_first_free() {
-            for (auto const &segment : inner_) {
+            for (auto &segment : inner_) {
                 auto offset = bitset_op_cntl(&bitset::segment_free, segment);
 
                 if (offset != segment_size_in_bits) {
