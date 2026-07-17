@@ -55,14 +55,17 @@ namespace dice::template_library {
         using storage_word_const_pointer = storage_word const *;
 
     private:
+        template<bool is_const>
         struct bitset_iterator {
         private:
+            using bitset_pointer = std::conditional_t<is_const, bitset const*, bitset*>;
+
             segment       cur_segment_{};
             offset        cur_offset_{};
-            bitset *const backing_bitset_;
+            bitset_pointer const backing_bitset_;
 
         public:
-            explicit bitset_iterator(bitset &bitset) noexcept :
+            explicit bitset_iterator(std::conditional_t<is_const,bitset const&, bitset&> bitset) noexcept :
                 backing_bitset_{&bitset} {}
 
             explicit bitset_iterator(bitset &bitset, offset const& o) :
@@ -87,7 +90,7 @@ namespace dice::template_library {
                 cur_segment_ = s;
             }
 
-            void operator=(bool const b) const noexcept {
+            void operator=(bool const b) const noexcept requires(!is_const) {
                 if (b) {
                     backing_bitset_->set(calc_global_idx(cur_segment_, cur_offset_));
                     return;
@@ -341,7 +344,7 @@ namespace dice::template_library {
             }
         }
 
-        [[nodiscard]] bool segment_test(segment const s, offset const o) noexcept {
+        [[nodiscard]] bool segment_test(segment const s, offset const o) const noexcept {
             if constexpr (std::is_integral_v<T>) {
                 return *(inner_.data() + s) & 1uz << o;
             }
@@ -562,7 +565,8 @@ namespace dice::template_library {
         }
 
     public:
-        using iterator = bitset_iterator;
+        using iterator = bitset_iterator<false>;
+        using const_iterator = bitset_iterator<true>;
         static constexpr Set mode_set = Set{};
         static constexpr Unset mode_unset = Unset{};
 
@@ -611,8 +615,14 @@ namespace dice::template_library {
             bitset_mod_cntl(AutoModeTag{}, &bitset::segment_unset, ix);
         }
 
-        [[nodiscard]] bool test(global_ix const ix) {
-            return bitset_mod_cntl(DefaultModeTag{}, &bitset::segment_test, ix);
+        [[nodiscard]] bool test(global_ix const ix) const {
+            if (!fits_in_storage(ix)) {
+                throw std::out_of_range{"bitset::set: ix out of range"};
+            }
+
+            auto const segment = calc_which_segment(ix);
+            auto const offset  = calc_which_offset(ix);
+            return segment_test(segment, offset);
         }
 
         [[nodiscard]] size_t count() const {
@@ -652,6 +662,10 @@ namespace dice::template_library {
 
             return storage_size_in_bits;
         }
+
+        /* TODO: countl_zero & countl_one are currently walking the segments in the wrong directon
+                the same also applies for the inner slot handling
+                use a backward iterator + modes for traversing backwards*/
 
         [[nodiscard]] size_t countr_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
@@ -709,6 +723,10 @@ namespace dice::template_library {
 
         constexpr iterator begin() noexcept {
             return iterator{*this};
+        }
+
+        constexpr const_iterator begin() const noexcept {
+            return const_iterator{*this};
         }
 
         constexpr std::default_sentinel_t end() const noexcept {
