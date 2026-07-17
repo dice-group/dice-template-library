@@ -186,7 +186,7 @@ namespace dice::template_library {
 
         [[nodiscard]] constexpr size_t require_segments(global_ix const ix) const requires (!has_storage_limit) {
             auto const bit_pos = bits_consumed();
-            if (bit_pos >= ix) {
+            if (bit_pos > ix) {
                 return 0;
             }
 
@@ -194,10 +194,10 @@ namespace dice::template_library {
 
             return [bit_off] {
                 if constexpr (std::has_single_bit(segment_size_in_bits)) {
-                    return (bit_off + segment_size_in_bits - 1) >> std::countr_zero(segment_size_in_bits);
+                    return (bit_off >> std::countr_zero(segment_size_in_bits)) + 1;
                 }
                 else {
-                    return (bit_off + segment_size_in_bits - 1) / segment_size_in_bits;
+                    return bit_off / segment_size_in_bits + 1;
                 }
             }();
         }
@@ -300,11 +300,11 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] static size_t offset_in_chunk(offset const o) noexcept {
-            return o % segment_align * 8;
+            return o % (segment_align * 8);
         }
 
         [[nodiscard]] static size_t which_chunk(offset const o) noexcept {
-            return o / segment_align * 8;
+            return o / (segment_align * 8);
         }
 
         storage_word_pointer get_chunk_raw(segment const s, offset const o) const noexcept {
@@ -398,8 +398,8 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
                     return false;
                 }
-                ++self_it;
-                ++outer_it;
+                self_it.template operator++<bitset_const::segment_mode>();
+                outer_it.template operator++<bitset_const::segment_mode>();
             }
             return true;
         }
@@ -413,7 +413,7 @@ namespace dice::template_library {
                 if (auto const val = std::invoke(std::forward<F>(handler), self_it.get()); !std::invoke(std::forward<Pr>(pred), val)) {
                     return false;
                 }
-                ++self_it;
+                self_it.template operator++<bitset_const::segment_mode>();
             }
             return true;
         }
@@ -431,7 +431,7 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
-                ++self_it;
+                self_it.template operator++<bitset_const::segment_mode>();
             }
             return merge_val;
         }
@@ -637,7 +637,7 @@ namespace dice::template_library {
                     inner_.resize(inner_.size() + 1);
                     *reinterpret_cast<storage_word_pointer>(inner_.end() - 1) = 0x01;
 
-                    return calc_global_idx(std::distance(inner_.data(), inner_.data() + size()), 0);
+                    return calc_global_idx(size() - 1, 0);
                 }
                 else {
                     if (inner_.size() == inner_.max_size()) {
@@ -646,7 +646,7 @@ namespace dice::template_library {
                     inner_.resize(inner_.size() + 1);
                     *reinterpret_cast<storage_word_pointer>(inner_.end() - 1) = 0x01;
 
-                    return calc_global_idx(std::distance(inner_.data(), inner_.data() + size()), 0);
+                    return calc_global_idx(size() - 1, 0);
                 }
             }
 
