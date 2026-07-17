@@ -939,7 +939,7 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
 
     constexpr auto parse(std::format_parse_context& ctx) {
         auto it = ctx.begin();
-        while (it != ctx.end()) {
+        while (it != ctx.end() && *it != '}') {
             if (*it != 'x' && *it != '?' && *it != 'b') {
                 throw std::format_error("Invalid format args for dice::template_library::bitset.");
             }
@@ -956,6 +956,7 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
             }
             ++it;
         }
+        return it;
     }
 
     auto format(dice::template_library::bitset<T, extent, max_extent> const& storage, std::format_context& ctx) const {
