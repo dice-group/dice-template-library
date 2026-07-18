@@ -70,6 +70,8 @@ namespace dice::template_library {
                 segment seg_;
                 offset  off_;
 
+                bit_ref& operator=(bit_ref&) = delete;
+
                 operator bool() const noexcept {
                     return backing_bitset_->test(calc_global_idx(seg_, off_));
                 }
