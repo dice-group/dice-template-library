@@ -101,25 +101,46 @@ TEST_SUITE("bitset") {
 		SUBCASE("dynamic size, dynamic capacity, size_t segments") {
 			auto b = create_bitset({0b101uz, 0b010uz});
 			static_assert(std::is_same_v<decltype(b), bitset<std::size_t, dynamic_extent, dynamic_extent>>);
+			REQUIRE_EQ(b.size(), 2);
 			CHECK_EQ(b.count(), 3);
+			CHECK(b.test(0));
+			CHECK_FALSE(b.test(1));
+			CHECK(b.test(2));
+			CHECK(b.test(decltype(b)::segment_size_in_bits + 1)); // segment 1, bit 1 (value 0b010)
 		}
 
 		SUBCASE("dynamic size, bounded capacity, size_t segments") {
 			auto b = create_bitset<4>({0b101uz, 0b010uz});
 			static_assert(std::is_same_v<decltype(b), bitset<std::size_t, dynamic_extent, 4>>);
+			REQUIRE_EQ(b.size(), 2);
 			CHECK_EQ(b.count(), 3);
+			CHECK(b.test(0));
+			CHECK(b.test(2));
+			CHECK(b.test(decltype(b)::segment_size_in_bits + 1));
+
+			CHECK_THROWS_AS((create_bitset<4>({0uz, 0uz, 0uz, 0uz, 0uz})), std::length_error);
 		}
 
 		SUBCASE("dynamic size, bounded capacity, custom segment type") {
 			auto b = create_bitset<std::uint8_t, 4>({0b101, 0b010});
 			static_assert(std::is_same_v<decltype(b), bitset<std::uint8_t, dynamic_extent, 4>>);
+			REQUIRE_EQ(b.size(), 2);
 			CHECK_EQ(b.count(), 3);
+			CHECK(b.test(0));
+			CHECK(b.test(2));
+			CHECK(b.test(decltype(b)::segment_size_in_bits + 1)); // segment 1, bit 1
+
+			CHECK_THROWS_AS((create_bitset<std::uint8_t, 4>({0, 0, 0, 0, 0})), std::length_error);
 		}
 
 		SUBCASE("dynamic size, dynamic capacity, custom segment type") {
 			auto b = create_bitset<std::uint8_t>({0b101, 0b010});
 			static_assert(std::is_same_v<decltype(b), bitset<std::uint8_t, dynamic_extent, dynamic_extent>>);
+			REQUIRE_EQ(b.size(), 2);
 			CHECK_EQ(b.count(), 3);
+			CHECK(b.test(0));
+			CHECK(b.test(2));
+			CHECK(b.test(decltype(b)::segment_size_in_bits + 1));
 		}
 	}
 
