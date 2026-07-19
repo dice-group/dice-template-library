@@ -171,8 +171,8 @@ namespace dice::template_library {
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
 
-                    if (global_ix >= storage_size_in_bits) {
-                        cur_segment_ = segments;
+                    if (global_ix >= backing_bitset_->size_in_bits()) {
+                        cur_segment_ = backing_bitset_->size();
                         cur_offset_ = 0;
                         return;
                     }
@@ -689,7 +689,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] bool segment_all_set(storage::const_reference segment) const noexcept {
-            return segment_free(segment) == segment_size_in_bits;
+            return segment_count(segment) == segment_size_in_bits;
         }
 
         [[nodiscard]] bool segment_any_set(storage::const_reference segment) const noexcept {
@@ -697,7 +697,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] bool segment_none_set(storage::const_reference segment) const noexcept {
-            return segment_free(segment) == 0x00;
+            return segment_count(segment) == 0x00;
         }
 
     public:
@@ -808,7 +808,7 @@ namespace dice::template_library {
 
             return storage_size_in_bits;
         }
-        
+
         [[nodiscard]] size_t countr_zero() const {
             return segment_handler([this](typename storage::const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countr_zero, segment);
@@ -876,11 +876,11 @@ namespace dice::template_library {
         }
 
         constexpr const_reverse_iterator rbegin() const noexcept {
-            return reverse_iterator{begin() + size_in_bits()};
+            return const_reverse_iterator{begin() + size_in_bits()};
         }
 
         constexpr reverse_iterator rend() noexcept {
-            return const_reverse_iterator{begin()};
+            return reverse_iterator{begin()};
         }
 
         constexpr const_reverse_iterator rend() const noexcept {
