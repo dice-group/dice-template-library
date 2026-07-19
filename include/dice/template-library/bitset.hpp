@@ -666,6 +666,9 @@ namespace dice::template_library {
     public:
         using iterator = bitset_iterator<false>;
         using const_iterator = bitset_iterator<true>;
+        using reverse_iterator = std::reverse_iterator<iterator>;
+        using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
         using bitref = bitset_iterator<true>::bit_ref;
         static constexpr Set mode_set = Set{};
         static constexpr Unset mode_unset = Unset{};
@@ -834,6 +837,22 @@ namespace dice::template_library {
 
         constexpr const_iterator begin() const noexcept {
             return const_iterator{*this};
+        }
+
+        constexpr reverse_iterator rbegin() noexcept {
+            return reverse_iterator{begin() + size_in_bits()};
+        }
+
+        constexpr const_reverse_iterator rbegin() const noexcept {
+            return reverse_iterator{begin() + size_in_bits()};
+        }
+
+        constexpr reverse_iterator rend() noexcept {
+            return const_reverse_iterator{begin()};
+        }
+
+        constexpr const_reverse_iterator rend() const noexcept {
+            return const_reverse_iterator{begin()};
         }
 
         constexpr std::default_sentinel_t end() const noexcept {
