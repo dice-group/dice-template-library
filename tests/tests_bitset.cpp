@@ -428,6 +428,105 @@ TEST_SUITE("bitset") {
 			it3.operator+=<bitset_const::segment_mode>(1);
 			CHECK_EQ(it3.get(), 0b00000010);
 		}
+
+		SUBCASE("operator-- / operator--(int) walk backwards, wrapping across segments") {
+			dyn8 b{0b00000001, 0b10000000};
+
+			auto it = b.begin() + 9; // segment 1, offset 1
+			--it;                    // segment 1, offset 0
+			CHECK_EQ(it.get(), 0b10000000);
+
+			--it; // wraps back into segment 0, offset 7 (top bit of segment 0)
+			CHECK_EQ(it.get(), 0b00000001);
+			CHECK_FALSE(*it); // offset 7 of segment 0 is unset
+
+			auto it2 = b.begin() + 3;
+			auto const prev = it2--;
+			CHECK(prev == b.begin() + 3);
+			CHECK(it2 == b.begin() + 2);
+		}
+
+		SUBCASE("operator-= / operator- walk backwards by bits or by segments") {
+			dyn8 b{0b00000000, 0b00000010};
+
+			auto it = b.begin() + 9;
+			it -= 9;
+			CHECK_FALSE(*it);
+			CHECK(it == b.begin());
+
+			auto const it2 = (b.begin() + 9) - 9;
+			CHECK(it2 == b.begin());
+
+			dyn8 b2{0xAA, 0xBB};
+			auto it3 = b2.begin();
+			it3.operator++<bitset_const::segment_mode>();
+			CHECK_EQ(it3.get(), 0xBB);
+			it3.operator--<bitset_const::segment_mode>();
+			CHECK_EQ(it3.get(), 0xAA);
+		}
+
+		SUBCASE("const bitset yields a const_iterator with read access") {
+			dyn8 const b{0b00000101};
+			auto it = b.begin();
+			CHECK(*it);
+			CHECK_EQ(it.get(), 0b00000101);
+		}
+
+		SUBCASE("bit_ref proxy assignment (through operator*, not just the iterator itself)") {
+			dyn8 b{0x00};
+			auto it = b.begin();
+			*it = true;
+			CHECK(b.test(0));
+
+			++it;
+			*it = true;
+			CHECK(b.test(1));
+
+			*it = false;
+			CHECK_FALSE(b.test(1));
+		}
+
+		SUBCASE("explicit iterator construction with an offset validates the offset") {
+			dyn8 b{0x00};
+			CHECK_NOTHROW((dyn8::iterator{b, 7}));
+			CHECK_THROWS_AS((dyn8::iterator{b, 8}), std::out_of_range); // segment_size_in_bits == 8
+
+			dyn8::iterator it{b, 3};
+			CHECK(it == b.begin() + 3);
+		}
+
+		SUBCASE("explicit iterator construction with an offset and segment validates both") {
+			dyn8 b{0x00, 0x00};
+			CHECK_NOTHROW((dyn8::iterator{b, 0, 1}));
+			CHECK_THROWS_AS((dyn8::iterator{b, 8, 0}), std::out_of_range);  // bad offset
+			CHECK_THROWS_AS((dyn8::iterator{b, 0, 2}), std::out_of_range); // segment out of bounds, size() == 2
+
+			dyn8::iterator it{b, 2, 1};
+			CHECK(it == b.begin() + 10);
+		}
+
+		/*SUBCASE("reverse iteration (rbegin/rend) visits every bit in reverse order exactly once") {
+			dyn8 b{0b00000001, 0b10000000};
+
+			size_t visited = 0;
+			int global_ix = 15;
+			for (auto it = b.rbegin(); it != b.rend(); ++it, --global_ix) {
+				bool const expected = (global_ix == 0 || global_ix == 15);
+				CHECK_EQ(*it, expected);
+				++visited;
+			}
+			CHECK_EQ(visited, b.size_in_bits());
+			CHECK_EQ(global_ix, -1);
+		}
+
+		SUBCASE("reverse iteration on a const bitset") {
+			dyn8 const b{0b00000001, 0b10000000};
+			size_t visited = 0;
+			for (auto it = b.rbegin(); it != b.rend(); ++it) {
+				++visited;
+			}
+			CHECK_EQ(visited, b.size_in_bits());
+		} */
 	}
 
 	TEST_CASE("shifts") {
@@ -466,17 +565,183 @@ TEST_SUITE("bitset") {
 			CHECK(b.test(1));
 			CHECK_FALSE(b.test(2));
 		}
+
+		SUBCASE("shift by 0 is a no-op") {
+			dyn8 b{0b10110011};
+			b <<= 0;
+			CHECK_EQ(b.count(), 5);
+			CHECK(b.test(0));
+			CHECK(b.test(7));
+
+			b >>= 0;
+			CHECK_EQ(b.count(), 5);
+		}
+
+		SUBCASE("shift by exactly size_in_bits() clears everything") {
+			dyn8 b{0xFF, 0xFF};
+			b <<= b.size_in_bits();
+			CHECK_EQ(b.count(), 0);
+
+			dyn8 b2{0xFF, 0xFF};
+			b2 >>= b2.size_in_bits();
+			CHECK_EQ(b2.count(), 0);
+		}
+
+		SUBCASE("shift by more than size_in_bits() clears everything (regression: used to hang)") {
+			// previously, shifting by more bits than the bitset holds caused the internal
+			// iterator arithmetic to compare against the static storage capacity instead of
+			// the bitset's actual size, so the move/fill loop in operator<<=/>>= never
+			// terminated for bitsets whose size() can be less than their max capacity.
+			dyn8 b{0xFF, 0xFF};
+			b <<= b.size_in_bits() + 5;
+			CHECK_EQ(b.count(), 0);
+
+			dyn8 b2{0xFF, 0xFF};
+			b2 >>= b2.size_in_bits() + 5;
+			CHECK_EQ(b2.count(), 0);
+
+			bounded64 b3{~0ull, ~0ull}; // size() == 2 segments, capacity 4 segments
+			b3 <<= b3.size_in_bits() + 30; // within capacity, beyond current size
+			CHECK_EQ(b3.count(), 0);
+
+			bounded64 b4{~0ull, ~0ull};
+			b4 <<= bounded64::storage_size_in_bits + 100; // beyond even the max capacity
+			CHECK_EQ(b4.count(), 0);
+		}
+
+		SUBCASE("shift crossing multiple segment boundaries") {
+			dyn8 left{0x00, 0x00, 0xFF}; // bits 16..23 set (top segment)
+			left <<= 10;                 // pulls the high segment's bits down across a boundary
+			CHECK_FALSE(left.test(5));
+			CHECK(left.test(6));
+			CHECK(left.test(13));
+			CHECK_FALSE(left.test(14));
+
+			dyn8 right{0xFF, 0x00, 0x00}; // bits 0..7 set (bottom segment)
+			right >>= 10;                 // pushes the low segment's bits up across a boundary
+			CHECK_FALSE(right.test(9));
+			CHECK(right.test(10));
+			CHECK(right.test(17));
+			CHECK_FALSE(right.test(18));
+		}
+	}
+
+	TEST_CASE("all_set / any_set / none_set on an empty bitset") {
+		dyn8 b{};
+		REQUIRE_EQ(b.size(), 0);
+		CHECK(b.all_set());   // vacuously true: no bit fails to be set
+		CHECK_FALSE(b.any_set());
+		CHECK(b.none_set());  // vacuously true: no bit is set
+	}
+
+	TEST_CASE("bitwise combination with mismatched sizes leaves the receiver untouched") {
+		// segment_handler(bitset const&) bails out (returns false) as soon as it sees a size
+		// mismatch, before touching any segment - documenting that &=/|= are silent no-ops here
+		// rather than throwing, unlike e.g. set()/test() which throw on out-of-range access.
+		SUBCASE("operator&= with a differently-sized operand") {
+			dyn8 a{0xFF, 0xFF};
+			dyn8 b{0xFF};
+			a &= b;
+			CHECK_EQ(a.count(), 16);
+		}
+
+		SUBCASE("operator|= with a differently-sized operand") {
+			dyn8 a{0x00, 0x00};
+			dyn8 b{0xFF};
+			a |= b;
+			CHECK_EQ(a.count(), 0);
+		}
+	}
+
+	TEST_CASE("fixed and bounded capacity - equality, bitwise ops and shifts") {
+		using fixed64 = bitset<std::uint64_t, 4, 4>;
+
+		SUBCASE("fully static capacity supports equality and bitwise combination") {
+			fixed64 a{0b1100, 0, 0, 0};
+			fixed64 b{0b1010, 0, 0, 0};
+
+			auto const c = a & b;
+			CHECK_EQ(c.count(), 1);
+			auto const d = a | b;
+			CHECK_EQ(d.count(), 3);
+			CHECK_FALSE(a == b);
+
+			fixed64 a_copy = a;
+			CHECK(a == a_copy);
+		}
+
+		SUBCASE("fully static capacity supports shifting") {
+			fixed64 a{0b1100, 0, 0, 0};
+			a <<= 1;
+			CHECK_FALSE(a.test(0));
+			CHECK(a.test(1));
+			CHECK(a.test(2));
+			CHECK_FALSE(a.test(3));
+		}
+
+		SUBCASE("bounded capacity supports equality and bitwise combination") {
+			bounded64 a{0b1100, 0};
+			bounded64 b{0b1010, 0};
+
+			auto const c = a & b;
+			CHECK_EQ(c.count(), 1);
+			auto const d = a | b;
+			CHECK_EQ(d.count(), 3);
+			CHECK_FALSE(a == b);
+		}
+
+		SUBCASE("bounded capacity initializer list exceeding max_size throws length_error") {
+			CHECK_THROWS_AS((bounded64{1, 2, 3, 4, 5}), std::length_error);
+			CHECK_NOTHROW((bounded64{1, 2, 3, 4}));
+		}
+
+		SUBCASE("bounded capacity set_first_free grows by one segment without hitting the limit") {
+			bounded64 b{~0ull, ~0ull}; // 2 of 4 segments used, both full
+			auto const ix = b.set_first_free();
+			CHECK_EQ(ix, bounded64::segment_size_in_bits * 2); // first bit of the freshly grown 3rd segment
+			REQUIRE_EQ(b.size(), 3);
+			CHECK(b.test(ix));
+		}
 	}
 
 	TEST_CASE("formatting") {
 		// the formatter's output isn't specified/stable enough to assert on - just make sure the
 		// various format specs run without throwing, and print the result for a human to eyeball.
 		dyn8 b{0b10110011, 0x00};
-		MESSAGE("default: ", std::format("{}", b));
 		MESSAGE("hex: ", std::format("{:x}", b));
 		MESSAGE("binary: ", std::format("{:b}", b));
 		MESSAGE("debug+hex: ", std::format("{:?x}", b));
 		MESSAGE("debug+binary: ", std::format("{:?b}", b));
+	}
+
+    TEST_CASE("formatting long") {
+	    dyn64 b_long{dyn64::mode_unset, 32};
+	    MESSAGE("hex: ", std::format("{:x}", b_long));
+	    MESSAGE("binary: ", std::format("{:b}", b_long));
+	    MESSAGE("debug+hex: ", std::format("{:?x}", b_long));
+	    MESSAGE("debug+binary: ", std::format("{:?b}", b_long));
+	}
+
+	TEST_CASE("formatting edge cases") {
+		SUBCASE("no format spec just steps through without hex/binary rendering") {
+			dyn8 b{0b10110011};
+			std::string s;
+			CHECK_NOTHROW(s = std::format("{}", b));
+		}
+
+		SUBCASE("debug spec alone (no hex/binary) is accepted") {
+			dyn8 b{0b10110011};
+			std::string s;
+			CHECK_NOTHROW(s = std::format("{:?}", b));
+		}
+
+		SUBCASE("an unrecognized format spec character throws format_error") {
+			// the spec is validated at compile time for a literal format string, so a runtime
+			// format string is used here to actually exercise the throwing parse() path.
+			dyn8 b{0x00};
+			std::string s;
+			CHECK_THROWS_AS(s = std::vformat("{:z}", std::make_format_args(b)), std::format_error);
+		}
 	}
 
 	TEST_CASE("multi-word (non-integral) segment type") {
@@ -514,5 +779,99 @@ TEST_SUITE("bitset") {
 			CHECK(b.any_set());
 			CHECK_FALSE(b.none_set());
 		}
+
+		SUBCASE("bit counting spans multiple multi-word segments") {
+			// segment 0 (lowest) is fully set, segment 1 (highest) is fully zero - mirrors the
+			// "bit counting across multiple segments" integral tests, but for a segment type
+			// wide enough to need segment_slots/slot_handler internally.
+			wide_word full{};
+			full.lo = ~0ull;
+			full.hi = ~0ull;
+			wide_word zero{};
+
+			wide_bitset b{full, zero};
+			CHECK_FALSE(b.all_set());
+			CHECK_EQ(b.countr_one(), 128);
+			CHECK_EQ(b.countl_zero(), 128);
+			CHECK_EQ(b.countl_one(), 0);
+
+			wide_bitset all_full{full, full};
+			CHECK(all_full.all_set());
+		}
+
+		SUBCASE("operator&= / operator|= / operator== on multi-word segments") {
+			wide_word a_word{};
+			a_word.lo = 0b1100;
+			wide_word b_word{};
+			b_word.lo = 0b1010;
+
+			wide_bitset a{a_word};
+			wide_bitset b{b_word};
+
+			auto const conjunction = a & b;
+			CHECK_EQ(conjunction.count(), 1);
+			auto const disjunction = a | b;
+			CHECK_EQ(disjunction.count(), 3);
+
+			CHECK(a == a);
+			CHECK_FALSE(a == b);
+
+			a &= b;
+			CHECK(a == conjunction);
+		}
+
+		SUBCASE("segment_slots exposes every word making up one segment") {
+			wide_word w{};
+			w.lo = 5;
+			w.hi = 9;
+
+			wide_bitset b{w};
+			auto it = b.begin();
+			auto [word, end] = b.segment_slots(it.get());
+			CHECK_EQ(std::distance(word, end), wide_bitset::segment_steps);
+			CHECK_EQ(*word, 5);
+			CHECK_EQ(*(word + 1), 9);
+		}
+
+		SUBCASE("formatting does not throw for a multi-word segment type") {
+			wide_word w{};
+			w.lo = 0x1234;
+			w.hi = 0x5678;
+			wide_bitset b{w};
+			std::string s;
+			CHECK_NOTHROW(s = std::format("{:x}", b));
+			CHECK_NOTHROW(s = std::format("{:?x}", b));
+		}
+	}
+
+	TEST_CASE("integral segment width coverage") {
+		// verifies storage_word selection (and the derived set/test/count/countr_zero paths)
+		// across differently-sized plain integral segment types, not just uint8_t/uint64_t.
+		auto const check_widths = []<typename T>() {
+			using B = bitset<T, dynamic_extent, dynamic_extent>;
+			B b{};
+			b.set(3);
+			b.set(B::segment_size_in_bits + 1); // force growth into a 2nd segment
+
+			CHECK_EQ(b.size(), 2);
+			CHECK_EQ(b.count(), 2);
+			CHECK(b.test(3));
+			CHECK(b.test(B::segment_size_in_bits + 1));
+			CHECK_EQ(b.countr_zero(), 3);
+		};
+
+		SUBCASE("uint16_t segments") {
+			check_widths.operator()<std::uint16_t>();
+		}
+
+		SUBCASE("uint32_t segments") {
+			check_widths.operator()<std::uint32_t>();
+		}
+
+#ifdef __SIZEOF_INT128__
+		SUBCASE("__uint128_t segments") {
+			check_widths.operator()<__uint128_t>();
+		}
+#endif
 	}
 }
