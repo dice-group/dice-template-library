@@ -15,7 +15,7 @@ jobs:
       cc: clang-20
       cxx: clang++-20
       cmake-version: 3.24.0
-      conan-version: 2.21.0
+      conan-version: 2.30.0
       base-branch: ${{ github.base_ref }}
       search-path: >
         include/dice/template-library/flex_array.hpp
