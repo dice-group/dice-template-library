@@ -95,7 +95,6 @@ namespace dice::template_library {
     private:
         template<bool is_const>
         struct bitset_iterator {
-            using iterator_category = std::random_access_iterator_tag;
         private:
             using bitset_pointer = std::conditional_t<is_const, bitset const*, bitset*>;
 
@@ -126,6 +125,13 @@ namespace dice::template_library {
                     return *this;
                 }
             };
+
+            using iterator_category = std::random_access_iterator_tag;
+            using iterator_concept  = std::random_access_iterator_tag;
+            using value_type        = bool;
+            using reference         = bit_ref;
+            using pointer           = void;
+            using difference_type   = ptrdiff_t;
 
             explicit bitset_iterator(std::conditional_t<is_const,bitset const&, bitset&> bitset) noexcept :
                 backing_bitset_{&bitset} {}
