@@ -578,7 +578,7 @@ TEST_SUITE("bitset") {
 			CHECK(it == b.begin() + 10);
 		}
 
-		/*SUBCASE("reverse iteration (rbegin/rend) visits every bit in reverse order exactly once") {
+		SUBCASE("reverse iteration (rbegin/rend) visits every bit in reverse order exactly once") {
 			dyn8 b{0b00000001, 0b10000000};
 
 			size_t visited = 0;
@@ -599,7 +599,7 @@ TEST_SUITE("bitset") {
 				++visited;
 			}
 			CHECK_EQ(visited, b.size_in_bits());
-		} */
+		}
 	}
 
 	TEST_CASE("shifts") {
