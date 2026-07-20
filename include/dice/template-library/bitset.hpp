@@ -109,9 +109,15 @@ namespace dice::template_library {
                 segment seg_;
                 offset  off_;
 
-                bit_ref& operator=(bit_ref&) = delete;
+                bit_ref(bit_ref const&) = default;
+                bit_ref const& operator=(bit_ref const& other) const noexcept {
+                    return *this = static_cast<bool>(other);
+                }
 
-                operator bool() const noexcept {
+                bit_ref(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
+                    : backing_bitset_{backing_bitset}, seg_{seg}, off_{off} {}
+
+                explicit operator bool() const noexcept {
                     return backing_bitset_->test(calc_global_idx(seg_, off_));
                 }
 
@@ -1166,7 +1172,6 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
         auto it = storage.begin();
         auto end = storage.end();
         auto segments = storage.size();
-        auto segment_size = storage.inner_size();
         auto segment_size_in_bits = storage.inner_size_in_bits();
         auto storage_size_in_bits = storage.storage_size_in_bits;
 

@@ -183,7 +183,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("out_of_range when index exceeds a fixed capacity") {
 			bounded64 b{};
 			REQUIRE_THROWS_AS(b.set(bounded64::storage_size_in_bits), std::out_of_range);
-			REQUIRE_THROWS_AS(b.test(bounded64::storage_size_in_bits), std::out_of_range);
+			REQUIRE_THROWS_AS((void)b.test(bounded64::storage_size_in_bits), std::out_of_range);
 			CHECK_EQ(b.size(), 0); // rejected out-of-range set() must not have grown anything
 			CHECK_NOTHROW(b.set(bounded64::storage_size_in_bits - 1));
 		}
@@ -585,7 +585,7 @@ TEST_SUITE("bitset") {
 			int global_ix = 15;
 			for (auto it = b.rbegin(); it != b.rend(); ++it, --global_ix) {
 				bool const expected = (global_ix == 0 || global_ix == 15);
-				CHECK_EQ(*it, expected);
+				CHECK_EQ(static_cast<bool>(*it), expected);
 				++visited;
 			}
 			CHECK_EQ(visited, b.size_in_bits());
