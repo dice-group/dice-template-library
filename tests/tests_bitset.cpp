@@ -184,7 +184,59 @@ TEST_SUITE("bitset") {
 			bounded64 b{};
 			REQUIRE_THROWS_AS(b.set(bounded64::storage_size_in_bits), std::out_of_range);
 			REQUIRE_THROWS_AS(b.test(bounded64::storage_size_in_bits), std::out_of_range);
+			CHECK_EQ(b.size(), 0); // rejected out-of-range set() must not have grown anything
 			CHECK_NOTHROW(b.set(bounded64::storage_size_in_bits - 1));
+		}
+
+		SUBCASE("a large global index computes the exact number of segments needed and zero-fills the rest") {
+			// regression: growth must be driven off the actual bit index (which can require far
+			// more than one extra segment), not just the "next segment" case exercised above.
+			dyn64 b{};
+			b.set(1000); // segment 15 (1000 / 64), so 16 segments are required in total
+			REQUIRE_EQ(b.size(), 16);
+			CHECK(b.test(1000));
+
+			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+				if (i == 1000) continue;
+				CAPTURE(i);
+				CHECK_FALSE(b.test(i));
+			}
+		}
+
+		SUBCASE("setting a lower index after a large-index growth does not grow further") {
+			dyn64 b{};
+			b.set(1000);
+			REQUIRE_EQ(b.size(), 16);
+
+			b.set(0);
+			CHECK_EQ(b.size(), 16); // already had enough room, must not have resized again
+			CHECK(b.test(0));
+			CHECK(b.test(1000));
+		}
+
+		SUBCASE("bounded capacity auto-grows its logical size, staying consistent with count/iteration") {
+			// regression: set() on a bounded bitset used to write the bit directly without ever
+			// growing size(), so test() would report the bit as set while count()/iteration/
+			// all_set()/etc (which all iterate up to size()) stayed blind to it entirely.
+			bounded64 b{};
+			REQUIRE_EQ(b.size(), 0);
+
+			b.set(5);
+			CHECK_EQ(b.size(), 1);
+			CHECK(b.test(5));
+			CHECK_EQ(b.count(), 1);
+
+			size_t visited = 0;
+			for (auto it = b.begin(); it != b.end(); ++it) ++visited;
+			CHECK_EQ(visited, b.size_in_bits());
+		}
+
+		SUBCASE("bounded capacity growth stops exactly at its static maximum and stays zero-filled") {
+			bounded64 b{};
+			b.set(bounded64::storage_size_in_bits - 1); // last valid bit, far beyond current size()
+			REQUIRE_EQ(b.size(), 4);
+			CHECK(b.test(bounded64::storage_size_in_bits - 1));
+			CHECK_EQ(b.count(), 1); // every other (newly exposed) bit must be zero, not garbage
 		}
 	}
 
