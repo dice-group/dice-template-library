@@ -126,12 +126,7 @@ namespace dice::template_library {
                 }
 
                 reference const& operator=(bool const b) const noexcept {
-                    if (b) {
-                        backing_bitset_->set(calc_global_idx(seg, off));
-                    }
-                    else {
-                        backing_bitset_->reset(calc_global_idx(seg, off));
-                    }
+                    backing_bitset_->set(calc_global_idx(seg, off), b);
                     return *this;
                 }
             };
@@ -801,13 +796,30 @@ namespace dice::template_library {
 
         /**
          * Set a bit high for offset ix
+         *
+         * @param ix offset to use
          */
         void set(global_ix const ix) {
             bitset_mod_cntl(&bitset::segment_set, ix);
         }
 
         /**
+         * Set a bit based on $high for offset ix
+         *
+         * @param ix offset to use
+         * @param high which bit state
+         */
+        void set(global_ix const ix, bool const high) {
+            if (high) {
+                set(ix); return;
+            }
+            reset(ix);
+        }
+
+        /**
          * Flip a bit for offset ix
+         *
+         * @param ix offset to use
          */
         void flip(global_ix const ix) {
             bitset_mod_cntl(&bitset::segment_flip, ix);
@@ -815,6 +827,8 @@ namespace dice::template_library {
 
         /**
          * Set a bit low for offset ix
+         *
+         * @param ix offset to use
          */
         void reset(global_ix const ix) {
             bitset_mod_cntl(&bitset::segment_unset, ix);
@@ -822,6 +836,8 @@ namespace dice::template_library {
 
         /**
          * Test a bit (low, high) for offset ix
+         *
+         * @param ix offset to use
          *
          * @return bool indicating the state of ix
          */
