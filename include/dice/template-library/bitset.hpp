@@ -7,6 +7,7 @@
 #include <numeric>
 #include <format>
 #include <iterator>
+#include <ranges>
 
 namespace dice::template_library {
 
@@ -105,9 +106,11 @@ namespace dice::template_library {
         public:
             ///> proxy for the current bit position
             struct bit_ref {
+            private:
                 bitset_pointer backing_bitset_;
-                segment seg_;
-                offset  off_;
+            public:
+                segment seg;
+                offset  off;
 
                 bit_ref(bit_ref const&) = default;
                 bit_ref const& operator=(bit_ref const& other) const noexcept {
@@ -115,18 +118,18 @@ namespace dice::template_library {
                 }
 
                 bit_ref(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
-                    : backing_bitset_{backing_bitset}, seg_{seg}, off_{off} {}
+                    : backing_bitset_{backing_bitset}, seg{seg}, off{off} {}
 
                 explicit operator bool() const noexcept {
-                    return backing_bitset_->test(calc_global_idx(seg_, off_));
+                    return backing_bitset_->test(calc_global_idx(seg, off));
                 }
 
                 bit_ref const& operator=(bool const b) const noexcept {
                     if (b) {
-                        backing_bitset_->set(calc_global_idx(seg_, off_));
+                        backing_bitset_->set(calc_global_idx(seg, off));
                     }
                     else {
-                        backing_bitset_->unset(calc_global_idx(seg_, off_));
+                        backing_bitset_->unset(calc_global_idx(seg, off));
                     }
                     return *this;
                 }
@@ -955,6 +958,45 @@ namespace dice::template_library {
             }, [](bool const val) {
                 return val;
             }, merge_functor<bool>{}, true, bit_and_op{});
+        }
+
+        auto positions() const -> std::ranges::input_range auto {
+            return *this | std::views::filter([] (auto bitref) {
+                return static_cast<bool>(bitref);
+            }) | std::views::transform([] (auto bitref) {
+                return calc_global_idx(bitref.seg, bitref.off);
+            });
+        }
+
+
+        template<typename F>
+        void positions_cntl(std::ranges::input_range auto&& positions, F&& pos_f) {
+            if constexpr (std::ranges::sized_range<decltype(positions)>) {
+                auto position_elements = std::ranges::size(positions);
+                if (position_elements >= storage_size_in_bits) {
+                    throw std::range_error{"bitset::set_positions range out of bounds"};
+                }
+            }
+            else {
+                auto position_elements = std::ranges::distance(positions);
+                if (position_elements >= storage_size_in_bits) {
+                    throw std::range_error{"bitset::set_positions range out of bounds"};
+                }
+            }
+
+            std::ranges::for_each(positions, std::forward<F>(pos_f));
+        }
+
+        void set_positions(std::ranges::input_range auto&& positions) {
+            positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
+                set(pos);
+            });
+        }
+
+        void reset_positions(std::ranges::input_range auto&& positions) {
+            positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
+                unset(pos);
+            });
         }
 
         constexpr iterator begin() noexcept {
