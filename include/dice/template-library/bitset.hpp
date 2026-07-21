@@ -37,9 +37,9 @@ namespace dice::template_library {
      * The underlying mode to iterate over the storage
      * Used within the **bitset_iterator**
      */
-    struct bitset_const {
-        static constexpr size_t bit_mode = 0x00;
-        static constexpr size_t segment_mode = 0x01;
+    enum class bitset_mode : uint8_t {
+        BitMode = 0x00,
+        SegmentMode = 0x01,
     };
 
     /**
@@ -70,8 +70,9 @@ namespace dice::template_library {
      * @tparam extent extent of the bitset
      * @tparam segments max segments for the underlying bitset : use dynamic_extent to uncap limit
      */
-    template<typename T, size_t extent, size_t segments>
+    template<size_t extent, size_t segments, typename T = uint64_t>
     struct bitset {
+    private:
         static constexpr bool   has_storage_limit = segments != dynamic_extent;
         static constexpr size_t segment_size = sizeof(T);
         static constexpr size_t segment_align = alignof(T);
@@ -92,7 +93,6 @@ namespace dice::template_library {
         using storage_word_pointer = storage_word *;
         using storage_word_const_pointer = storage_word const *;
 
-    private:
         template<bool is_const>
         struct bitset_iterator {
         private:
@@ -177,9 +177,9 @@ namespace dice::template_library {
             }
 
             // shared iterator for mode=0 (bits) mode>=1 (segments)
-            template<size_t mode=bitset_const::bit_mode>
+            template<bitset_mode mode = bitset_mode::BitMode>
             bitset_iterator& operator++() noexcept {
-                if constexpr (mode == bitset_const::bit_mode) {
+                if constexpr (mode == bitset_mode::BitMode) {
                     if (++cur_offset_ >= segment_size_in_bits) {
                         ++cur_segment_;
                         cur_offset_ = 0;
@@ -191,9 +191,9 @@ namespace dice::template_library {
                 return *this;
             }
 
-            template<size_t mode=bitset_const::bit_mode>
+            template<bitset_mode mode = bitset_mode::BitMode>
             bitset_iterator& operator--() noexcept {
-                if constexpr (mode == bitset_const::bit_mode) {
+                if constexpr (mode == bitset_mode::BitMode) {
                     if (cur_offset_ == 0) {
                         --cur_segment_;
                         cur_offset_ = segment_size_in_bits-1;
@@ -206,21 +206,21 @@ namespace dice::template_library {
                 return *this;
             }
 
-            template<size_t mode=bitset_const::bit_mode>
+            template<bitset_mode mode = bitset_mode::BitMode>
             bitset_iterator operator++(int) noexcept {
                 auto tmp = *this;
                 operator++<mode>();
                 return tmp;
             }
 
-            template<size_t mode=bitset_const::bit_mode>
+            template<bitset_mode mode = bitset_mode::BitMode>
             bitset_iterator operator--(int) noexcept {
                 auto tmp = *this;
                 operator--<mode>();
                 return tmp;
             }
 
-            template<size_t mode=bitset_const::bit_mode>
+            template<bitset_mode mode = bitset_mode::BitMode>
             bitset_iterator& operator+=(size_t const skip) noexcept {
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
@@ -238,7 +238,7 @@ namespace dice::template_library {
                     cur_offset_ = offset;
                 };
 
-                if constexpr (mode == bitset_const::bit_mode) {
+                if constexpr (mode == bitset_mode::BitMode) {
                     skip_handler(skip);
                 }
                 else {
@@ -248,7 +248,7 @@ namespace dice::template_library {
                 return *this;
             }
 
-            template<size_t mode=bitset_const::bit_mode>
+            template<bitset_mode mode = bitset_mode::BitMode>
             bitset_iterator& operator-=(size_t const skip) noexcept {
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_);
@@ -262,7 +262,7 @@ namespace dice::template_library {
                     cur_offset_ = offset;
                 };
 
-                if constexpr (mode == bitset_const::bit_mode) {
+                if constexpr (mode == bitset_mode::BitMode) {
                     skip_handler(skip);
                 }
                 else {
@@ -310,9 +310,6 @@ namespace dice::template_library {
                 return it.consumed();
             }
         };
-
-        struct Set{};
-        struct Unset{};
 
         storage inner_;
 
@@ -520,8 +517,8 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
                     return false;
                 }
-                self_it.template operator++<bitset_const::segment_mode>();
-                outer_it.template operator++<bitset_const::segment_mode>();
+                self_it.template operator++<bitset_mode::SegmentMode>();
+                outer_it.template operator++<bitset_mode::SegmentMode>();
             }
             return true;
         }
@@ -541,8 +538,8 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
                     return false;
                 }
-                self_it.template operator++<bitset_const::segment_mode>();
-                outer_it.template operator++<bitset_const::segment_mode>();
+                self_it.template operator++<bitset_mode::SegmentMode>();
+                outer_it.template operator++<bitset_mode::SegmentMode>();
             }
             return true;
         }
@@ -556,7 +553,7 @@ namespace dice::template_library {
                 if (auto const val = std::invoke(std::forward<F>(handler), self_it.get()); !std::invoke(std::forward<Pr>(pred), val)) {
                     return false;
                 }
-                self_it.template operator++<bitset_const::segment_mode>();
+                self_it.template operator++<bitset_mode::SegmentMode>();
             }
             return true;
         }
@@ -574,7 +571,7 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
-                self_it.template operator++<bitset_const::segment_mode>();
+                self_it.template operator++<bitset_mode::SegmentMode>();
             }
             return merge_val;
         }
@@ -592,7 +589,7 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
-                self_it.template operator--<bitset_const::segment_mode>();
+                self_it.template operator--<bitset_mode::SegmentMode>();
             }
             return merge_val;
         }
@@ -744,9 +741,6 @@ namespace dice::template_library {
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-        static constexpr Set mode_set = Set{};
-        static constexpr Unset mode_unset = Unset{};
-
         /**
          * Initializes the bitset using an initializer list
          *
@@ -758,32 +752,10 @@ namespace dice::template_library {
          * Initializes the bitset using a given segment size
          * Requires the underlying storage to be uncapped
          *
-         * @param size segment size to set high
-         */
-        constexpr bitset(Set, size_t const size) requires(!has_storage_limit) : inner_{} {
-            inner_.resize(size);
-            auto it = begin();
-            auto it_end = end();
-
-            while (it != it_end) {
-                *it++ = true;
-            }
-        }
-
-        /**
-         * Initializes the bitset using a given segment size
-         * Requires the underlying storage to be uncapped
-         *
          * @param size segment size to set low
          */
-        constexpr bitset(Unset, size_t const size) requires(!has_storage_limit) : inner_{} {
+        explicit constexpr bitset(size_t const size) requires(!has_storage_limit) : inner_{} {
             inner_.resize(size);
-            auto it = begin();
-            auto it_end = end();
-
-            while (it != it_end) {
-                *it++ = false;
-            }
         }
 
         constexpr bitset(bitset const&) = default;
@@ -1061,7 +1033,7 @@ namespace dice::template_library {
             return *this;
         }
 
-        bitset& operator &=(bitset const& alt_storage) noexcept {
+        bitset& operator&=(bitset const& alt_storage) noexcept {
             segment_handler([this](typename storage::reference segment_first, typename storage::const_reference segment_second) {
                 slot_handler<bit_and_op>(segment_first, segment_second);
                 return true;
@@ -1069,7 +1041,7 @@ namespace dice::template_library {
             return *this;
         }
 
-        bitset& operator |=(bitset const& alt_storage) noexcept {
+        bitset& operator|=(bitset const& alt_storage) noexcept {
             segment_handler([this](typename storage::reference segment_first, typename storage::const_reference segment_second) {
                 slot_handler<bit_or_op>(segment_first, segment_second);
                 return true;
@@ -1089,58 +1061,22 @@ namespace dice::template_library {
             return tmp;
         }
 
-        bitset operator& (bitset const& bitset_v_second) const noexcept {
+        bitset operator&(bitset const& bitset_v_second) const noexcept {
             bitset tmp = *this;
             tmp &= bitset_v_second;
             return tmp;
         }
 
-        bitset operator| (bitset const& bitset_v_second) const noexcept {
+        bitset operator|(bitset const& bitset_v_second) const noexcept {
             bitset tmp = *this;
             tmp |= bitset_v_second;
             return tmp;
         }
     };
-
-    /**
-     * Initializes a static bitset using an initializer list of segment type size_t
-     * The resulting bitset has max capacity of segments
-     *
-     * @param list
-     * @return static bitset of type size_t
-     */
-    template<size_t segments>
-    static constexpr bitset<size_t, dynamic_extent, segments> create_bitset(std::initializer_list<size_t> const list) {
-        return bitset<size_t, dynamic_extent, segments>{list};
-    }
-
-    /**
-     * Initializes a static bitset using an initializer list of segment type T
-     * The resulting bitset has max capacity of segments
-     *
-     * @param list initializer list
-     * @return static bitset of type T
-     */
-    template<typename T, size_t segments>
-    static constexpr bitset<T, dynamic_extent, segments> create_bitset(std::initializer_list<T> const list) {
-        return bitset<T, dynamic_extent, segments>{list};
-    }
-
-    /**
-     * Initializes a dynamic bitset using an initializer list of segment type T
-     *
-     * @tparam T segment type
-     * @param list initializer list
-     * @return dynamic bitset of type T
-     */
-    template<typename T>
-    static constexpr bitset<T, dynamic_extent, dynamic_extent> create_bitset(std::initializer_list<T> const list) {
-        return bitset<T, dynamic_extent, dynamic_extent>{list};
-    }
 }
 
 template<typename T, size_t extent, size_t max_extent>
-struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
+struct std::formatter<dice::template_library::bitset<extent, max_extent, T>> {
     bool hex = false;
     bool debug = false;
     bool binary = false;
@@ -1168,7 +1104,7 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
         return it;
     }
 
-    auto format(dice::template_library::bitset<T, extent, max_extent> const& storage, std::format_context& ctx) const {
+    auto format(dice::template_library::bitset<extent, max_extent, T> const& storage, std::format_context& ctx) const {
         auto it = storage.begin();
         auto end = storage.end();
         auto segments = storage.size();
@@ -1207,7 +1143,7 @@ struct std::formatter<dice::template_library::bitset<T, extent, max_extent>> {
                         out = std::format_to(out, "{:#0{}x}", *word, (storage.segment_align * 8) / 4);
                     }
                 }
-                it.template operator++<dice::template_library::bitset_const::segment_mode>();
+                it.template operator++<dice::template_library::bitset_mode::SegmentMode>();
             }
             else if (binary) {
                 for (auto segment_bit{0uz}; segment_bit < segment_size_in_bits; ++segment_bit) {
