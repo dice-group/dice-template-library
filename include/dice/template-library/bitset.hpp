@@ -1139,6 +1139,10 @@ namespace dice::template_library {
             return positional_iterator{*this};
         }
 
+        constexpr std::default_sentinel_t pend() const noexcept {
+            return std::default_sentinel;
+        }
+
         /**
          * Returns consumed bits in bits
          *
