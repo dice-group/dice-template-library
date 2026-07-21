@@ -163,11 +163,7 @@ namespace dice::template_library {
             }
 
             void operator=(bool const b) const noexcept requires(!is_const) {
-                if (b) {
-                    backing_bitset_->set(calc_global_idx(cur_segment_, cur_offset_));
-                    return;
-                }
-                backing_bitset_->reset(calc_global_idx(cur_segment_, cur_offset_));
+                backing_bitset_->set(calc_global_idx(cur_segment_, cur_offset_), b);
             }
 
             reference operator*() const noexcept {
@@ -302,6 +298,50 @@ namespace dice::template_library {
 
             friend bool operator==(bitset_iterator const& it, std::default_sentinel_t) {
                 return it.cur_segment_ >= it.backing_bitset_->size();
+            }
+        };
+
+        template<bool is_const>
+        struct position_iterator {
+        private:
+            using bitset_pointer = std::conditional_t<is_const, bitset const*, bitset*>;
+
+            bitset_iterator<is_const> it_;
+            bitset_pointer const backing_bitset_;
+
+        public:
+            explicit position_iterator(std::conditional_t<is_const,bitset const&, bitset&> bitset) noexcept
+                : it_{&bitset}, backing_bitset_{&bitset} {}
+
+            position_iterator operator++() {
+                auto offset  = (*it_).off;
+                auto segment = it_.get();
+
+                if constexpr (std::integral<typename storage::value_type>) {
+                    if (segment == 0x00) {
+                        it_ += inner_size_in_bits();
+                    }
+                    else {
+                        it_ += offset + std::countl_zero(segment >> (offset + 1));
+                    }
+                }
+                else {
+                    auto [word, _] = backing_bitset_->segment_slots(segment);
+                    for (auto i{0uz}; i < segment_steps; ++i) {
+                        if (word[i] == 0x00) {
+                            continue;
+                        }
+                        it_ += i * (sizeof(storage_word) * 8) + offset + std::countl_zero(segment >> (offset + 1));
+                        break;
+                    }
+                }
+                return *this;
+            }
+
+            position_iterator operator++(int) {
+                auto tmp = *this;
+                operator++();
+                return tmp;
             }
         };
 
@@ -652,6 +692,24 @@ namespace dice::template_library {
 
             for (; word != end && word2 != end2; ++word, ++word2) {
                 *word = merge_func(Ops{}, *word, *word2);
+            }
+        }
+
+        template<typename F>
+        void slot_handler(storage::reference segment, F&& f) {
+            auto [word, end] = segment_slots(segment);
+
+            for (; word != end; ++word) {
+                std::invoke(std::forward<F>(f), *word);
+            }
+        }
+
+        template<typename F>
+        void slot_handler(storage::const_reference segment, F&& f) {
+            auto [word, end] = segment_slots(segment);
+
+            for (; word != end; ++word) {
+                std::invoke(std::forward<F>(f), *word);
             }
         }
 
