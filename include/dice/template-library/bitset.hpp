@@ -288,7 +288,7 @@ namespace dice::template_library {
                 return tmp;
             }
 
-            T const& get() const noexcept {
+            [[nodiscard]] T const& get() const noexcept {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
@@ -377,6 +377,14 @@ namespace dice::template_library {
 
         [[nodiscard]] static constexpr global_ix calc_global_idx(segment const s, offset const o) noexcept {
             return s * segment_size_in_bits + o;
+        }
+
+        [[nodiscard]] static constexpr size_t inner_size() noexcept {
+            return segment_size;
+        }
+
+        [[nodiscard]] static constexpr size_t inner_size_in_bits() noexcept {
+            return segment_size_in_bits;
         }
 
         template<typename F>
@@ -1038,19 +1046,6 @@ namespace dice::template_library {
          */
         constexpr size_t size_in_bits() const noexcept {
             return size() * segment_size_in_bits;
-        }
-
-        static constexpr size_t inner_size() noexcept {
-            return segment_size;
-        }
-
-        /**
-         * Returns the per segment size in bits
-         *
-         * @return size in bits
-         */
-        static constexpr size_t inner_size_in_bits() noexcept {
-            return segment_size_in_bits;
         }
 
         bool operator==(bitset const& alt_storage) const noexcept {
