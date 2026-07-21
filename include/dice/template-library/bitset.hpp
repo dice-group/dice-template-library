@@ -284,16 +284,12 @@ namespace dice::template_library {
                 return tmp;
             }
 
-            T const& get() const {
+            T const& get() const noexcept {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
-            T& get() requires(!is_const) {
+            [[nodiscard]] T& get() noexcept requires(!is_const){
                 return *(backing_bitset_->inner_.data() + cur_segment_);
-            }
-
-            bool consumed() const noexcept {
-                return cur_segment_ >= backing_bitset_->size();
             }
 
             friend bool operator==(bitset_iterator const& lhs, bitset_iterator const& rhs){
@@ -307,7 +303,7 @@ namespace dice::template_library {
             }
 
             friend bool operator==(bitset_iterator const& it, std::default_sentinel_t) {
-                return it.consumed();
+                return it.cur_segment_ >= it.backing_bitset_->size();
             }
         };
 
