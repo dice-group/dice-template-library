@@ -130,7 +130,7 @@ namespace dice::template_library {
                         backing_bitset_->set(calc_global_idx(seg, off));
                     }
                     else {
-                        backing_bitset_->unset(calc_global_idx(seg, off));
+                        backing_bitset_->reset(calc_global_idx(seg, off));
                     }
                     return *this;
                 }
@@ -172,7 +172,7 @@ namespace dice::template_library {
                     backing_bitset_->set(calc_global_idx(cur_segment_, cur_offset_));
                     return;
                 }
-                backing_bitset_->unset(calc_global_idx(cur_segment_, cur_offset_));
+                backing_bitset_->reset(calc_global_idx(cur_segment_, cur_offset_));
             }
 
             reference operator*() const noexcept {
@@ -816,7 +816,7 @@ namespace dice::template_library {
         /**
          * Set a bit low for offset ix
          */
-        void unset(global_ix const ix) {
+        void reset(global_ix const ix) {
             bitset_mod_cntl(&bitset::segment_unset, ix);
         }
 
@@ -1006,7 +1006,7 @@ namespace dice::template_library {
 
         void reset_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
-                unset(pos);
+                reset(pos);
             });
         }
 
