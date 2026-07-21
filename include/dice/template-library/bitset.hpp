@@ -106,26 +106,26 @@ namespace dice::template_library {
 
         public:
             ///> proxy for the current bit position
-            struct bit_ref {
+            struct reference {
             private:
                 bitset_pointer backing_bitset_;
             public:
                 segment seg;
                 offset  off;
 
-                bit_ref(bit_ref const&) = default;
-                bit_ref const& operator=(bit_ref const& other) const noexcept {
+                reference(reference const&) = default;
+                reference const& operator=(reference const& other) const noexcept {
                     return *this = static_cast<bool>(other);
                 }
 
-                bit_ref(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
+                reference(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
                     : backing_bitset_{backing_bitset}, seg{seg}, off{off} {}
 
                 explicit operator bool() const noexcept {
                     return backing_bitset_->test(calc_global_idx(seg, off));
                 }
 
-                bit_ref const& operator=(bool const b) const noexcept {
+                reference const& operator=(bool const b) const noexcept {
                     if (b) {
                         backing_bitset_->set(calc_global_idx(seg, off));
                     }
@@ -139,7 +139,6 @@ namespace dice::template_library {
             using iterator_category = std::random_access_iterator_tag;
             using iterator_concept  = std::random_access_iterator_tag;
             using value_type        = bool;
-            using reference         = bit_ref;
             using pointer           = void;
             using difference_type   = ptrdiff_t;
 
@@ -176,8 +175,8 @@ namespace dice::template_library {
                 backing_bitset_->unset(calc_global_idx(cur_segment_, cur_offset_));
             }
 
-            bit_ref operator*() const noexcept {
-                return bit_ref {backing_bitset_, cur_segment_, cur_offset_};
+            reference operator*() const noexcept {
+                return reference {backing_bitset_, cur_segment_, cur_offset_};
             }
 
             // shared iterator for mode=0 (bits) mode>=1 (segments)
@@ -377,6 +376,10 @@ namespace dice::template_library {
 
         [[nodiscard]] static constexpr global_ix calc_global_idx(segment const s, offset const o) noexcept {
             return s * segment_size_in_bits + o;
+        }
+
+        [[nodiscard]] constexpr size_t size() const noexcept {
+            return inner_.size();
         }
 
         [[nodiscard]] static constexpr size_t inner_size() noexcept {
@@ -1033,10 +1036,6 @@ namespace dice::template_library {
 
         constexpr std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;
-        }
-
-        constexpr size_t size() const noexcept {
-            return inner_.size();
         }
 
         /**
