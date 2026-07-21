@@ -74,19 +74,20 @@ namespace dice::template_library {
     template<size_t extent, size_t segments, typename T = uint64_t>
     struct bitset {
     private:
-        static constexpr bool   has_storage_limit = segments != dynamic_extent;
-        static constexpr size_t segment_size = sizeof(T);
-        static constexpr size_t segment_align = alignof(T);
-        static constexpr size_t segment_steps = segment_size / segment_align; ///> how many chunks fit within one segment
-        static constexpr size_t segment_size_in_bits = segment_size * 8;
-        static constexpr size_t storage_size = !has_storage_limit ? dynamic_extent : segment_size * segments;
-        static constexpr size_t storage_size_in_bits = !has_storage_limit ? dynamic_extent : storage_size * 8;
-
         using storage   = flex_array<T, extent, segments>;
         using global_ix = size_t;
         using segment   = size_t;
         using offset    = size_t;
 
+        static constexpr bool   has_max_extent = storage::has_max_extent;
+        static constexpr bool   has_dynamic_extent = storage::has_dynamic_extent;
+        static constexpr size_t segment_size = sizeof(T);
+        static constexpr size_t segment_align = alignof(T);
+        static constexpr size_t segment_steps = segment_size / segment_align; ///> how many chunks fit within one segment
+        static constexpr size_t segment_size_in_bits = segment_size * 8;
+        static constexpr size_t storage_size = !has_max_extent ? dynamic_extent : segment_size * segments;
+        static constexpr size_t storage_size_in_bits = !has_max_extent ? dynamic_extent : storage_size * 8;
+        
         ///> word used for traversing the inner segment, instead of forcing 1 byte loads
         using storage_word = std::conditional_t<segment_align >= alignof(std::uint64_t), std::uint64_t,
             std::conditional_t<segment_align >= alignof(std::uint32_t), std::uint32_t,
@@ -312,7 +313,7 @@ namespace dice::template_library {
 
         storage inner_;
 
-        [[nodiscard]] constexpr size_t require_segments(global_ix const ix) const requires (storage::has_dynamic_extent) {
+        [[nodiscard]] constexpr size_t require_segments(global_ix const ix) const requires (has_dynamic_extent) {
             auto const bit_pos = bits_consumed();
             if (bit_pos > ix) {
                 return 0;
@@ -330,7 +331,7 @@ namespace dice::template_library {
             }();
         }
 
-        void constexpr expand_segments(global_ix const ix) requires (storage::has_dynamic_extent) {
+        void constexpr expand_segments(global_ix const ix) requires (has_dynamic_extent) {
             auto const to_add = require_segments(ix);
             if (to_add == 0) {
                 return;
@@ -349,7 +350,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] static constexpr bool fits_in_storage(global_ix const ix) noexcept {
-            if constexpr (has_storage_limit) {
+            if constexpr (has_max_extent) {
                 return ix < storage_size_in_bits;
             }
 
@@ -385,7 +386,7 @@ namespace dice::template_library {
             }
 
             // auto expands whenever the underlying storage can actually grow
-            if constexpr (storage::has_dynamic_extent) {
+            if constexpr (has_dynamic_extent) {
                 expand_segments(ix);
             }
 
@@ -753,7 +754,7 @@ namespace dice::template_library {
          *
          * @param size segment size to set low
          */
-        explicit constexpr bitset(size_t const size) requires(!has_storage_limit) : inner_{} {
+        explicit constexpr bitset(size_t const size) requires(!has_max_extent) : inner_{} {
             inner_.resize(size);
         }
 
@@ -850,8 +851,8 @@ namespace dice::template_library {
                 }
             }
 
-            if constexpr (storage::has_dynamic_extent) {
-                if constexpr (!has_storage_limit) {
+            if constexpr (has_dynamic_extent) {
+                if constexpr (!has_max_extent) {
                     inner_.resize(inner_.size() + 1);
                     *reinterpret_cast<storage_word_pointer>(inner_.end() - 1) = 0x01;
 
@@ -967,7 +968,6 @@ namespace dice::template_library {
                 return calc_global_idx(bitref.seg, bitref.off);
             });
         }
-
 
         template<typename F>
         void positions_cntl(std::ranges::input_range auto&& positions, F&& pos_f) {
