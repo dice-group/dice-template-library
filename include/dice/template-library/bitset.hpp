@@ -305,15 +305,16 @@ namespace dice::template_library {
         struct position_iterator {
         private:
             using bitset_pointer = std::conditional_t<is_const, bitset const*, bitset*>;
+            using reference = bitset_iterator<is_const>::reference;
 
             bitset_iterator<is_const> it_;
             bitset_pointer const backing_bitset_;
 
         public:
-            explicit position_iterator(std::conditional_t<is_const,bitset const&, bitset&> bitset) noexcept
+            explicit position_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept
                 : it_{&bitset}, backing_bitset_{&bitset} {}
 
-            position_iterator operator++() {
+            position_iterator operator++() noexcept {
                 auto offset  = (*it_).off;
                 auto segment = it_.get();
 
@@ -338,10 +339,26 @@ namespace dice::template_library {
                 return *this;
             }
 
-            position_iterator operator++(int) {
+            position_iterator operator++(int) noexcept {
                 auto tmp = *this;
                 operator++();
                 return tmp;
+            }
+
+            reference operator* () const noexcept {
+                return *it_;
+            }
+
+            friend bool operator==(position_iterator const& lhs, position_iterator const& rhs){
+                return lhs.it_ == rhs.it_;
+            }
+
+            friend bool operator==(std::default_sentinel_t, position_iterator const& it) {
+                return it == std::default_sentinel;
+            }
+
+            friend bool operator==(position_iterator const& it, std::default_sentinel_t) {
+                return it.it_ == std::default_sentinel;
             }
         };
 
@@ -804,6 +821,8 @@ namespace dice::template_library {
         using const_iterator = bitset_iterator<true>;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+        using positional_iterator = position_iterator<false>;
+        using const_positional_iterator = position_iterator<true>;
 
         /**
          * Initializes the bitset using an initializer list
@@ -1110,6 +1129,14 @@ namespace dice::template_library {
 
         constexpr std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;
+        }
+
+        constexpr positional_iterator pbegin() noexcept {
+            return positional_iterator{*this};
+        }
+
+        constexpr positional_iterator pbegin() const noexcept {
+            return positional_iterator{*this};
         }
 
         /**
