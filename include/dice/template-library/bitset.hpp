@@ -78,7 +78,13 @@ namespace dice::template_library {
         using global_ix = size_t;
         using segment   = size_t;
         using offset    = size_t;
+        
+    public:
+        using value_type = storage::value_type;
+        using reference  = storage::reference;
+        using const_reference = storage::const_reference;
 
+    private:
         static constexpr bool   has_max_extent = storage::has_max_extent;
         static constexpr bool   has_dynamic_extent = storage::has_dynamic_extent;
         static constexpr size_t segment_size = sizeof(T);
@@ -318,7 +324,7 @@ namespace dice::template_library {
                 auto offset  = (*it_).off;
                 auto segment = it_.get();
 
-                if constexpr (std::integral<typename storage::value_type>) {
+                if constexpr (std::integral<value_type>) {
                     if (segment == 0x00) {
                         it_ += inner_size_in_bits();
                     }
@@ -468,8 +474,8 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        auto bitset_op_cntl(F &&ops, storage::const_reference segment) const -> std::invoke_result_t<F, bitset*, typename storage::const_reference> {
-            if constexpr (std::is_void_v<std::invoke_result_t<F, bitset*, typename storage::const_reference>>) {
+        auto bitset_op_cntl(F &&ops, const_reference segment) const -> std::invoke_result_t<F, bitset*, const_reference> {
+            if constexpr (std::is_void_v<std::invoke_result_t<F, bitset*, const_reference>>) {
                 std::invoke(std::forward<F>(ops), this, segment);
                 return;
             }
@@ -534,10 +540,10 @@ namespace dice::template_library {
             }
         }
 
-        [[nodiscard]] size_t segment_count(storage::const_reference segment) const noexcept {
-            if constexpr (std::integral<typename storage::value_type>) {
+        [[nodiscard]] size_t segment_count(const_reference segment) const noexcept {
+            if constexpr (std::integral<value_type>) {
 #ifdef __SIZEOF_INT128__
-                if constexpr (std::is_same_v<typename storage::value_type, __uint128_t>) {
+                if constexpr (std::is_same_v<value_type, __uint128_t>) {
                     uint64_t const lo = static_cast<uint64_t>(segment);
                     uint64_t const hi = static_cast<uint64_t>(segment >> 64);
 
@@ -553,7 +559,7 @@ namespace dice::template_library {
         }
 
         template<typename F, typename M, typename Tp, typename Ops>
-        requires std::is_same_v<std::invoke_result_t<F, typename storage::const_reference>, Tp> &&
+        requires std::is_same_v<std::invoke_result_t<F, const_reference>, Tp> &&
             std::invocable<M, Ops, Tp, Tp>
         [[nodiscard]] Tp segment_handler(F &&handler, M &&merge, Tp initial, Ops ops=add_op{}) const {
             Tp merge_val{initial};
@@ -658,7 +664,7 @@ namespace dice::template_library {
         }
 
         template<typename F, typename M, typename Tp, typename Ops>
-        [[nodiscard]] Tp slot_handler(storage::const_reference segment, F &&f, M&& m, Tp initial, Ops ops=add_op{}) const {
+        [[nodiscard]] Tp slot_handler(const_reference segment, F &&f, M&& m, Tp initial, Ops ops=add_op{}) const {
             Tp merge_val{initial};
             auto [word, end] = segment_slots(segment);
 
@@ -670,7 +676,7 @@ namespace dice::template_library {
         }
 
         template<typename F, typename Pr, typename M, typename Tp, typename Ops>
-        [[nodiscard]] Tp slot_handler(storage::const_reference segment, F &&f, Pr &&pred, M&& m, Tp initial, Ops ops=add_op{}) const {
+        [[nodiscard]] Tp slot_handler(const_reference segment, F &&f, Pr &&pred, M&& m, Tp initial, Ops ops=add_op{}) const {
             Tp merge_val{initial};
             auto [word, end] = segment_slots(segment);
 
@@ -686,7 +692,7 @@ namespace dice::template_library {
         }
 
         template<typename F, typename Pr, typename M, typename Tp, typename Ops>
-        [[nodiscard]] Tp slot_handler_backwards(storage::const_reference segment, F &&f, Pr &&pred, M&& m, Tp initial, Ops ops=add_op{}) const {
+        [[nodiscard]] Tp slot_handler_backwards(const_reference segment, F &&f, Pr &&pred, M&& m, Tp initial, Ops ops=add_op{}) const {
             Tp merge_val{initial};
             auto [word, end] = segment_slots(segment);
 
@@ -702,7 +708,7 @@ namespace dice::template_library {
         }
 
         template<typename Ops=add_op>
-        void slot_handler(storage::reference segment, storage::const_reference other) {
+        void slot_handler(reference segment, const_reference other) {
             auto merge_func = dice::template_library::merge_functor<storage_word>{};
             auto [word, end] = segment_slots(segment);
             auto [word2, end2] = segment_slots(other);
@@ -713,7 +719,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        void slot_handler(storage::reference segment, F&& f) {
+        void slot_handler(const_reference segment, F&& f) {
             auto [word, end] = segment_slots(segment);
 
             for (; word != end; ++word) {
@@ -722,15 +728,15 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        void slot_handler(storage::const_reference segment, F&& f) {
+        void slot_handler(reference segment, storage_word val) {
             auto [word, end] = segment_slots(segment);
 
             for (; word != end; ++word) {
-                std::invoke(std::forward<F>(f), *word);
+                *word = val;
             }
         }
 
-        bool slot_handler(storage::const_reference segment, storage::const_reference other) const {
+        bool slot_handler(const_reference segment, const_reference other) const {
             auto [word, end] = segment_slots(segment);
             auto [word2, end2] = segment_slots(other);
 
@@ -743,8 +749,8 @@ namespace dice::template_library {
             return true;
         }
 
-        [[nodiscard]] size_t segment_free(storage::const_reference segment) const {
-            if constexpr (std::integral<typename storage::value_type>) {
+        [[nodiscard]] size_t segment_free(const_reference segment) const {
+            if constexpr (std::integral<value_type>) {
                 return std::countr_zero(static_cast<storage::value_type>(~segment));
             }
 
@@ -756,8 +762,8 @@ namespace dice::template_library {
             }, merge_functor<size_t>{}, 0uz, add_op{});
         }
 
-        [[nodiscard]] size_t segment_countl_zero(storage::const_reference segment) const noexcept {
-            if constexpr (std::integral<typename storage::value_type>) {
+        [[nodiscard]] size_t segment_countl_zero(const_reference segment) const noexcept {
+            if constexpr (std::integral<value_type>) {
                 return std::countl_zero(segment);
             }
 
@@ -768,8 +774,8 @@ namespace dice::template_library {
             }, merge_functor<size_t>{}, 0uz, add_op{});
         }
 
-        [[nodiscard]] size_t segment_countr_zero(storage::const_reference segment) const noexcept {
-            if constexpr (std::integral<typename storage::value_type>) {
+        [[nodiscard]] size_t segment_countr_zero(const_reference segment) const noexcept {
+            if constexpr (std::integral<value_type>) {
                 return std::countr_zero(segment);
             }
 
@@ -780,8 +786,8 @@ namespace dice::template_library {
             }, merge_functor<size_t>{}, 0uz, add_op{});
         }
 
-        [[nodiscard]] size_t segment_countl_one(storage::const_reference segment) const noexcept {
-            if constexpr (std::integral<typename storage::value_type>) {
+        [[nodiscard]] size_t segment_countl_one(const_reference segment) const noexcept {
+            if constexpr (std::integral<value_type>) {
                 return std::countl_one(segment);
             }
 
@@ -792,8 +798,8 @@ namespace dice::template_library {
             }, merge_functor<size_t>{}, 0uz, add_op{});
         }
 
-        [[nodiscard]] size_t segment_countr_one(storage::const_reference segment) const noexcept {
-            if constexpr (std::integral<typename storage::value_type>) {
+        [[nodiscard]] size_t segment_countr_one(const_reference segment) const noexcept {
+            if constexpr (std::integral<value_type>) {
                 return std::countr_one(segment);
             }
 
@@ -804,15 +810,15 @@ namespace dice::template_library {
             }, merge_functor<size_t>{}, 0uz, add_op{});
         }
 
-        [[nodiscard]] bool segment_all_set(storage::const_reference segment) const noexcept {
+        [[nodiscard]] bool segment_all_set(const_reference segment) const noexcept {
             return segment_count(segment) == segment_size_in_bits;
         }
 
-        [[nodiscard]] bool segment_any_set(storage::const_reference segment) const noexcept {
+        [[nodiscard]] bool segment_any_set(const_reference segment) const noexcept {
             return segment_count(segment) != 0;
         }
 
-        [[nodiscard]] bool segment_none_set(storage::const_reference segment) const noexcept {
+        [[nodiscard]] bool segment_none_set(const_reference segment) const noexcept {
             return segment_count(segment) == 0x00;
         }
 
@@ -852,7 +858,7 @@ namespace dice::template_library {
          *
          * @return a pair containing word pointers to both segment ends (start, end)
          */
-        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(storage::const_reference segment) const noexcept {
+        [[nodiscard]] std::pair<storage_word_const_pointer, storage_word_const_pointer> segment_slots(const_reference segment) const noexcept {
             auto word = reinterpret_cast<storage_word_const_pointer>(&segment);
             auto const end = word + segment_steps;
 
@@ -864,7 +870,7 @@ namespace dice::template_library {
          *
          * @return a pair containing word pointers to both segment ends (start, end)
          */
-        [[nodiscard]] std::pair<storage_word_pointer, storage_word_pointer> segment_slots(storage::reference segment) const noexcept {
+        [[nodiscard]] std::pair<storage_word_pointer, storage_word_pointer> segment_slots(reference segment) const noexcept {
             auto word = reinterpret_cast<storage_word_pointer>(&segment);
             auto const end = word + segment_steps;
 
@@ -893,6 +899,17 @@ namespace dice::template_library {
             reset(ix);
         }
 
+        void set_all() requires(!has_dynamic_extent) {
+            if constexpr (std::integral<value_type>) {
+                std::fill(inner_.begin(), inner_.end(), 0x01);
+            }
+            else {
+                for (auto &segment : inner_) {
+                    slot_handler(segment, 0x01);
+                }
+            }
+        }
+
         /**
          * Flip a bit for offset ix
          *
@@ -909,6 +926,17 @@ namespace dice::template_library {
          */
         void reset(global_ix const ix) {
             bitset_mod_cntl(&bitset::segment_unset, ix);
+        }
+
+        void reset_all() requires(!has_dynamic_extent) {
+            if constexpr (std::integral<value_type>) {
+                std::fill(inner_.begin(), inner_.end(), 0x00);
+            }
+            else {
+                for (auto &segment : inner_) {
+                    slot_handler(segment, 0x00);
+                }
+            }
         }
 
         /**
@@ -934,7 +962,7 @@ namespace dice::template_library {
          * @return total bits set
          */
         [[nodiscard]] size_t count() const {
-            return segment_handler([this](typename storage::const_reference segment) {
+            return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_count, segment);
             }, merge_functor<size_t>{}, 0uz, add_op{});
         }
@@ -982,7 +1010,7 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countr_zero() const {
-            return segment_handler([this](typename storage::const_reference segment) {
+            return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countr_zero, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
@@ -995,7 +1023,7 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countl_zero() const {
-            return segment_handler_backwards([this](typename storage::const_reference segment) {
+            return segment_handler_backwards([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countl_zero, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
@@ -1008,7 +1036,7 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countr_one() const {
-            return segment_handler([this](typename storage::const_reference segment) {
+            return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countr_one, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
@@ -1021,7 +1049,7 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countl_one() const {
-            return segment_handler_backwards([this](typename storage::const_reference segment) {
+            return segment_handler_backwards([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_countl_one, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
@@ -1034,7 +1062,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool all_set() const {
-            return segment_handler([this](typename storage::const_reference segment) {
+            return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_all_set, segment);
             }, [](bool const val) {
                 return val;
@@ -1047,7 +1075,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool any_set() const {
-            return segment_handler([this](typename storage::const_reference segment) {
+            return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_any_set, segment);
             }, merge_functor<bool>{}, false, bit_or_op{});
         }
@@ -1058,7 +1086,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool none_set() const {
-            return segment_handler([this](typename storage::const_reference segment) {
+            return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_none_set, segment);
             }, [](bool const val) {
                 return val;
@@ -1153,7 +1181,7 @@ namespace dice::template_library {
         }
 
         bool operator==(bitset const& alt_storage) const noexcept {
-            return segment_handler([this](typename storage::const_reference segment_first, typename storage::const_reference segment_second) {
+            return segment_handler([this](const_reference segment_first, const_reference segment_second) {
                 return slot_handler(segment_first, segment_second);
             }, alt_storage);
         }
@@ -1171,7 +1199,7 @@ namespace dice::template_library {
         }
 
         bitset& operator&=(bitset const& alt_storage) noexcept {
-            segment_handler([this](typename storage::reference segment_first, typename storage::const_reference segment_second) {
+            segment_handler([this](reference segment_first, const_reference segment_second) {
                 slot_handler<bit_and_op>(segment_first, segment_second);
                 return true;
             }, alt_storage);
@@ -1179,7 +1207,7 @@ namespace dice::template_library {
         }
 
         bitset& operator|=(bitset const& alt_storage) noexcept {
-            segment_handler([this](typename storage::reference segment_first, typename storage::const_reference segment_second) {
+            segment_handler([this](reference segment_first, const_reference segment_second) {
                 slot_handler<bit_or_op>(segment_first, segment_second);
                 return true;
             }, alt_storage);
