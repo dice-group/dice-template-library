@@ -587,8 +587,8 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
                     return false;
                 }
-                self_it.template operator++<bitset_mode::SegmentMode>();
-                outer_it.template operator++<bitset_mode::SegmentMode>();
+                self_it = advance_segment(self_it);
+                outer_it = advance_segment(outer_it);
             }
             return true;
         }
@@ -608,8 +608,8 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
                     return false;
                 }
-                self_it.template operator++<bitset_mode::SegmentMode>();
-                outer_it.template operator++<bitset_mode::SegmentMode>();
+                self_it = advance_segment(self_it);
+                outer_it = advance_segment(outer_it);
             }
             return true;
         }
@@ -623,7 +623,7 @@ namespace dice::template_library {
                 if (auto const val = std::invoke(std::forward<F>(handler), self_it.get()); !std::invoke(std::forward<Pr>(pred), val)) {
                     return false;
                 }
-                self_it.template operator++<bitset_mode::SegmentMode>();
+                self_it = advance_segment(self_it);
             }
             return true;
         }
@@ -641,7 +641,7 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
-                self_it.template operator++<bitset_mode::SegmentMode>();
+                self_it = advance_segment(self_it);
             }
             return merge_val;
         }
@@ -659,7 +659,7 @@ namespace dice::template_library {
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
-                self_it.template operator--<bitset_mode::SegmentMode>();
+                self_it = advance_segment_backwards(self_it);
             }
             return merge_val;
         }
@@ -1009,7 +1009,7 @@ namespace dice::template_library {
                         return;
                     }
                 }
-                it.template operator--<bitset_mode::SegmentMode>();
+                it = advance_segment_backwards(it);
             }
         }
 
@@ -1214,7 +1214,7 @@ namespace dice::template_library {
 
         /**
          * Returns updated iterator advanced backward by skip segment
-         * 
+         *
          * @param it bitset iterator
          * @param skip segments to skip
          * @return iterator advanced backwards by skip segments
