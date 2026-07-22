@@ -38,10 +38,6 @@ namespace dice::template_library {
      * The underlying mode to iterate over the storage
      * Used within the **bitset_iterator**
      */
-    enum class bitset_mode : uint8_t {
-        BitMode = 0x00,
-        SegmentMode = 0x01,
-    };
 
     /**
      * A multi-type bitset supporting both dynamic and static growth.
@@ -100,6 +96,11 @@ namespace dice::template_library {
             std::conditional_t<segment_align >= alignof(std::uint16_t), std::uint16_t, std::uint8_t>>>;
         using storage_word_pointer = storage_word *;
         using storage_word_const_pointer = storage_word const *;
+
+        enum class bitset_mode : uint8_t {
+            BitMode = 0x00,
+            SegmentMode = 0x01,
+        };
 
         template<bool is_const>
         struct bitset_iterator {
@@ -1165,22 +1166,22 @@ namespace dice::template_library {
             });
         }
 
-        static iterator advance_segment(iterator& it) {
+        static iterator advance_segment(iterator it) {
             return it.template operator++<bitset_mode::SegmentMode>();
         }
 
-        static iterator advance_segment(iterator& it, size_t const skip) {
+        static iterator advance_segment(iterator it, size_t const skip) {
             return it.template operator+=<bitset_mode::SegmentMode>(skip);
         }
 
-        static iterator advance_segment_backwards(iterator& it) {
+        static iterator advance_segment_backwards(iterator it) {
             return it.template operator--<bitset_mode::SegmentMode>();
         }
 
-        static iterator advance_segment_backwards(iterator& it, size_t const skip) {
+        static iterator advance_segment_backwards(iterator it, size_t const skip) {
             return it.template operator-=<bitset_mode::SegmentMode>(skip);
         }
-        
+
         constexpr iterator begin() noexcept {
             return iterator{*this};
         }
@@ -1358,7 +1359,7 @@ struct std::formatter<dice::template_library::bitset<extent, max_extent, T>> {
                         out = std::format_to(out, "{:#0{}x}", *word, (storage.segment_align * 8) / 4);
                     }
                 }
-                it.template operator++<dice::template_library::bitset_mode::SegmentMode>();
+                it = storage.advance_segment(it);
             }
             else if (binary) {
                 for (auto segment_bit{0uz}; segment_bit < segment_size_in_bits; ++segment_bit) {
