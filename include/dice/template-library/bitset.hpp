@@ -727,7 +727,6 @@ namespace dice::template_library {
             }
         }
 
-        template<typename F>
         void slot_handler(reference segment, storage_word val) {
             auto [word, end] = segment_slots(segment);
 
@@ -954,6 +953,42 @@ namespace dice::template_library {
             auto const segment = calc_which_segment(ix);
             auto const offset  = calc_which_offset(ix);
             return segment_test(segment, offset);
+        }
+
+        void shrink_to_fit() requires (has_dynamic_extent){
+            auto it = begin() + size_in_bits();
+            auto end = begin();
+
+            auto perform_shrink = [this](auto const& segment) {
+                auto ptr_dist = std::distance(inner_.data(), &segment);
+                if constexpr (!has_max_extent) {
+                    inner_ = storage(inner_.data(), inner_.data() + ptr_dist);
+                }
+                else {
+                    inner_.resize(std::distance(inner_.data(), &segment));
+                }
+            };
+
+            while (it != end) {
+                auto segment = (it - 1).get();
+                if constexpr (std::integral<value_type>) {
+                    if (static_cast<value_type>(~segment) != 0x00) {
+                        perform_shrink(segment);
+                        return;
+                    }
+                }
+                else {
+                    auto has_bit = slot_handler(segment, [](storage_word word) {
+                        return static_cast<storage_word>(~word) != 0x00;
+                    }, merge_functor<bool>{}, false, bit_or_op{});
+
+                    if (has_bit) {
+                        perform_shrink(segment);
+                        return;
+                    }
+                }
+                it.template operator--<bitset_mode::SegmentMode>();
+            }
         }
 
         /**
