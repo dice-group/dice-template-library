@@ -1132,11 +1132,7 @@ namespace dice::template_library {
         }
 
         auto positions() const -> std::ranges::input_range auto {
-            return *this | std::views::filter([] (auto bitref) {
-                return static_cast<bool>(bitref);
-            }) | std::views::transform([] (auto bitref) {
-                return calc_global_idx(bitref.seg, bitref.off);
-            });
+            return std::ranges::subrange(pbegin(), pend());
         }
 
         template<typename F>
