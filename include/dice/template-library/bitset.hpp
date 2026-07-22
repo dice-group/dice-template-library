@@ -1150,34 +1150,75 @@ namespace dice::template_library {
             }, merge_functor<bool>{}, true, bit_and_op{});
         }
 
+        /**
+         * Returns range whose bits are set high
+         *
+         * @return input range containing the positions
+         */
         auto positions() const -> std::ranges::input_range auto {
             return std::ranges::subrange(pbegin(), pend());
         }
 
+        /**
+         * Set bits high on position given positions range
+         *
+         * @param positions input range of positions
+         */
         void set_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
                 set(pos);
             });
         }
 
+        /**
+         * Reset bits on position given positions range
+         *
+         * @param positions input range of positions
+         */
         void reset_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
                 reset(pos);
             });
         }
 
+        /**
+         * Returns updated iterator advanced by one segment
+         *
+         * @param it bitset iterator
+         * @return iterator advanced by one segment
+         */
         static iterator advance_segment(iterator it) {
             return it.template operator++<bitset_mode::SegmentMode>();
         }
 
+        /**
+         * Returns updated iterator advanced by skip segments
+         *
+         * @param it bitset iterator
+         * @param skip segments to skip
+         * @return iterator advanced by skip segments
+         */
         static iterator advance_segment(iterator it, size_t const skip) {
             return it.template operator+=<bitset_mode::SegmentMode>(skip);
         }
 
+        /**
+         * Returns updated iterator advanced backward by one segment
+         *
+         * @param it bitset iterator
+         * @return iterator advanced backwards by one segment
+         */
         static iterator advance_segment_backwards(iterator it) {
             return it.template operator--<bitset_mode::SegmentMode>();
         }
 
+        /**
+         * Returns updated iterator advanced backward by skip segment
+         * 
+         * @param it bitset iterator
+         * @param skip segments to skip
+         * @return iterator advanced backwards by skip segments
+         */
         static iterator advance_segment_backwards(iterator it, size_t const skip) {
             return it.template operator-=<bitset_mode::SegmentMode>(skip);
         }
