@@ -955,6 +955,9 @@ namespace dice::template_library {
             return segment_test(segment, offset);
         }
 
+        /**
+         * Compacts the underlying storage backend, if applicable
+         */
         void shrink_to_fit() requires (has_dynamic_extent){
             auto it = begin() + size_in_bits();
             auto end = begin();
