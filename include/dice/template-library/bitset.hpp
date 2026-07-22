@@ -821,6 +821,24 @@ namespace dice::template_library {
             return segment_count(segment) == 0x00;
         }
 
+        template<typename F>
+        void positions_cntl(std::ranges::input_range auto&& positions, F&& pos_f) {
+            if constexpr (std::ranges::sized_range<decltype(positions)>) {
+                auto position_elements = std::ranges::size(positions);
+                if (position_elements >= storage_size_in_bits) {
+                    throw std::range_error{"bitset::set_positions range out of bounds"};
+                }
+            }
+            else {
+                auto position_elements = std::ranges::distance(positions);
+                if (position_elements >= storage_size_in_bits) {
+                    throw std::range_error{"bitset::set_positions range out of bounds"};
+                }
+            }
+
+            std::ranges::for_each(positions, std::forward<F>(pos_f));
+        }
+
     public:
         using iterator = bitset_iterator<false>;
         using const_iterator = bitset_iterator<true>;
@@ -1134,25 +1152,7 @@ namespace dice::template_library {
         auto positions() const -> std::ranges::input_range auto {
             return std::ranges::subrange(pbegin(), pend());
         }
-
-        template<typename F>
-        void positions_cntl(std::ranges::input_range auto&& positions, F&& pos_f) {
-            if constexpr (std::ranges::sized_range<decltype(positions)>) {
-                auto position_elements = std::ranges::size(positions);
-                if (position_elements >= storage_size_in_bits) {
-                    throw std::range_error{"bitset::set_positions range out of bounds"};
-                }
-            }
-            else {
-                auto position_elements = std::ranges::distance(positions);
-                if (position_elements >= storage_size_in_bits) {
-                    throw std::range_error{"bitset::set_positions range out of bounds"};
-                }
-            }
-
-            std::ranges::for_each(positions, std::forward<F>(pos_f));
-        }
-
+        
         void set_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
                 set(pos);
