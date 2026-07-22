@@ -1152,7 +1152,7 @@ namespace dice::template_library {
         auto positions() const -> std::ranges::input_range auto {
             return std::ranges::subrange(pbegin(), pend());
         }
-        
+
         void set_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
                 set(pos);
@@ -1165,6 +1165,22 @@ namespace dice::template_library {
             });
         }
 
+        static iterator advance_segment(iterator& it) {
+            return it.template operator++<bitset_mode::SegmentMode>();
+        }
+
+        static iterator advance_segment(iterator& it, size_t const skip) {
+            return it.template operator+=<bitset_mode::SegmentMode>(skip);
+        }
+
+        static iterator advance_segment_backwards(iterator& it) {
+            return it.template operator--<bitset_mode::SegmentMode>();
+        }
+
+        static iterator advance_segment_backwards(iterator& it, size_t const skip) {
+            return it.template operator-=<bitset_mode::SegmentMode>(skip);
+        }
+        
         constexpr iterator begin() noexcept {
             return iterator{*this};
         }
