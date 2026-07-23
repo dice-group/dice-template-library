@@ -1423,19 +1423,26 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
 
     auto format(dice::template_library::bitset<extent_, max_extent_, T> const& storage, std::format_context& ctx) const {
         auto it = storage.begin();
-        auto end = storage.end();
-        auto segments = storage.size();
-        auto segment_size_in_bits = storage.inner_size_in_bits();
-        auto storage_size_in_bits = storage.storage_size_in_bits;
+        auto const end = storage.end();
+        auto const total_bits = storage.size_in_bits();
 
         auto out = ctx.out();
         *out++ = '[';
         *out++ = '\n';
 
         if (debug) {
+            size_t segment_bits = 0;
+            if (it != end) {
+                auto const seg_end = storage.advance_segment(it);
+                for (auto p = it; p != seg_end; ++p) {
+                    ++segment_bits;
+                }
+            }
+            auto const segments = (segment_bits == 0) ? 0uz : (total_bits / segment_bits);
+
             out = std::format_to(out, "Segments : {}\n", segments);
-            out = std::format_to(out, "Segment size : {}\n", segment_size_in_bits);
-            out = std::format_to(out, "Storage size : {}\n", storage_size_in_bits);
+            out = std::format_to(out, "Segment size : {}\n", segment_bits);
+            out = std::format_to(out, "Storage size : {}\n", total_bits);
 
             if (hex) {
                 out = std::format_to(out, "Segment Representation -> Hex(0xFF)\n");
@@ -1449,22 +1456,24 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
         while (it != end) {
             *out++ = '[';
             if (hex) {
+                auto const seg_end = storage.advance_segment(it);
                 auto const& segment = it.get();
                 if constexpr (std::integral<T>) {
-                   out = std::format_to(out, "{:#0{}x}", segment, (storage.segment_align * 8 / 4));
+                   out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
                 }
                 else {
                     auto [word, word_end] = storage.segment_slots(segment);
 
                     for (; word != word_end; ++word) {
-                        out = std::format_to(out, "{:#0{}x}", *word, (storage.segment_align * 8) / 4);
+                        out = std::format_to(out, "{:#0{}x}", *word, sizeof(*word) * 2);
                     }
                 }
-                it = storage.advance_segment(it);
+                it = seg_end;
             }
             else if (binary) {
-                for (auto segment_bit{0uz}; segment_bit < segment_size_in_bits; ++segment_bit) {
-                    *out++ = *it++ ? '1' : '0';
+                auto const seg_end = storage.advance_segment(it);
+                for (; it != seg_end; ++it) {
+                    *out++ = *it ? '1' : '0';
                 }
             }
             else {
