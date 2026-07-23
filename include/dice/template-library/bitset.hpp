@@ -65,11 +65,16 @@ namespace dice::template_library {
      *
      * @tparam T value type : any type is allowed as representation of the segment itself
      * @tparam extent extent of the bitset
-     * @tparam segments max segments for the underlying bitset : use dynamic_extent to uncap limit
+     * @tparam bits minimal bits for the underlying bitset : use dynamic_extent to uncap limit
      */
-    template<size_t extent, size_t segments, typename T = uint64_t>
+    template<size_t extent, size_t bits, typename T = uint64_t>
     struct bitset {
     private:
+        static constexpr size_t segment_size = sizeof(T);
+        static constexpr size_t segment_size_in_bits = segment_size * 8;
+
+        static constexpr size_t segments = bits != dynamic_extent ? (bits + segment_size_in_bits - 1) / segment_size_in_bits : dynamic_extent;
+
         using storage   = flex_array<T, extent, segments>;
         using global_ix = size_t;
         using segment   = size_t;
@@ -83,10 +88,9 @@ namespace dice::template_library {
     private:
         static constexpr bool   has_max_extent = storage::has_max_extent;
         static constexpr bool   has_dynamic_extent = storage::has_dynamic_extent;
-        static constexpr size_t segment_size = sizeof(T);
         static constexpr size_t segment_align = alignof(T);
         static constexpr size_t segment_steps = segment_size / segment_align; ///> how many chunks fit within one segment
-        static constexpr size_t segment_size_in_bits = segment_size * 8;
+
         static constexpr size_t storage_size = !has_max_extent ? dynamic_extent : segment_size * segments;
         static constexpr size_t storage_size_in_bits = !has_max_extent ? dynamic_extent : storage_size * 8;
         
