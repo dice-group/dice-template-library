@@ -317,22 +317,12 @@ namespace dice::template_library {
             bitset_iterator<is_const> it_;
             bitset_pointer backing_bitset_ = nullptr;
 
-        public:
-            using iterator_category = std::input_iterator_tag;
-            using iterator_concept  = std::input_iterator_tag;
-            using value_type        = bool;
-            using pointer           = void;
-            using difference_type   = ptrdiff_t;
-
-            explicit position_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept
-                : it_{bitset}, backing_bitset_{&bitset} {}
-
-            position_iterator& operator++() noexcept {
+            void seek(bool include_current) noexcept {
                 auto offset  = (*it_).off;
                 auto segment = it_.get();
 
                 if constexpr (std::integral<T>) {
-                    auto skip = offset + 1;
+                    auto skip = include_current ? offset : offset + 1;
 
                     while (true) {
                         T const shifted = (skip >= inner_size_in_bits())
@@ -357,7 +347,7 @@ namespace dice::template_library {
                 else {
                     constexpr size_t word_bits = sizeof(storage_word) * 8;
                     auto word_ix   = offset / word_bits;
-                    auto word_skip = (offset % word_bits) + 1;
+                    auto word_skip = include_current ? (offset % word_bits) : (offset % word_bits) + 1;
 
                     while (true) {
                         auto [word, _] = backing_bitset_->segment_slots(segment);
@@ -393,6 +383,24 @@ namespace dice::template_library {
                         segment = it_.get();
                     }
                 }
+            }
+
+        public:
+            using iterator_category = std::input_iterator_tag;
+            using iterator_concept  = std::input_iterator_tag;
+            using value_type        = bool;
+            using pointer           = void;
+            using difference_type   = ptrdiff_t;
+
+            explicit position_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept
+                : it_{bitset}, backing_bitset_{&bitset} {
+                if (it_ != std::default_sentinel) {
+                    seek(true);
+                }
+            }
+
+            position_iterator& operator++() noexcept {
+                seek(false);
                 return *this;
             }
 
