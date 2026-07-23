@@ -109,7 +109,7 @@ namespace dice::template_library {
 
             segment       cur_segment_{};
             offset        cur_offset_{};
-            bitset_pointer backing_bitset_;
+            bitset_pointer backing_bitset_ = nullptr;
 
         public:
             ///> proxy for the current bit position
@@ -128,7 +128,7 @@ namespace dice::template_library {
                 reference(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
                     : backing_bitset_{backing_bitset}, seg{seg}, off{off} {}
 
-                explicit operator bool() const noexcept {
+                operator bool() const noexcept {
                     return backing_bitset_->test(calc_global_idx(seg, off));
                 }
 
@@ -315,23 +315,29 @@ namespace dice::template_library {
             using reference = bitset_iterator<is_const>::reference;
 
             bitset_iterator<is_const> it_;
-            bitset_pointer const backing_bitset_;
+            bitset_pointer backing_bitset_ = nullptr;
 
         public:
-            explicit position_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept
-                : it_{&bitset}, backing_bitset_{&bitset} {}
+            using iterator_category = std::input_iterator_tag;
+            using iterator_concept  = std::input_iterator_tag;
+            using value_type        = bool;
+            using pointer           = void;
+            using difference_type   = ptrdiff_t;
 
-            position_iterator operator++() noexcept {
+            explicit position_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept
+                : it_{bitset}, backing_bitset_{&bitset} {}
+
+            position_iterator& operator++() noexcept {
                 auto offset  = (*it_).off;
                 auto segment = it_.get();
 
-                if constexpr (std::integral<value_type>) {
+                if constexpr (std::integral<T>) {
                     auto skip = offset + 1;
 
                     while (true) {
-                        value_type const shifted = (skip >= inner_size_in_bits())
-                            ? value_type{0}
-                            : static_cast<value_type>(segment >> skip);
+                        T const shifted = (skip >= inner_size_in_bits())
+                            ? T{}
+                            : static_cast<T>(segment >> skip);
 
                         if (shifted != 0x00) {
                             it_ += (skip + std::countr_zero(shifted)) - offset;
@@ -795,7 +801,7 @@ namespace dice::template_library {
 
         [[nodiscard]] size_t segment_free(const_reference segment) const {
             if constexpr (std::integral<value_type>) {
-                return std::countr_zero(static_cast<storage::value_type>(~segment));
+                return std::countr_zero(static_cast<value_type>(~segment));
             }
 
             return slot_handler(segment, [](storage_word word) -> size_t {
@@ -992,11 +998,11 @@ namespace dice::template_library {
 
         void reset_all() requires(!has_dynamic_extent) {
             if constexpr (std::integral<value_type>) {
-                std::fill(inner_.begin(), inner_.end(), 0x00);
+                std::fill(inner_.begin(), inner_.end(), value_type{});
             }
             else {
                 for (auto &segment : inner_) {
-                    slot_handler(segment, 0x00);
+                    slot_handler(segment, storage_word{});
                 }
             }
         }
@@ -1025,7 +1031,7 @@ namespace dice::template_library {
             auto it = begin() + size_in_bits();
             auto end = begin();
 
-            auto perform_shrink = [this](auto const& segment) {
+            auto perform_shrink = [this](auto &segment) {
                 auto ptr_dist = std::distance(inner_.data(), &segment);
                 if constexpr (!has_max_extent) {
                     inner_ = storage(inner_.data(), inner_.data() + ptr_dist);
@@ -1036,7 +1042,7 @@ namespace dice::template_library {
             };
 
             while (it != end) {
-                auto segment = (it - 1).get();
+                auto &segment = (it - 1).get();
                 if constexpr (std::integral<value_type>) {
                     if (static_cast<value_type>(~segment) != 0x00) {
                         perform_shrink(segment);
@@ -1210,7 +1216,7 @@ namespace dice::template_library {
          */
         void set_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
-                set(pos);
+                this->set(pos);
             });
         }
 
@@ -1221,7 +1227,7 @@ namespace dice::template_library {
          */
         void reset_positions(std::ranges::input_range auto&& positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
-                reset(pos);
+                this->reset(pos);
             });
         }
 
