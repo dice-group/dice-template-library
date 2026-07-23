@@ -22,26 +22,19 @@ namespace {
 TEST_SUITE("bitset") {
 	using namespace dice::template_library;
 
-	using dyn64 = bitset<std::uint64_t, dynamic_extent, dynamic_extent>;
-	using dyn8 = bitset<std::uint8_t, dynamic_extent, dynamic_extent>;
-	using bounded64 = bitset<std::uint64_t, dynamic_extent, 4>; // capacity: 4 segments = 256 bits
+	using dyn64 = bitset<dynamic_extent, dynamic_extent>;
+	using dyn8 = bitset<std::dynamic_extent, dynamic_extent, uint8_t>;
+	using bounded64 = bitset<dynamic_extent, 4>; // capacity: 4 segments = 256 bits
 
-	TEST_CASE("static properties") {
-		static_assert(!dyn64::has_storage_limit);
-		static_assert(dyn64::segment_size == sizeof(std::uint64_t));
-		static_assert(dyn64::segment_size_in_bits == 64);
-
-		static_assert(bounded64::has_storage_limit);
-		static_assert(bounded64::storage_size == 4 * sizeof(std::uint64_t));
-		static_assert(bounded64::storage_size_in_bits == 4 * 64);
-	}
+	// segment_size_in_bits/storage_size_in_bits etc. are implementation details and are private,
+	// so shape constants that used to come straight from the class are now hardcoded/derived here
+	// from the known template arguments instead.
+	constexpr size_t bounded64_segment_bits  = 64;
+	constexpr size_t bounded64_capacity_bits = 4 * bounded64_segment_bits;
 
 	TEST_CASE("construction") {
 		SUBCASE("initializer list") {
 			dyn8 b{0b00000001, 0b10000000};
-			REQUIRE_EQ(b.size(), 2);
-			REQUIRE_EQ(b.inner_size(), sizeof(std::uint8_t));
-			REQUIRE_EQ(b.inner_size_in_bits(), 8);
 			REQUIRE_EQ(b.size_in_bits(), 16);
 
 			CHECK(b.test(0));
@@ -55,28 +48,17 @@ TEST_SUITE("bitset") {
 			CHECK(b.test(15));
 		}
 
-		SUBCASE("Set fill constructor sets every bit") {
-			dyn64 b{dyn64::mode_set, 3};
-			REQUIRE_EQ(b.size(), 3);
-			for (size_t i = 0; i < b.size_in_bits(); ++i) {
-				CHECK(b.test(i));
-			}
-		}
-
-		SUBCASE("Unset fill constructor clears every bit") {
-			dyn64 b{dyn64::mode_unset, 3};
-			REQUIRE_EQ(b.size(), 3);
+		SUBCASE("size constructor zero-fills every segment") {
+			// per the ctor's doc comment ("size to set low"), this only grows storage - it does
+			// not set any bits, unlike the old mode_set-based constructor it replaced.
+			// NOTE: must use parens, not braces - dyn64{3} would list-initialize a single
+			// segment holding the value 3 instead of calling the explicit size_t constructor,
+			// since a viable initializer_list constructor always wins list-initialization.
+			dyn64 b(3);
+			REQUIRE_EQ(b.size_in_bits(), 3 * 64);
 			for (size_t i = 0; i < b.size_in_bits(); ++i) {
 				CHECK_FALSE(b.test(i));
 			}
-		}
-
-		SUBCASE("create_bitset helper") {
-			auto b = create_bitset({0b101uz, 0b010uz});
-			CHECK(b.test(0));
-			CHECK_FALSE(b.test(1));
-			CHECK(b.test(2));
-			CHECK_EQ(b.count(), 3);
 		}
 
 		SUBCASE("copy/move construction and assignment are independent of the source") {
@@ -93,68 +75,21 @@ TEST_SUITE("bitset") {
 			dyn8 d{0xFF};
 			d = a;
 			CHECK_FALSE(d.test(3));
-			CHECK_EQ(d.size(), 2);
-		}
-	}
-
-	TEST_CASE("create_bitset overloads") {
-		SUBCASE("dynamic size, dynamic capacity, size_t segments") {
-			auto b = create_bitset({0b101uz, 0b010uz});
-			static_assert(std::is_same_v<decltype(b), bitset<std::size_t, dynamic_extent, dynamic_extent>>);
-			REQUIRE_EQ(b.size(), 2);
-			CHECK_EQ(b.count(), 3);
-			CHECK(b.test(0));
-			CHECK_FALSE(b.test(1));
-			CHECK(b.test(2));
-			CHECK(b.test(decltype(b)::segment_size_in_bits + 1)); // segment 1, bit 1 (value 0b010)
-		}
-
-		SUBCASE("dynamic size, bounded capacity, size_t segments") {
-			auto b = create_bitset<4>({0b101uz, 0b010uz});
-			static_assert(std::is_same_v<decltype(b), bitset<std::size_t, dynamic_extent, 4>>);
-			REQUIRE_EQ(b.size(), 2);
-			CHECK_EQ(b.count(), 3);
-			CHECK(b.test(0));
-			CHECK(b.test(2));
-			CHECK(b.test(decltype(b)::segment_size_in_bits + 1));
-
-			CHECK_THROWS_AS((create_bitset<4>({0uz, 0uz, 0uz, 0uz, 0uz})), std::length_error);
-		}
-
-		SUBCASE("dynamic size, bounded capacity, custom segment type") {
-			auto b = create_bitset<std::uint8_t, 4>({0b101, 0b010});
-			static_assert(std::is_same_v<decltype(b), bitset<std::uint8_t, dynamic_extent, 4>>);
-			REQUIRE_EQ(b.size(), 2);
-			CHECK_EQ(b.count(), 3);
-			CHECK(b.test(0));
-			CHECK(b.test(2));
-			CHECK(b.test(decltype(b)::segment_size_in_bits + 1)); // segment 1, bit 1
-
-			CHECK_THROWS_AS((create_bitset<std::uint8_t, 4>({0, 0, 0, 0, 0})), std::length_error);
-		}
-
-		SUBCASE("dynamic size, dynamic capacity, custom segment type") {
-			auto b = create_bitset<std::uint8_t>({0b101, 0b010});
-			static_assert(std::is_same_v<decltype(b), bitset<std::uint8_t, dynamic_extent, dynamic_extent>>);
-			REQUIRE_EQ(b.size(), 2);
-			CHECK_EQ(b.count(), 3);
-			CHECK(b.test(0));
-			CHECK(b.test(2));
-			CHECK(b.test(decltype(b)::segment_size_in_bits + 1));
+			CHECK_EQ(d.size_in_bits(), 2 * 8);
 		}
 	}
 
 	TEST_CASE("bit manipulation across segments") {
-		SUBCASE("set/unset/flip/test grows storage automatically") {
+		SUBCASE("set/reset/flip/test grows storage automatically") {
 			dyn64 b{};
 			b.set(5);
-			REQUIRE_EQ(b.size(), 1);
+			REQUIRE_EQ(b.size_in_bits(), 64);
 			CHECK(b.test(5));
 			CHECK_FALSE(b.test(0));
 			CHECK_FALSE(b.test(63));
 
 			b.set(130); // segment 2, offset 2 -> needs 3 segments total
-			REQUIRE_EQ(b.size(), 3);
+			REQUIRE_EQ(b.size_in_bits(), 3 * 64);
 			CHECK(b.test(130));
 
 			b.flip(130);
@@ -162,9 +97,9 @@ TEST_SUITE("bitset") {
 			b.flip(130);
 			CHECK(b.test(130));
 
-			b.unset(130);
+			b.reset(130);
 			CHECK_FALSE(b.test(130));
-			b.unset(5);
+			b.reset(5);
 			CHECK_FALSE(b.test(5));
 		}
 
@@ -174,7 +109,7 @@ TEST_SUITE("bitset") {
 			// the fact that bit index 64 needs capacity > 64 bits, not merely >= 64 bits.
 			dyn64 b{};
 			b.set(64);
-			REQUIRE_EQ(b.size(), 2);
+			REQUIRE_EQ(b.size_in_bits(), 2 * 64);
 			CHECK(b.test(64));
 			CHECK_FALSE(b.test(0));
 			CHECK_FALSE(b.test(63));
@@ -182,10 +117,10 @@ TEST_SUITE("bitset") {
 
 		SUBCASE("out_of_range when index exceeds a fixed capacity") {
 			bounded64 b{};
-			REQUIRE_THROWS_AS(b.set(bounded64::storage_size_in_bits), std::out_of_range);
-			REQUIRE_THROWS_AS((void)b.test(bounded64::storage_size_in_bits), std::out_of_range);
-			CHECK_EQ(b.size(), 0); // rejected out-of-range set() must not have grown anything
-			CHECK_NOTHROW(b.set(bounded64::storage_size_in_bits - 1));
+			REQUIRE_THROWS_AS(b.set(bounded64_capacity_bits), std::out_of_range);
+			REQUIRE_THROWS_AS((void)b.test(bounded64_capacity_bits), std::out_of_range);
+			CHECK_EQ(b.size_in_bits(), 0); // rejected out-of-range set() must not have grown anything
+			CHECK_NOTHROW(b.set(bounded64_capacity_bits - 1));
 		}
 
 		SUBCASE("a large global index computes the exact number of segments needed and zero-fills the rest") {
@@ -193,7 +128,7 @@ TEST_SUITE("bitset") {
 			// more than one extra segment), not just the "next segment" case exercised above.
 			dyn64 b{};
 			b.set(1000); // segment 15 (1000 / 64), so 16 segments are required in total
-			REQUIRE_EQ(b.size(), 16);
+			REQUIRE_EQ(b.size_in_bits(), 16 * 64);
 			CHECK(b.test(1000));
 
 			for (size_t i = 0; i < b.size_in_bits(); ++i) {
@@ -206,10 +141,10 @@ TEST_SUITE("bitset") {
 		SUBCASE("setting a lower index after a large-index growth does not grow further") {
 			dyn64 b{};
 			b.set(1000);
-			REQUIRE_EQ(b.size(), 16);
+			REQUIRE_EQ(b.size_in_bits(), 16 * 64);
 
 			b.set(0);
-			CHECK_EQ(b.size(), 16); // already had enough room, must not have resized again
+			CHECK_EQ(b.size_in_bits(), 16 * 64); // already had enough room, must not have resized again
 			CHECK(b.test(0));
 			CHECK(b.test(1000));
 		}
@@ -219,10 +154,10 @@ TEST_SUITE("bitset") {
 			// growing size(), so test() would report the bit as set while count()/iteration/
 			// all_set()/etc (which all iterate up to size()) stayed blind to it entirely.
 			bounded64 b{};
-			REQUIRE_EQ(b.size(), 0);
+			REQUIRE_EQ(b.size_in_bits(), 0);
 
 			b.set(5);
-			CHECK_EQ(b.size(), 1);
+			CHECK_EQ(b.size_in_bits(), 64);
 			CHECK(b.test(5));
 			CHECK_EQ(b.count(), 1);
 
@@ -233,19 +168,20 @@ TEST_SUITE("bitset") {
 
 		SUBCASE("bounded capacity growth stops exactly at its static maximum and stays zero-filled") {
 			bounded64 b{};
-			b.set(bounded64::storage_size_in_bits - 1); // last valid bit, far beyond current size()
-			REQUIRE_EQ(b.size(), 4);
-			CHECK(b.test(bounded64::storage_size_in_bits - 1));
+			b.set(bounded64_capacity_bits - 1); // last valid bit, far beyond current size()
+			REQUIRE_EQ(b.size_in_bits(), 4 * 64);
+			CHECK(b.test(bounded64_capacity_bits - 1));
 			CHECK_EQ(b.count(), 1); // every other (newly exposed) bit must be zero, not garbage
 		}
 	}
 
 	TEST_CASE("fully static capacity (extent == segments)") {
-		using fixed64 = bitset<std::uint64_t, 4, 4>;
+		using fixed64 = bitset<4, 4>;
+		constexpr size_t fixed64_capacity_bits = 4 * 64;
 
 		SUBCASE("initializer list must match extent exactly") {
 			fixed64 b{1, 2, 3, 4};
-			REQUIRE_EQ(b.size(), 4);
+			REQUIRE_EQ(b.size_in_bits(), 4 * 64);
 			CHECK(b.test(0));   // segment 0, value 1
 			CHECK(b.test(65));  // segment 1, offset 1, value 2
 			CHECK(b.test(129)); // segment 2, offset 1, value 3
@@ -257,13 +193,13 @@ TEST_SUITE("bitset") {
 
 		SUBCASE("out_of_range at the fixed capacity boundary") {
 			fixed64 b{0, 0, 0, 0};
-			REQUIRE_THROWS_AS(b.set(fixed64::storage_size_in_bits), std::out_of_range);
-			CHECK_NOTHROW(b.set(fixed64::storage_size_in_bits - 1));
+			REQUIRE_THROWS_AS(b.set(fixed64_capacity_bits), std::out_of_range);
+			CHECK_NOTHROW(b.set(fixed64_capacity_bits - 1));
 		}
 
 		SUBCASE("set_first_free reports full once every bit is set") {
 			fixed64 b{~0ull, ~0ull, ~0ull, ~0ull};
-			CHECK_EQ(b.set_first_free(), fixed64::storage_size_in_bits);
+			CHECK_EQ(b.set_first_free(), fixed64_capacity_bits);
 		}
 	}
 
@@ -292,7 +228,7 @@ TEST_SUITE("bitset") {
 			case_t{0b00000000, 8, 8, 0, 0},
 			case_t{0b11111111, 0, 0, 8, 8},
 			case_t{0b00001000, 3, 4, 0, 0},
-			case_t{0b11110111, 0, 0, 3, 4}, // bit 3 unset: 3 trailing ones, 4 leading ones
+			case_t{0b11110111, 0, 0, 3, 4}, // bit 3 reset: 3 trailing ones, 4 leading ones
 		};
 
 		for (auto const &c : cases) {
@@ -361,7 +297,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("any_set true when only a non-zero-offset bit is set") {
-			// bit 0 is unset but bit 1 is set - any_set must still report true
+			// bit 0 is reset but bit 1 is set - any_set must still report true
 			dyn8 b{0b00000010};
 			CHECK(b.any_set());
 		}
@@ -378,7 +314,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("set_first_free") {
-		SUBCASE("finds first unset bit within existing segments") {
+		SUBCASE("finds first reset bit within existing segments") {
 			dyn8 b{0xFF, 0b00000001};
 			auto const ix = b.set_first_free();
 			CHECK_EQ(ix, 9); // segment 1, offset 1 -> global index 8 + 1
@@ -389,13 +325,13 @@ TEST_SUITE("bitset") {
 			dyn8 b{0xFF};
 			auto const ix = b.set_first_free();
 			CHECK_EQ(ix, 8); // new segment appended, first bit of it
-			REQUIRE_EQ(b.size(), 2);
+			REQUIRE_EQ(b.size_in_bits(), 2 * 8);
 			CHECK(b.test(8));
 		}
 
 		SUBCASE("reports storage_size_in_bits once a fixed-capacity bitset is full") {
 			bounded64 b{~0ull, ~0ull, ~0ull, ~0ull};
-			CHECK_EQ(b.set_first_free(), bounded64::storage_size_in_bits);
+			CHECK_EQ(b.set_first_free(), bounded64_capacity_bits);
 		}
 	}
 
@@ -483,7 +419,7 @@ TEST_SUITE("bitset") {
 			dyn8 b{0xAA, 0xBB};
 			auto it = b.begin();
 			CHECK_EQ(it.get(), 0xAA);
-			it.operator++<bitset_const::segment_mode>();
+			it = b.advance_segment(it); // advance_segment takes/returns by value - capture the result
 			CHECK_EQ(it.get(), 0xBB);
 		}
 
@@ -498,7 +434,7 @@ TEST_SUITE("bitset") {
 			CHECK(*it2);
 
 			auto it3 = b.begin();
-			it3.operator+=<bitset_const::segment_mode>(1);
+			it3 = b.advance_segment(it3, 1);
 			CHECK_EQ(it3.get(), 0b00000010);
 		}
 
@@ -511,7 +447,7 @@ TEST_SUITE("bitset") {
 
 			--it; // wraps back into segment 0, offset 7 (top bit of segment 0)
 			CHECK_EQ(it.get(), 0b00000001);
-			CHECK_FALSE(*it); // offset 7 of segment 0 is unset
+			CHECK_FALSE(*it); // offset 7 of segment 0 is reset
 
 			auto it2 = b.begin() + 3;
 			auto const prev = it2--;
@@ -532,9 +468,9 @@ TEST_SUITE("bitset") {
 
 			dyn8 b2{0xAA, 0xBB};
 			auto it3 = b2.begin();
-			it3.operator++<bitset_const::segment_mode>();
+			it3 = b2.advance_segment(it3);
 			CHECK_EQ(it3.get(), 0xBB);
-			it3.operator--<bitset_const::segment_mode>();
+			it3 = b2.advance_segment_backwards(it3);
 			CHECK_EQ(it3.get(), 0xAA);
 		}
 
@@ -562,7 +498,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("explicit iterator construction with an offset validates the offset") {
 			dyn8 b{0x00};
 			CHECK_NOTHROW((dyn8::iterator{b, 7}));
-			CHECK_THROWS_AS((dyn8::iterator{b, 8}), std::out_of_range); // segment_size_in_bits == 8
+			CHECK_THROWS_AS((dyn8::iterator{b, 8}), std::out_of_range); // dyn8's segment width is 8 bits
 
 			dyn8::iterator it{b, 3};
 			CHECK(it == b.begin() + 3);
@@ -571,8 +507,8 @@ TEST_SUITE("bitset") {
 		SUBCASE("explicit iterator construction with an offset and segment validates both") {
 			dyn8 b{0x00, 0x00};
 			CHECK_NOTHROW((dyn8::iterator{b, 0, 1}));
-			CHECK_THROWS_AS((dyn8::iterator{b, 8, 0}), std::out_of_range);  // bad offset
-			CHECK_THROWS_AS((dyn8::iterator{b, 0, 2}), std::out_of_range); // segment out of bounds, size() == 2
+			CHECK_THROWS_AS((dyn8::iterator{b, 8, 0}), std::out_of_range); // bad offset
+			CHECK_THROWS_AS((dyn8::iterator{b, 0, 2}), std::out_of_range); // segment out of bounds (only 2 segments exist)
 
 			dyn8::iterator it{b, 2, 1};
 			CHECK(it == b.begin() + 10);
@@ -678,7 +614,7 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(b3.count(), 0);
 
 			bounded64 b4{~0ull, ~0ull};
-			b4 <<= bounded64::storage_size_in_bits + 100; // beyond even the max capacity
+			b4 <<= bounded64_capacity_bits + 100; // beyond even the max capacity
 			CHECK_EQ(b4.count(), 0);
 		}
 
@@ -701,7 +637,7 @@ TEST_SUITE("bitset") {
 
 	TEST_CASE("all_set / any_set / none_set on an empty bitset") {
 		dyn8 b{};
-		REQUIRE_EQ(b.size(), 0);
+		REQUIRE_EQ(b.size_in_bits(), 0);
 		CHECK(b.all_set());   // vacuously true: no bit fails to be set
 		CHECK_FALSE(b.any_set());
 		CHECK(b.none_set());  // vacuously true: no bit is set
@@ -727,7 +663,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("fixed and bounded capacity - equality, bitwise ops and shifts") {
-		using fixed64 = bitset<std::uint64_t, 4, 4>;
+		using fixed64 = bitset<4, 4>;
 
 		SUBCASE("fully static capacity supports equality and bitwise combination") {
 			fixed64 a{0b1100, 0, 0, 0};
@@ -771,8 +707,8 @@ TEST_SUITE("bitset") {
 		SUBCASE("bounded capacity set_first_free grows by one segment without hitting the limit") {
 			bounded64 b{~0ull, ~0ull}; // 2 of 4 segments used, both full
 			auto const ix = b.set_first_free();
-			CHECK_EQ(ix, bounded64::segment_size_in_bits * 2); // first bit of the freshly grown 3rd segment
-			REQUIRE_EQ(b.size(), 3);
+			CHECK_EQ(ix, bounded64_segment_bits * 2); // first bit of the freshly grown 3rd segment
+			REQUIRE_EQ(b.size_in_bits(), 3 * bounded64_segment_bits);
 			CHECK(b.test(ix));
 		}
 	}
@@ -788,7 +724,7 @@ TEST_SUITE("bitset") {
 	}
 
     TEST_CASE("formatting long") {
-	    dyn64 b_long{dyn64::mode_unset, 32};
+	    dyn64 b_long(32); // parens - see the "size constructor zero-fills every segment" note above
 	    MESSAGE("hex: ", std::format("{:x}", b_long));
 	    MESSAGE("binary: ", std::format("{:b}", b_long));
 	    MESSAGE("debug+hex: ", std::format("{:?x}", b_long));
@@ -818,7 +754,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("multi-word (non-integral) segment type") {
-		using wide_bitset = bitset<wide_word, dynamic_extent, dynamic_extent>;
+		using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
 
 		SUBCASE("single-bit addressing within a multi-word segment") {
 			// bit 10 belongs to the low 64-bit word of the segment and must read back as set.
@@ -901,7 +837,7 @@ TEST_SUITE("bitset") {
 			wide_bitset b{w};
 			auto it = b.begin();
 			auto [word, end] = b.segment_slots(it.get());
-			CHECK_EQ(std::distance(word, end), wide_bitset::segment_steps);
+			CHECK_EQ(std::distance(word, end), 2); // wide_word packs two 64-bit words per segment
 			CHECK_EQ(*word, 5);
 			CHECK_EQ(*(word + 1), 9);
 		}
@@ -921,15 +857,17 @@ TEST_SUITE("bitset") {
 		// verifies storage_word selection (and the derived set/test/count/countr_zero paths)
 		// across differently-sized plain integral segment types, not just uint8_t/uint64_t.
 		auto const check_widths = []<typename T>() {
-			using B = bitset<T, dynamic_extent, dynamic_extent>;
+			using B = bitset<dynamic_extent, dynamic_extent, T>;
+			constexpr size_t segment_bits = sizeof(T) * 8;
+
 			B b{};
 			b.set(3);
-			b.set(B::segment_size_in_bits + 1); // force growth into a 2nd segment
+			b.set(segment_bits + 1); // force growth into a 2nd segment
 
-			CHECK_EQ(b.size(), 2);
+			CHECK_EQ(b.size_in_bits(), 2 * segment_bits);
 			CHECK_EQ(b.count(), 2);
 			CHECK(b.test(3));
-			CHECK(b.test(B::segment_size_in_bits + 1));
+			CHECK(b.test(segment_bits + 1));
 			CHECK_EQ(b.countr_zero(), 3);
 		};
 
@@ -946,5 +884,181 @@ TEST_SUITE("bitset") {
 			check_widths.operator()<__uint128_t>();
 		}
 #endif
+	}
+
+	TEST_CASE("set with an explicit high/low state") {
+		dyn8 b{0x00};
+		b.set(3, true);
+		CHECK(b.test(3));
+		b.set(3, false);
+		CHECK_FALSE(b.test(3));
+
+		b.set(3, true);
+		b.set(3, true); // setting an already-set bit high again is a no-op
+		CHECK(b.test(3));
+	}
+
+	TEST_CASE("set_all / reset_all (fully static capacity only)") {
+		// set_all()/reset_all() require !has_dynamic_extent, i.e. extent == segments - neither
+		// dyn8/dyn64 (fully dynamic) nor bounded64 (dynamic size, bounded capacity) qualify.
+		using fixed64 = bitset<4, 4>;
+		constexpr size_t fixed64_capacity_bits = 4 * 64;
+
+		SUBCASE("set_all sets every bit") {
+			fixed64 b{0, 0, 0, 0};
+			b.set_all();
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), fixed64_capacity_bits);
+		}
+
+		SUBCASE("reset_all clears every bit") {
+			fixed64 b{~0ull, ~0ull, ~0ull, ~0ull};
+			b.reset_all();
+			CHECK(b.none_set());
+			CHECK_EQ(b.count(), 0);
+		}
+
+		SUBCASE("set_all on a multi-word segment type sets every bit in every word") {
+			using fixed_wide = bitset<2, 2, wide_word>;
+			constexpr size_t fixed_wide_capacity_bits = 2 * 128;
+
+			fixed_wide b{wide_word{}, wide_word{}};
+			b.set_all();
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), fixed_wide_capacity_bits);
+		}
+
+		SUBCASE("reset_all on a multi-word segment type clears every bit in every word") {
+			using fixed_wide = bitset<2, 2, wide_word>;
+			wide_word full{};
+			full.lo = ~0ull;
+			full.hi = ~0ull;
+
+			fixed_wide b{full, full};
+			b.reset_all();
+			CHECK(b.none_set());
+			CHECK_EQ(b.count(), 0);
+		}
+	}
+
+	TEST_CASE("shrink_to_fit") {
+		SUBCASE("drops a trailing not-fully-set segment") {
+			dyn8 b{0xFF, 0xFF, 0x0F};
+			b.shrink_to_fit();
+			REQUIRE_EQ(b.size_in_bits(), 2 * 8);
+			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+				CHECK(b.test(i));
+			}
+		}
+
+		SUBCASE("skips over fully-set trailing segments to find the first non-full one") {
+			// scanning from the end: segments 3 and 2 are fully set (0xFF) and get skipped over;
+			// segment 1 (0x0F) is the first not-fully-set segment found, so storage is truncated
+			// to exclude it and everything after it, keeping only segment 0.
+			dyn8 b{0xFF, 0x0F, 0xFF, 0xFF};
+			b.shrink_to_fit();
+			REQUIRE_EQ(b.size_in_bits(), 1 * 8);
+			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+				CHECK(b.test(i));
+			}
+		}
+
+		SUBCASE("no shrink happens when every segment is fully set") {
+			dyn8 b{0xFF, 0xFF, 0xFF};
+			b.shrink_to_fit();
+			CHECK_EQ(b.size_in_bits(), 3 * 8);
+			CHECK_EQ(b.count(), 24);
+		}
+
+		SUBCASE("bounded (max-extent) capacity uses resize instead of storage reconstruction") {
+			bounded64 b{~0ull, 0x0Full};
+			b.shrink_to_fit();
+			REQUIRE_EQ(b.size_in_bits(), bounded64_segment_bits);
+			CHECK_EQ(b.count(), 64);
+		}
+
+		SUBCASE("multi-word (non-integral) segment type") {
+			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
+
+			wide_word full{};
+			full.lo = ~0ull;
+			full.hi = ~0ull;
+
+			wide_word partial{};
+			partial.lo = ~0ull;
+			partial.hi = 0x0Full; // not fully set -> gets dropped by shrink_to_fit
+
+			wide_bitset b{full, partial};
+			b.shrink_to_fit();
+			REQUIRE_EQ(b.size_in_bits(), 128);
+			CHECK(b.all_set());
+		}
+	}
+
+	TEST_CASE("positions / set_positions / reset_positions") {
+		SUBCASE("positions() yields exactly the set bit positions, including multiple bits per segment") {
+			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set
+			std::array<size_t, 4> const expected{0, 2, 4, 64};
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.seg * 64 + pos.off, expected[i]);
+				CHECK(static_cast<bool>(pos));
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("positions() correctly skips across multiple fully-zero segments") {
+			dyn64 b{0b1, 0, 0, 0b1}; // segment 0 and segment 3 each have bit 0 set, 1-2 are empty
+			std::array<size_t, 2> const expected{0, 3 * 64};
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.seg * 64 + pos.off, expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("positions() spans both words of a multi-word segment type") {
+			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
+
+			wide_word w0{};
+			w0.lo = 0b101; // bits 0 and 2 of the low word
+			wide_word w1{};
+			w1.hi = 1; // bit 0 of the high word -> segment-local offset 64
+
+			wide_bitset b{w0, w1};
+			std::array<size_t, 3> const expected{0, 2, 128 + 64}; // 128 bits per wide_word segment
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.seg * 128 + pos.off, expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("set_positions sets exactly the given bits") {
+			dyn64 b(2); // parens - see the "size constructor zero-fills every segment" note above
+			b.set_positions(std::array{0uz, 5uz, 127uz});
+			CHECK(b.test(0));
+			CHECK(b.test(5));
+			CHECK(b.test(127));
+			CHECK_EQ(b.count(), 3);
+		}
+
+		SUBCASE("reset_positions clears exactly the given bits") {
+			dyn64 b{~0ull, ~0ull};
+			b.reset_positions(std::array{0uz, 5uz, 127uz});
+			CHECK_FALSE(b.test(0));
+			CHECK_FALSE(b.test(5));
+			CHECK_FALSE(b.test(127));
+			CHECK_EQ(b.count(), 128 - 3);
+		}
 	}
 }
