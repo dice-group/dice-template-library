@@ -136,6 +136,10 @@ namespace dice::template_library {
                     backing_bitset_->set(calc_global_idx(seg, off), b);
                     return *this;
                 }
+
+                [[nodiscard]] size_t ix() const noexcept {
+                    return calc_global_idx(seg, off);
+                }
             };
 
             using iterator_category = std::random_access_iterator_tag;
@@ -317,6 +321,7 @@ namespace dice::template_library {
             bitset_iterator<is_const> it_;
             bitset_pointer backing_bitset_ = nullptr;
 
+            ///> add bool to allow setting a start point, without skipping the initial offset
             void seek(bool include_current) noexcept {
                 auto offset  = (*it_).off;
                 auto segment = it_.get();

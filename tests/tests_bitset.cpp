@@ -5,6 +5,8 @@
 
 #include <array>
 #include <cstdint>
+#include <iterator>
+#include <ranges>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -1003,7 +1005,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.seg * 64 + pos.off, expected[i]);
+				CHECK_EQ(pos.ix(), expected[i]);
 				CHECK(static_cast<bool>(pos));
 				++i;
 			}
@@ -1017,7 +1019,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.seg * 64 + pos.off, expected[i]);
+				CHECK_EQ(pos.ix(), expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1037,7 +1039,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.seg * 128 + pos.off, expected[i]);
+				CHECK_EQ(pos.ix(), expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1059,6 +1061,193 @@ TEST_SUITE("bitset") {
 			CHECK_FALSE(b.test(5));
 			CHECK_FALSE(b.test(127));
 			CHECK_EQ(b.count(), 128 - 3);
+		}
+	}
+
+	TEST_CASE("position_iterator behavior") {
+		SUBCASE("satisfies std::input_iterator and positions() satisfies std::ranges::input_range") {
+			// compile-time only: if these ever regress, this is where it should surface, rather
+			// than as a cryptic "no viable constructor/deduction guide" deep inside <ranges>.
+			static_assert(std::input_iterator<dyn64::positional_iterator>);
+			static_assert(std::input_iterator<dyn64::const_positional_iterator>);
+			static_assert(std::sentinel_for<std::default_sentinel_t, dyn64::positional_iterator>);
+			static_assert(std::sentinel_for<std::default_sentinel_t, dyn64::const_positional_iterator>);
+			static_assert(std::ranges::input_range<decltype(std::declval<dyn64 const&>().positions())>);
+			CHECK(true);
+		}
+
+		SUBCASE("empty bitset: pbegin() equals pend() immediately") {
+			dyn64 b{};
+			CHECK(b.pbegin() == b.pend());
+			CHECK(b.pend() == b.pbegin());
+		}
+
+		SUBCASE("pbegin()/pend() walked directly (without positions()) on a non-const bitset") {
+			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set
+			std::array<size_t, 4> const expected{0, 2, 4, 64};
+
+			size_t i = 0;
+			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ((*it).ix(), expected[i]);
+				CHECK(static_cast<bool>(*it));
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("pbegin()/pend() on a const bitset yield a const_positional_iterator") {
+			dyn64 const b{0b10101, 0b1};
+			static_assert(std::is_same_v<decltype(b.pbegin()), dyn64::const_positional_iterator>);
+
+			std::array<size_t, 4> const expected{0, 2, 4, 64};
+			size_t i = 0;
+			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ((*it).ix(), expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("postfix increment returns the pre-increment position; prefix returns *this by reference") {
+			dyn64 b{0b101}; // bits 0 and 2 set
+			auto it = b.pbegin();
+
+			auto const before = it++;
+			CHECK_EQ((*before).ix(), 0);
+			CHECK_EQ((*it).ix(), 2);
+
+			auto &ref = ++it;
+			CHECK_EQ(&ref, &it); // weakly_incrementable requires "{ ++i } -> same_as<I&>"
+			CHECK(it == b.pend());
+		}
+
+		SUBCASE("copies are independent") {
+			dyn64 b{0b101}; // bits 0 and 2 set
+			auto it1 = b.pbegin();
+			auto it2 = it1;
+			++it1;
+
+			CHECK(it1 != it2);
+			CHECK_EQ((*it2).ix(), 0);
+			CHECK_EQ((*it1).ix(), 2);
+
+			it2 = it1;
+			CHECK(it1 == it2);
+		}
+
+		SUBCASE("dereferencing yields the same writable proxy as the bit-mode iterator") {
+			dyn64 b{0b1};
+			auto it = b.pbegin();
+			CHECK(static_cast<bool>(*it));
+			*it = false;
+			CHECK_FALSE(b.test(0));
+		}
+
+		SUBCASE("multi-word (non-integral) segment type walked directly") {
+			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
+			wide_word w0{};
+			w0.lo = 0b101; // bits 0 and 2 of the low word
+			wide_word w1{};
+			w1.hi = 1; // bit 0 of the high word -> segment-local offset 64
+
+			wide_bitset b{w0, w1};
+			std::array<size_t, 3> const expected{0, 2, 128 + 64}; // 128 bits per wide_word segment
+
+			size_t i = 0;
+			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ((*it).ix(), expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("pbegin() skips forward when bit 0 of segment 0 is not actually set") {
+			dyn64 b{0b100}; // bit 2 set, bit 0 NOT set
+			auto it = b.pbegin();
+			CHECK(static_cast<bool>(*it));
+			CHECK_EQ((*it).ix(), 2);
+		}
+
+		SUBCASE("multiple jumps within one segment: bits at its beginning, middle and end") {
+			dyn64 b{(1ull << 0) | (1ull << 30) | (1ull << 63)};
+			std::array<size_t, 3> const expected{0, 30, 63};
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.ix(), expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("multiple jumps across several segments, interleaved with single-segment gaps") {
+			dyn64 b{
+				(1ull << 0) | (1ull << 30) | (1ull << 63), // segment 0: beginning, middle, end
+				0,                                          // segment 1: empty (single-segment gap)
+				(1ull << 0) | (1ull << 40),                 // segment 2: beginning, middle
+				0,                                          // segment 3: empty
+				0,                                          // segment 4: empty (two in a row -> larger jump)
+				(1ull << 63),                                // segment 5: only the last bit
+			};
+			std::array<size_t, 6> const expected{
+				0, 30, 63,               // segment 0
+				2 * 64 + 0, 2 * 64 + 40, // segment 2, after skipping segment 1
+				5 * 64 + 63,             // segment 5, after skipping segments 3 and 4
+			};
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.ix(), expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("large jump: several consecutive fully-zero segments between two set bits") {
+			dyn64 b{1ull, 0, 0, 0, 0, 0, (1ull << 5)}; // 5 empty segments in a row between the two bits
+			std::array<size_t, 2> const expected{0, 6 * 64 + 5};
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.ix(), expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("multi-word segment: beginning/middle/end of each word, crossing both a word and a segment boundary") {
+			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
+
+			wide_word w0{};
+			w0.lo = (1ull << 0) | (1ull << 32) | (1ull << 63); // low word: beginning, middle, end
+			w0.hi = (1ull << 0) | (1ull << 32) | (1ull << 63); // high word: beginning, middle, end
+
+			wide_word const empty1{};
+			wide_word const empty2{}; // two consecutive empty segments -> large jump for the multi-word case too
+
+			wide_word w3{};
+			w3.hi = (1ull << 63); // only the very last bit of the segment
+
+			wide_bitset b{w0, empty1, empty2, w3};
+			std::array<size_t, 7> const expected{
+				0, 32, 63,     // segment 0, low word: beginning, middle, end
+				64, 96, 127,   // segment 0, high word: beginning, middle, end (64 crosses the word boundary)
+				3 * 128 + 127, // segment 3, after skipping segments 1 and 2 entirely
+			};
+
+			size_t i = 0;
+			for (auto pos : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				CHECK_EQ(pos.ix(), expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
 		}
 	}
 }
