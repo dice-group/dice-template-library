@@ -109,7 +109,7 @@ namespace dice::template_library {
 
             segment       cur_segment_{};
             offset        cur_offset_{};
-            bitset_pointer const backing_bitset_;
+            bitset_pointer backing_bitset_;
 
         public:
             ///> proxy for the current bit position
@@ -1235,6 +1235,10 @@ namespace dice::template_library {
             return it.template operator++<bitset_mode::SegmentMode>();
         }
 
+        static const_iterator advance_segment(const_iterator it) {
+            return it.template operator++<bitset_mode::SegmentMode>();
+        }
+
         /**
          * Returns updated iterator advanced by skip segments
          *
@@ -1243,6 +1247,10 @@ namespace dice::template_library {
          * @return iterator advanced by skip segments
          */
         static iterator advance_segment(iterator it, size_t const skip) {
+            return it.template operator+=<bitset_mode::SegmentMode>(skip);
+        }
+
+        static const_iterator advance_segment(const_iterator it, size_t const skip) {
             return it.template operator+=<bitset_mode::SegmentMode>(skip);
         }
 
@@ -1256,6 +1264,10 @@ namespace dice::template_library {
             return it.template operator--<bitset_mode::SegmentMode>();
         }
 
+        static const_iterator advance_segment_backwards(const_iterator it) {
+            return it.template operator--<bitset_mode::SegmentMode>();
+        }
+
         /**
          * Returns updated iterator advanced backward by skip segment
          *
@@ -1264,6 +1276,10 @@ namespace dice::template_library {
          * @return iterator advanced backwards by skip segments
          */
         static iterator advance_segment_backwards(iterator it, size_t const skip) {
+            return it.template operator-=<bitset_mode::SegmentMode>(skip);
+        }
+
+        static const_iterator advance_segment_backwards(const_iterator it, size_t const skip) {
             return it.template operator-=<bitset_mode::SegmentMode>(skip);
         }
 
@@ -1376,8 +1392,8 @@ namespace dice::template_library {
     };
 }
 
-template<typename T, size_t extent, size_t max_extent>
-struct std::formatter<dice::template_library::bitset<extent, max_extent, T>> {
+template<typename T, size_t extent_, size_t max_extent_>
+struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
     bool hex = false;
     bool debug = false;
     bool binary = false;
@@ -1405,7 +1421,7 @@ struct std::formatter<dice::template_library::bitset<extent, max_extent, T>> {
         return it;
     }
 
-    auto format(dice::template_library::bitset<extent, max_extent, T> const& storage, std::format_context& ctx) const {
+    auto format(dice::template_library::bitset<extent_, max_extent_, T> const& storage, std::format_context& ctx) const {
         auto it = storage.begin();
         auto end = storage.end();
         auto segments = storage.size();
