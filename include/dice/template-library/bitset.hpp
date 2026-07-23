@@ -919,11 +919,11 @@ namespace dice::template_library {
 
         void set_all() requires(!has_dynamic_extent) {
             if constexpr (std::integral<value_type>) {
-                std::fill(inner_.begin(), inner_.end(), 0x01);
+                std::fill(inner_.begin(), inner_.end(), static_cast<value_type>(~value_type{0}));
             }
             else {
                 for (auto &segment : inner_) {
-                    slot_handler(segment, 0x01);
+                    slot_handler(segment, static_cast<storage_word>(~storage_word{0}));
                 }
             }
         }
