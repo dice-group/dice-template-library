@@ -26,7 +26,7 @@ TEST_SUITE("bitset") {
 
 	using dyn64 = bitset<dynamic_extent, dynamic_extent>;
 	using dyn8 = bitset<std::dynamic_extent, dynamic_extent, uint8_t>;
-	using bounded64 = bitset<dynamic_extent, 4>; // capacity: 4 segments = 256 bits
+	using bounded64 = bitset<dynamic_extent, 4 * 64>; // capacity: 4 segments = 256 bits (2nd param is now a bit count)
 
 	// segment_size_in_bits/storage_size_in_bits etc. are implementation details and are private,
 	// so shape constants that used to come straight from the class are now hardcoded/derived here
@@ -178,7 +178,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("fully static capacity (extent == segments)") {
-		using fixed64 = bitset<4, 4>;
+		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
 		constexpr size_t fixed64_capacity_bits = 4 * 64;
 
 		SUBCASE("initializer list must match extent exactly") {
@@ -665,7 +665,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("fixed and bounded capacity - equality, bitwise ops and shifts") {
-		using fixed64 = bitset<4, 4>;
+		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
 
 		SUBCASE("fully static capacity supports equality and bitwise combination") {
 			fixed64 a{0b1100, 0, 0, 0};
@@ -903,7 +903,7 @@ TEST_SUITE("bitset") {
 	TEST_CASE("set_all / reset_all (fully static capacity only)") {
 		// set_all()/reset_all() require !has_dynamic_extent, i.e. extent == segments - neither
 		// dyn8/dyn64 (fully dynamic) nor bounded64 (dynamic size, bounded capacity) qualify.
-		using fixed64 = bitset<4, 4>;
+		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
 		constexpr size_t fixed64_capacity_bits = 4 * 64;
 
 		SUBCASE("set_all sets every bit") {
@@ -921,7 +921,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("set_all on a multi-word segment type sets every bit in every word") {
-			using fixed_wide = bitset<2, 2, wide_word>;
+			using fixed_wide = bitset<2, 2 * 128, wide_word>; // extent stays in segments; 2nd param is now a bit count
 			constexpr size_t fixed_wide_capacity_bits = 2 * 128;
 
 			fixed_wide b{wide_word{}, wide_word{}};
@@ -931,7 +931,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("reset_all on a multi-word segment type clears every bit in every word") {
-			using fixed_wide = bitset<2, 2, wide_word>;
+			using fixed_wide = bitset<2, 2 * 128, wide_word>; // extent stays in segments; 2nd param is now a bit count
 			wide_word full{};
 			full.lo = ~0ull;
 			full.hi = ~0ull;
@@ -1248,6 +1248,58 @@ TEST_SUITE("bitset") {
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
+		}
+	}
+
+	TEST_CASE("bit count that isn't a multiple of the segment width rounds up to a whole segment") {
+		// the 2nd template parameter is a bit count; internally it's converted to a segment count via
+		// ceil(bits / segment_size_in_bits). These use bit counts that deliberately don't divide evenly
+		// by the segment width, to verify the *actual* capacity is rounded up to cover them, not
+		// truncated down to fewer segments and not left as some other unrelated fixed value.
+
+		SUBCASE("bounded (dynamic size, capped) capacity: uint64_t segments") {
+			// 200 bits doesn't divide evenly by 64 -> needs ceil(200/64) = 4 segments = 256 bits capacity
+			using bounded_odd = bitset<dynamic_extent, 200>;
+			constexpr size_t expected_capacity_bits = 4 * 64;
+
+			bounded_odd b{};
+			CHECK_NOTHROW(b.set(expected_capacity_bits - 1)); // last bit of the 4th (rounded-up) segment
+			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits); // grew to a whole segment, not just to 200 bits
+			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range); // truly out of capacity
+		}
+
+		SUBCASE("fully static capacity: uint64_t segments") {
+			// extent must equal the segment count derived from bits (4) for the fully-static flex_array
+			// specialization to apply; using 200 (not 256) here is what actually exercises the rounding
+			using fixed_odd = bitset<4, 200>;
+			constexpr size_t expected_capacity_bits = 4 * 64;
+
+			fixed_odd b{0, 0, 0, 0};
+			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
+			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
+		}
+
+		SUBCASE("bounded capacity: narrow (uint8_t) segments") {
+			// 20 bits doesn't divide evenly by 8 -> needs ceil(20/8) = 3 segments = 24 bits capacity
+			using bounded_odd8 = bitset<dynamic_extent, 20, uint8_t>;
+			constexpr size_t expected_capacity_bits = 3 * 8;
+
+			bounded_odd8 b{};
+			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
+			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits);
+			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
+		}
+
+		SUBCASE("bounded capacity: multi-word (non-integral) segments") {
+			// wide_word segments are 128 bits wide; 130 bits doesn't divide evenly -> ceil(130/128) = 2
+			// segments = 256 bits capacity
+			using bounded_odd_wide = bitset<dynamic_extent, 130, wide_word>;
+			constexpr size_t expected_capacity_bits = 2 * 128;
+
+			bounded_odd_wide b{};
+			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
+			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits);
+			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
 		}
 	}
 }
