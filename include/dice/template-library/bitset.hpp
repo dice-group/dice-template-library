@@ -326,21 +326,65 @@ namespace dice::template_library {
                 auto segment = it_.get();
 
                 if constexpr (std::integral<value_type>) {
-                    if (segment == 0x00) {
-                        it_ += inner_size_in_bits();
-                    }
-                    else {
-                        it_ += offset + std::countl_zero(segment >> (offset + 1));
+                    auto skip = offset + 1;
+
+                    while (true) {
+                        value_type const shifted = (skip >= inner_size_in_bits())
+                            ? value_type{0}
+                            : static_cast<value_type>(segment >> skip);
+
+                        if (shifted != 0x00) {
+                            it_ += (skip + std::countr_zero(shifted)) - offset;
+                            break;
+                        }
+
+                        it_ += inner_size_in_bits() - offset;
+                        if (it_ == std::default_sentinel) {
+                            break;
+                        }
+
+                        offset = 0;
+                        skip = 0;
+                        segment = it_.get();
                     }
                 }
                 else {
-                    auto [word, _] = backing_bitset_->segment_slots(segment);
-                    for (auto i{0uz}; i < segment_steps; ++i) {
-                        if (word[i] == 0x00) {
-                            continue;
+                    constexpr size_t word_bits = sizeof(storage_word) * 8;
+                    auto word_ix   = offset / word_bits;
+                    auto word_skip = (offset % word_bits) + 1;
+
+                    while (true) {
+                        auto [word, _] = backing_bitset_->segment_slots(segment);
+                        bool found = false;
+
+                        for (auto i{word_ix}; i < segment_steps; ++i) {
+                            auto const skip = (i == word_ix) ? word_skip : 0uz;
+                            storage_word const shifted = (skip >= word_bits)
+                                ? storage_word{0}
+                                : static_cast<storage_word>(word[i] >> skip);
+
+                            if (shifted == 0x00) {
+                                continue;
+                            }
+
+                            it_ += (i * word_bits + skip + std::countr_zero(shifted)) - offset;
+                            found = true;
+                            break;
                         }
-                        it_ += i * (sizeof(storage_word) * 8) + offset + std::countl_zero(segment >> (offset + 1));
-                        break;
+
+                        if (found) {
+                            break;
+                        }
+
+                        it_ += inner_size_in_bits() - offset;
+                        if (it_ == std::default_sentinel) {
+                            break;
+                        }
+
+                        offset = 0;
+                        word_ix = 0;
+                        word_skip = 0;
+                        segment = it_.get();
                     }
                 }
                 return *this;
@@ -1255,8 +1299,8 @@ namespace dice::template_library {
             return positional_iterator{*this};
         }
 
-        constexpr positional_iterator pbegin() const noexcept {
-            return positional_iterator{*this};
+        constexpr const_positional_iterator pbegin() const noexcept {
+            return const_positional_iterator{*this};
         }
 
         constexpr std::default_sentinel_t pend() const noexcept {
