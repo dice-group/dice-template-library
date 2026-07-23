@@ -45,25 +45,32 @@ namespace dice::template_library {
      * - Queries: any_set(), none_set(), etc.
      * - Standard bit operations
      * - Iteration at bit and segment granularity
+     * - Positional Iteration
      *
-     * The segment type isn't restricted to integral types — a custom type
-     * can be used as the internal segment representation.
+     * The storage type isn't restricted to integral types — a custom type
+     * can be used as the internal storage representation.
      *
      * Examples:
      *
      * // Dynamic: grows automatically as needed
-     * bitset<std::uint8_t, std::dynamic_extent, std::dynamic_extent> b{0x12, 0x13, 0x14};
+     * bitset<std::dynamic_extent, std::dynamic_extent, std::uint8_t> b{0x12, 0x13, 0x14};
      * b.set(4000uz);
      *
      * // Static: resizes within a fixed capacity, no growth
-     * bitset<std::uint8_t, std::dynamic_extent, 10> b{0x12, 0x13, 0x14};
+     * bitset<std::dynamic_extent, 10, std::uint8_t> b{0x12, 0x13, 0x14};
      * b.set(42uz);
      *
      * // Fixed: fixed size and storage
-     * bitset<std::uint8_t, 10, 10> b{0x12, 0x13, 0x14};
+     * bitset<10, 10, std::uint8_t> b{0x12, 0x13, 0x14};
      * b.set(42uz);
      *
-     * @tparam T value type : any type is allowed as representation of the segment itself
+     * // Default type: (Dynamic)
+     * bitset<std::dynamic_extent, std::dynamic_extent> ...
+     *
+     * // Default type: (Static)
+     * bitset<10, 10> ...
+     *
+     * @tparam T value type : any type is allowed as representation of the underlying storage
      * @tparam extent extent of the bitset
      * @tparam bits minimal bits for the underlying bitset : use dynamic_extent to uncap limit
      */
