@@ -11,20 +11,12 @@
 
 namespace dice::template_library {
     /**
-     * The underlying mode to iterate over the storage
-     * Used within the **bitset_iterator**
-     */
-
-    /**
-     * A multi-type bitset supporting both dynamic and static growth.
+     * A bitset supporting both dynamic and static growth.
      * - Core operations: set(), test(), flip(), etc.
      * - Queries: any_set(), none_set(), etc.
      * - Standard bit operations
      * - Iteration at bit and segment granularity
      * - Positional Iteration
-     *
-     * The storage type isn't restricted to integral types — a custom type
-     * can be used as the internal storage representation.
      *
      * Examples:
      *
@@ -47,19 +39,19 @@ namespace dice::template_library {
      * bitset<10, 10> ...
      *
      * @tparam T value type : any type is allowed as representation of the underlying storage
-     * @tparam extent extent of the bitset
-     * @tparam bits minimal bits for the underlying bitset : use dynamic_extent to uncap limit
+     * @tparam bits extent of the bitset
+     * @tparam max_bits minimal bits for the underlying bitset : use dynamic_extent to uncap limit
      */
-    template<size_t extent, size_t bits, typename T = uint64_t>
+    template<size_t bits, size_t max_bits, typename T = uint64_t>
     requires std::unsigned_integral<T>
     struct bitset {
     private:
         static constexpr size_t segment_size = sizeof(T);
         static constexpr size_t segment_size_in_bits = segment_size * 8;
 
-        static constexpr size_t segments = bits != dynamic_extent ? (bits + segment_size_in_bits - 1) / segment_size_in_bits : dynamic_extent;
+        static constexpr size_t segments = max_bits != dynamic_extent ? (max_bits + segment_size_in_bits - 1) / segment_size_in_bits : dynamic_extent;
 
-        using storage   = flex_array<T, extent, segments>;
+        using storage   = flex_array<T, bits, segments>;
         using global_ix = size_t;
         using segment   = size_t;
         using offset    = size_t;
@@ -1208,19 +1200,9 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
         while (it != end) {
             *out++ = '[';
             if (hex) {
-                auto const seg_end = storage.advance_segment(it);
                 auto const& segment = it.get();
-                if constexpr (std::integral<T>) {
-                   out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
-                }
-                else {
-                    auto [word, word_end] = storage.segment_slots(segment);
-
-                    for (; word != word_end; ++word) {
-                        out = std::format_to(out, "{:#0{}x}", *word, sizeof(*word) * 2);
-                    }
-                }
-                it = seg_end;
+                out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
+                it = storage.advance_segment(it);
             }
             else if (binary) {
                 auto const seg_end = storage.advance_segment(it);
