@@ -10,30 +10,6 @@
 #include <ranges>
 
 namespace dice::template_library {
-
-    ///> operation markers
-    struct bit_and_op{};
-    struct add_op{};
-    struct bit_or_op{};
-
-    /**
-     * merge functor: merging the results of two expressions together
-     */
-    template<typename Tp>
-    struct merge_functor {
-        Tp operator()(add_op, Tp const v1, Tp const v2) const noexcept {
-            return v1 + v2;
-        };
-
-        Tp operator()(bit_and_op, Tp const v1, Tp const v2) const noexcept {
-            return v1 & v2;
-        };
-
-        Tp operator()(bit_or_op, Tp const v1, Tp const v2) const noexcept {
-            return v1 | v2;
-        };
-    };
-
     /**
      * The underlying mode to iterate over the storage
      * Used within the **bitset_iterator**
@@ -544,13 +520,13 @@ namespace dice::template_library {
             return std::popcount(segment);
         }
 
-        template<typename F, typename M, typename Tp, typename Ops>
+        template<typename F, typename M, typename Tp>
         requires std::is_same_v<std::invoke_result_t<F, const_reference>, Tp> &&
-            std::invocable<M, Ops, Tp, Tp>
-        [[nodiscard]] Tp segment_handler(F &&handler, M &&merge, Tp initial, Ops ops=add_op{}) const {
+            std::invocable<M, Tp, Tp>
+        [[nodiscard]] Tp segment_handler(F &&handler, M &&merge, Tp initial) const {
             Tp merge_val{initial};
             for (auto const &segment : inner_) {
-                merge_val = std::invoke(std::forward<M>(merge), ops, merge_val,
+                merge_val = std::invoke(std::forward<M>(merge), merge_val,
                     std::invoke(std::forward<F>(handler), segment));
             }
 
@@ -634,8 +610,8 @@ namespace dice::template_library {
             return true;
         }
 
-        template<typename F, typename Pr, typename M, typename Tp, typename Ops>
-        Tp segment_handler(F &&handler, Pr &&pred, M &&merge, Tp initial, Ops ops=add_op{}) const {
+        template<typename F, typename Pr, typename M, typename Tp>
+        Tp segment_handler(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
             auto self_it = begin();
             auto end_sentinel = end();
 
@@ -643,7 +619,7 @@ namespace dice::template_library {
 
             while (self_it != end_sentinel) {
                 Tp const val = std::invoke(std::forward<F>(handler), self_it.get());
-                merge_val = std::invoke(std::forward<M>(merge), ops, merge_val, val);
+                merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
@@ -652,8 +628,8 @@ namespace dice::template_library {
             return merge_val;
         }
 
-        template<typename F, typename Pr, typename M, typename Tp, typename Ops>
-        Tp segment_handler_backwards(F &&handler, Pr &&pred, M &&merge, Tp initial, Ops ops=add_op{}) const {
+        template<typename F, typename Pr, typename M, typename Tp>
+        Tp segment_handler_backwards(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
             auto self_it = begin() + size_in_bits();
             auto end_it = begin();
 
@@ -661,7 +637,7 @@ namespace dice::template_library {
 
             while (self_it != end_it) {
                 Tp const val = std::invoke(std::forward<F>(handler), (self_it-1).get());
-                merge_val = std::invoke(std::forward<M>(merge), ops, merge_val, val);
+                merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
@@ -847,7 +823,7 @@ namespace dice::template_library {
         [[nodiscard]] size_t count() const {
             return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_count, segment);
-            }, merge_functor<size_t>{}, 0uz, add_op{});
+            }, std::plus<size_t>{}, 0uz);
         }
 
         /**
@@ -897,7 +873,7 @@ namespace dice::template_library {
                 return bitset_op_cntl(&bitset::segment_countr_zero, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
-            }, merge_functor<size_t>{}, 0, add_op{});
+            }, std::plus<size_t>{}, 0uz);
         }
 
         /**
@@ -910,7 +886,7 @@ namespace dice::template_library {
                 return bitset_op_cntl(&bitset::segment_countl_zero, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
-            }, merge_functor<size_t>{}, 0, add_op{});
+            }, std::plus<size_t>{}, 0uz);
         }
 
         /**
@@ -923,7 +899,7 @@ namespace dice::template_library {
                 return bitset_op_cntl(&bitset::segment_countr_one, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
-            }, merge_functor<size_t>{}, 0, add_op{});
+            }, std::plus<size_t>{}, 0uz);
         }
 
         /**
@@ -936,7 +912,7 @@ namespace dice::template_library {
                 return bitset_op_cntl(&bitset::segment_countl_one, segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
-            }, merge_functor<size_t>{}, 0, add_op{});
+            }, std::plus<size_t>{}, 0uz);
         }
 
         /**
@@ -960,7 +936,7 @@ namespace dice::template_library {
         [[nodiscard]] bool any_set() const {
             return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(&bitset::segment_any_set, segment);
-            }, merge_functor<bool>{}, false, bit_or_op{});
+            }, std::bit_or<bool>{}, false);
         }
 
         /**
@@ -973,7 +949,7 @@ namespace dice::template_library {
                 return bitset_op_cntl(&bitset::segment_none_set, segment);
             }, [](bool const val) {
                 return val;
-            }, merge_functor<bool>{}, true, bit_and_op{});
+            }, std::bit_and<bool>{}, true);
         }
 
         /**
