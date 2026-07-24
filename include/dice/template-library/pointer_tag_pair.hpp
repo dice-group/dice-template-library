@@ -77,7 +77,7 @@ namespace dice::template_library {
         }
 
         template<taggable_pointee T, taggable_pointer_tag Tag, unsigned LowBitsRequested, unsigned HighBitsRequested>
-        [[nodiscard]] uintptr_t encode(T *ptr, Tag tag) {
+        [[nodiscard]] uintptr_t encode(T *ptr, Tag tag) noexcept {
             assert(std::bit_width(static_cast<uintptr_t>(tag)) <= LowBitsRequested + HighBitsRequested);
             assert((reinterpret_cast<uintptr_t>(ptr) & ~pointer_mask<LowBitsRequested, HighBitsRequested>()) == 0);
 
@@ -97,12 +97,12 @@ namespace dice::template_library {
          * @warning This only works in user space because we zero bits of sign-extension-bits/translation-regimen-selector; in kernel space we would need to set those bits to 1.
          */
         template<taggable_pointee T, unsigned LowBitsRequested, unsigned HighBitsRequested>
-        [[nodiscard]] T *decode_pointer(uintptr_t tagged_ptr) {
+        [[nodiscard]] T *decode_pointer(uintptr_t tagged_ptr) noexcept {
             return reinterpret_cast<T *>(tagged_ptr & pointer_mask<LowBitsRequested, HighBitsRequested>());
         }
 
         template<taggable_pointer_tag Tag, unsigned LowBitsRequested, unsigned HighBitsRequested>
-        [[nodiscard]] Tag decode_tag(uintptr_t tagged_ptr) {
+        [[nodiscard]] Tag decode_tag(uintptr_t tagged_ptr) noexcept {
             auto const low_tag = tagged_ptr & make_low_mask<LowBitsRequested>();
 
             if constexpr (HighBitsRequested == 0) {
