@@ -300,6 +300,10 @@ namespace dice::template_library {
                 return tmp;
             }
 
+            difference_type operator-(bitset_iterator const& other) const noexcept {
+                return (**this).ix() - (*other).ix();
+            }
+
             [[nodiscard]] T const& get() const noexcept {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
