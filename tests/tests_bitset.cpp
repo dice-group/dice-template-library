@@ -11,16 +11,6 @@
 #include <type_traits>
 #include <utility>
 
-namespace {
-	// non-integral, multi-word segment type (two 64-bit words per segment) used to exercise the
-	// code paths that only trigger for T where alignof(T) < sizeof(T), e.g. segment_slots /
-	// slot_handler / get_chunk_raw, alongside the plain-integral segment tests below.
-	struct wide_word {
-		std::uint64_t lo{};
-		std::uint64_t hi{};
-	};
-} // namespace
-
 TEST_SUITE("bitset") {
 	using namespace dice::template_library;
 
@@ -755,105 +745,6 @@ TEST_SUITE("bitset") {
 		}
 	}
 
-	TEST_CASE("multi-word (non-integral) segment type") {
-		using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
-
-		SUBCASE("single-bit addressing within a multi-word segment") {
-			// bit 10 belongs to the low 64-bit word of the segment and must read back as set.
-			// (chosen small enough that a wrong chunk computation still lands in-bounds instead
-			// of reading/writing past the segment.)
-			wide_word w{};
-			w.lo = 1ull << 10;
-
-			wide_bitset b{w};
-			CHECK(b.test(10));
-		}
-
-		SUBCASE("count / countr_zero span both 64-bit words") {
-			wide_word w{};
-			w.lo = 0b1011;                // 3 bits set in the low word
-			w.hi = 0x8000000000000000ull; // top bit of the high word set
-
-			wide_bitset b{w};
-			CHECK_EQ(b.count(), 4);
-			CHECK_EQ(b.countr_zero(), 0); // bit 0 of the low word is already set
-		}
-
-		SUBCASE("segment_free based queries (any_set / none_set)") {
-			wide_bitset empty_b{wide_word{}};
-			CHECK(empty_b.none_set());
-			CHECK_FALSE(empty_b.any_set());
-
-			wide_word w{};
-			w.hi = 1; // only bit 64 set
-			wide_bitset b{w};
-			CHECK(b.any_set());
-			CHECK_FALSE(b.none_set());
-		}
-
-		SUBCASE("bit counting spans multiple multi-word segments") {
-			// segment 0 (lowest) is fully set, segment 1 (highest) is fully zero - mirrors the
-			// "bit counting across multiple segments" integral tests, but for a segment type
-			// wide enough to need segment_slots/slot_handler internally.
-			wide_word full{};
-			full.lo = ~0ull;
-			full.hi = ~0ull;
-			wide_word zero{};
-
-			wide_bitset b{full, zero};
-			CHECK_FALSE(b.all_set());
-			CHECK_EQ(b.countr_one(), 128);
-			CHECK_EQ(b.countl_zero(), 128);
-			CHECK_EQ(b.countl_one(), 0);
-
-			wide_bitset all_full{full, full};
-			CHECK(all_full.all_set());
-		}
-
-		SUBCASE("operator&= / operator|= / operator== on multi-word segments") {
-			wide_word a_word{};
-			a_word.lo = 0b1100;
-			wide_word b_word{};
-			b_word.lo = 0b1010;
-
-			wide_bitset a{a_word};
-			wide_bitset b{b_word};
-
-			auto const conjunction = a & b;
-			CHECK_EQ(conjunction.count(), 1);
-			auto const disjunction = a | b;
-			CHECK_EQ(disjunction.count(), 3);
-
-			CHECK(a == a);
-			CHECK_FALSE(a == b);
-
-			a &= b;
-			CHECK(a == conjunction);
-		}
-
-		SUBCASE("segment_slots exposes every word making up one segment") {
-			wide_word w{};
-			w.lo = 5;
-			w.hi = 9;
-
-			wide_bitset b{w};
-			auto it = b.begin();
-			auto [word, end] = b.segment_slots(it.get());
-			CHECK_EQ(std::distance(word, end), 2); // wide_word packs two 64-bit words per segment
-			CHECK_EQ(*word, 5);
-			CHECK_EQ(*(word + 1), 9);
-		}
-
-		SUBCASE("formatting does not throw for a multi-word segment type") {
-			wide_word w{};
-			w.lo = 0x1234;
-			w.hi = 0x5678;
-			wide_bitset b{w};
-			std::string s;
-			CHECK_NOTHROW(s = std::format("{:x}", b));
-			CHECK_NOTHROW(s = std::format("{:?x}", b));
-		}
-	}
 
 	TEST_CASE("integral segment width coverage") {
 		// verifies storage_word selection (and the derived set/test/count/countr_zero paths)
@@ -880,12 +771,6 @@ TEST_SUITE("bitset") {
 		SUBCASE("uint32_t segments") {
 			check_widths.operator()<std::uint32_t>();
 		}
-
-#ifdef __SIZEOF_INT128__
-		SUBCASE("__uint128_t segments") {
-			check_widths.operator()<__uint128_t>();
-		}
-#endif
 	}
 
 	TEST_CASE("set with an explicit high/low state") {
@@ -920,27 +805,6 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(b.count(), 0);
 		}
 
-		SUBCASE("set_all on a multi-word segment type sets every bit in every word") {
-			using fixed_wide = bitset<2, 2 * 128, wide_word>; // extent stays in segments; 2nd param is now a bit count
-			constexpr size_t fixed_wide_capacity_bits = 2 * 128;
-
-			fixed_wide b{wide_word{}, wide_word{}};
-			b.set_all();
-			CHECK(b.all_set());
-			CHECK_EQ(b.count(), fixed_wide_capacity_bits);
-		}
-
-		SUBCASE("reset_all on a multi-word segment type clears every bit in every word") {
-			using fixed_wide = bitset<2, 2 * 128, wide_word>; // extent stays in segments; 2nd param is now a bit count
-			wide_word full{};
-			full.lo = ~0ull;
-			full.hi = ~0ull;
-
-			fixed_wide b{full, full};
-			b.reset_all();
-			CHECK(b.none_set());
-			CHECK_EQ(b.count(), 0);
-		}
 	}
 
 	TEST_CASE("shrink_to_fit") {
@@ -978,23 +842,6 @@ TEST_SUITE("bitset") {
 			REQUIRE_EQ(b.size_in_bits(), bounded64_segment_bits);
 			CHECK_EQ(b.count(), 64);
 		}
-
-		SUBCASE("multi-word (non-integral) segment type") {
-			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
-
-			wide_word full{};
-			full.lo = ~0ull;
-			full.hi = ~0ull;
-
-			wide_word partial{};
-			partial.lo = ~0ull;
-			partial.hi = 0x0Full; // not fully set -> gets dropped by shrink_to_fit
-
-			wide_bitset b{full, partial};
-			b.shrink_to_fit();
-			REQUIRE_EQ(b.size_in_bits(), 128);
-			CHECK(b.all_set());
-		}
 	}
 
 	TEST_CASE("positions / set_positions / reset_positions") {
@@ -1015,26 +862,6 @@ TEST_SUITE("bitset") {
 		SUBCASE("positions() correctly skips across multiple fully-zero segments") {
 			dyn64 b{0b1, 0, 0, 0b1}; // segment 0 and segment 3 each have bit 0 set, 1-2 are empty
 			std::array<size_t, 2> const expected{0, 3 * 64};
-
-			size_t i = 0;
-			for (auto pos : b.positions()) {
-				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
-				++i;
-			}
-			CHECK_EQ(i, expected.size());
-		}
-
-		SUBCASE("positions() spans both words of a multi-word segment type") {
-			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
-
-			wide_word w0{};
-			w0.lo = 0b101; // bits 0 and 2 of the low word
-			wide_word w1{};
-			w1.hi = 1; // bit 0 of the high word -> segment-local offset 64
-
-			wide_bitset b{w0, w1};
-			std::array<size_t, 3> const expected{0, 2, 128 + 64}; // 128 bits per wide_word segment
 
 			size_t i = 0;
 			for (auto pos : b.positions()) {
@@ -1145,25 +972,6 @@ TEST_SUITE("bitset") {
 			CHECK_FALSE(b.test(0));
 		}
 
-		SUBCASE("multi-word (non-integral) segment type walked directly") {
-			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
-			wide_word w0{};
-			w0.lo = 0b101; // bits 0 and 2 of the low word
-			wide_word w1{};
-			w1.hi = 1; // bit 0 of the high word -> segment-local offset 64
-
-			wide_bitset b{w0, w1};
-			std::array<size_t, 3> const expected{0, 2, 128 + 64}; // 128 bits per wide_word segment
-
-			size_t i = 0;
-			for (auto it = b.pbegin(); it != b.pend(); ++it) {
-				REQUIRE_LT(i, expected.size());
-				CHECK_EQ((*it).ix(), expected[i]);
-				++i;
-			}
-			CHECK_EQ(i, expected.size());
-		}
-
 		SUBCASE("pbegin() skips forward when bit 0 of segment 0 is not actually set") {
 			dyn64 b{0b100}; // bit 2 set, bit 0 NOT set
 			auto it = b.pbegin();
@@ -1220,35 +1028,6 @@ TEST_SUITE("bitset") {
 			}
 			CHECK_EQ(i, expected.size());
 		}
-
-		SUBCASE("multi-word segment: beginning/middle/end of each word, crossing both a word and a segment boundary") {
-			using wide_bitset = bitset<dynamic_extent, dynamic_extent, wide_word>;
-
-			wide_word w0{};
-			w0.lo = (1ull << 0) | (1ull << 32) | (1ull << 63); // low word: beginning, middle, end
-			w0.hi = (1ull << 0) | (1ull << 32) | (1ull << 63); // high word: beginning, middle, end
-
-			wide_word const empty1{};
-			wide_word const empty2{}; // two consecutive empty segments -> large jump for the multi-word case too
-
-			wide_word w3{};
-			w3.hi = (1ull << 63); // only the very last bit of the segment
-
-			wide_bitset b{w0, empty1, empty2, w3};
-			std::array<size_t, 7> const expected{
-				0, 32, 63,     // segment 0, low word: beginning, middle, end
-				64, 96, 127,   // segment 0, high word: beginning, middle, end (64 crosses the word boundary)
-				3 * 128 + 127, // segment 3, after skipping segments 1 and 2 entirely
-			};
-
-			size_t i = 0;
-			for (auto pos : b.positions()) {
-				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
-				++i;
-			}
-			CHECK_EQ(i, expected.size());
-		}
 	}
 
 	TEST_CASE("bit count that isn't a multiple of the segment width rounds up to a whole segment") {
@@ -1285,18 +1064,6 @@ TEST_SUITE("bitset") {
 			constexpr size_t expected_capacity_bits = 3 * 8;
 
 			bounded_odd8 b{};
-			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
-			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits);
-			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
-		}
-
-		SUBCASE("bounded capacity: multi-word (non-integral) segments") {
-			// wide_word segments are 128 bits wide; 130 bits doesn't divide evenly -> ceil(130/128) = 2
-			// segments = 256 bits capacity
-			using bounded_odd_wide = bitset<dynamic_extent, 130, wide_word>;
-			constexpr size_t expected_capacity_bits = 2 * 128;
-
-			bounded_odd_wide b{};
 			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
 			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits);
 			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
