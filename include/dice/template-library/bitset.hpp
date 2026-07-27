@@ -508,10 +508,6 @@ namespace dice::template_library {
             return *(inner_.data() + s) & 1uz << o;
         }
 
-        [[nodiscard]] size_t segment_count(const_reference segment) const noexcept {
-            return std::popcount(segment);
-        }
-
         template<typename F, typename M, typename Tp>
         requires std::is_same_v<std::invoke_result_t<F, const_reference>, Tp> &&
             std::invocable<M, Tp, Tp>
@@ -638,36 +634,16 @@ namespace dice::template_library {
             return merge_val;
         }
 
-        [[nodiscard]] size_t segment_free(const_reference segment) const {
-            return std::countr_zero(static_cast<value_type>(~segment));
-        }
-
-        [[nodiscard]] size_t segment_countl_zero(const_reference segment) const noexcept {
-            return std::countl_zero(segment);
-        }
-
-        [[nodiscard]] size_t segment_countr_zero(const_reference segment) const noexcept {
-            return std::countr_zero(segment);
-        }
-
-        [[nodiscard]] size_t segment_countl_one(const_reference segment) const noexcept {
-            return std::countl_one(segment);
-        }
-
-        [[nodiscard]] size_t segment_countr_one(const_reference segment) const noexcept {
-            return std::countr_one(segment);
-        }
-
         [[nodiscard]] bool segment_all_set(const_reference segment) const noexcept {
-            return segment_count(segment) == segment_size_in_bits;
+            return std::popcount(segment) == segment_size_in_bits;
         }
 
         [[nodiscard]] bool segment_any_set(const_reference segment) const noexcept {
-            return segment_count(segment) != 0;
+            return std::popcount(segment) != 0x00;
         }
 
         [[nodiscard]] bool segment_none_set(const_reference segment) const noexcept {
-            return segment_count(segment) == 0x00;
+            return std::popcount(segment) == 0x00;
         }
 
         template<typename F>
@@ -813,8 +789,8 @@ namespace dice::template_library {
          * @return total bits set
          */
         [[nodiscard]] size_t count() const {
-            return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_count, segment);
+            return segment_handler([](const_reference segment) -> size_t {
+                return std::popcount(segment);
             }, std::plus<size_t>{}, 0uz);
         }
 
@@ -825,7 +801,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] size_t set_first_free() {
             for (auto &segment : inner_) {
-                auto offset = bitset_op_cntl(&bitset::segment_free, segment);
+                auto offset = std::countr_zero(static_cast<value_type>(~segment));
 
                 if (offset != segment_size_in_bits) {
                     auto seg = std::distance(inner_.data(), &segment);
@@ -861,8 +837,8 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countr_zero() const {
-            return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_countr_zero, segment);
+            return segment_handler([](const_reference segment) {
+                return std::countr_zero(segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
             }, std::plus<size_t>{}, 0uz);
@@ -874,8 +850,8 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countl_zero() const {
-            return segment_handler_backwards([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_countl_zero, segment);
+            return segment_handler_backwards([](const_reference segment) {
+                return std::countl_zero(segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
             }, std::plus<size_t>{}, 0uz);
@@ -887,8 +863,8 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countr_one() const {
-            return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_countr_one, segment);
+            return segment_handler([](const_reference segment) {
+                return std::countr_one(segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
             }, std::plus<size_t>{}, 0uz);
@@ -900,8 +876,8 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countl_one() const {
-            return segment_handler_backwards([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_countl_one, segment);
+            return segment_handler_backwards([](const_reference segment) {
+                return std::countl_one(segment);
             }, [](size_t const val) {
                 return val == segment_size_in_bits;
             }, std::plus<size_t>{}, 0uz);
