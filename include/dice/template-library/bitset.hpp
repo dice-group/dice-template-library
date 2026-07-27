@@ -94,7 +94,7 @@ namespace dice::template_library {
                 offset  off;
 
                 reference(reference const&) = default;
-                reference const& operator=(reference const& other) const noexcept {
+                reference const& operator=(reference const &other) const noexcept {
                     return *this = static_cast<bool>(other);
                 }
 
@@ -121,10 +121,10 @@ namespace dice::template_library {
             using pointer           = void;
             using difference_type   = ptrdiff_t;
 
-            explicit bitset_iterator(std::conditional_t<is_const,bitset const&, bitset&> bitset) noexcept :
+            explicit bitset_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept :
                 backing_bitset_{&bitset} {}
 
-            explicit bitset_iterator(bitset &bitset, offset const& o) :
+            explicit bitset_iterator(bitset &bitset, offset const &o) :
                 backing_bitset_{&bitset}{
                 if (o >= segment_size_in_bits) {
                     throw std::out_of_range{"bitset_iterator: o >= segment_size"};
@@ -132,7 +132,7 @@ namespace dice::template_library {
                 cur_offset_ = o;
             }
 
-            explicit bitset_iterator(bitset &bitset, offset const& o, segment const& s) :
+            explicit bitset_iterator(bitset &bitset, offset const &o, segment const &s) :
                 backing_bitset_{&bitset}{
                 if (o >= segment_size_in_bits) {
                     throw std::out_of_range{"bitset_iterator: o >= segment_size"};
@@ -262,7 +262,7 @@ namespace dice::template_library {
                 return tmp;
             }
 
-            difference_type operator-(bitset_iterator const& other) const noexcept {
+            difference_type operator-(bitset_iterator const &other) const noexcept {
                 return (**this).ix() - (*other).ix();
             }
 
@@ -274,17 +274,17 @@ namespace dice::template_library {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
-            friend bool operator==(bitset_iterator const& lhs, bitset_iterator const& rhs){
+            friend bool operator==(bitset_iterator const &lhs, bitset_iterator const &rhs){
                 return lhs.backing_bitset_ == rhs.backing_bitset_ &&
                        lhs.cur_segment_ == rhs.cur_segment_ &&
                        lhs.cur_offset_ == rhs.cur_offset_;
             }
 
-            friend bool operator==(std::default_sentinel_t, bitset_iterator const& it) {
+            friend bool operator==(std::default_sentinel_t, bitset_iterator const &it) {
                 return it == std::default_sentinel;
             }
 
-            friend bool operator==(bitset_iterator const& it, std::default_sentinel_t) {
+            friend bool operator==(bitset_iterator const &it, std::default_sentinel_t) {
                 return it.cur_segment_ >= it.backing_bitset_->size();
             }
         };
@@ -355,15 +355,15 @@ namespace dice::template_library {
                 return *it_;
             }
 
-            friend bool operator==(position_iterator const& lhs, position_iterator const& rhs){
+            friend bool operator==(position_iterator const &lhs, position_iterator const &rhs){
                 return lhs.it_ == rhs.it_;
             }
 
-            friend bool operator==(std::default_sentinel_t, position_iterator const& it) {
+            friend bool operator==(std::default_sentinel_t, position_iterator const &it) {
                 return it == std::default_sentinel;
             }
 
-            friend bool operator==(position_iterator const& it, std::default_sentinel_t) {
+            friend bool operator==(position_iterator const &it, std::default_sentinel_t) {
                 return it.it_ == std::default_sentinel;
             }
         };
@@ -526,7 +526,7 @@ namespace dice::template_library {
         }
 
         template<typename Ops>
-        void segment_handler(bitset const& other) {
+        void segment_handler(bitset const &other) {
             auto self_it = begin();
             auto outer_it = other.begin();
             auto ops = Ops{};
@@ -547,7 +547,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        bool segment_handler(F &&handler, bitset const& other) {
+        bool segment_handler(F &&handler, bitset const &other) {
             auto self_it = begin();
             auto outer_it = other.begin();
 
@@ -568,7 +568,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        bool segment_handler(F &&handler, bitset const& other) const {
+        bool segment_handler(F &&handler, bitset const &other) const {
             auto self_it = begin();
             auto outer_it = other.begin();
 
@@ -1082,7 +1082,7 @@ namespace dice::template_library {
             return size() * segment_size_in_bits;
         }
 
-        bool operator==(bitset const& alt_storage) const noexcept {
+        bool operator==(bitset const &alt_storage) const noexcept {
             return segment_handler([](const_reference segment_first, const_reference segment_second) {
                 return segment_first == segment_second;
             }, alt_storage);
@@ -1100,12 +1100,12 @@ namespace dice::template_library {
             return *this;
         }
 
-        bitset& operator&=(bitset const& alt_storage) noexcept {
+        bitset& operator&=(bitset const &alt_storage) noexcept {
             segment_handler<std::bit_and<T>>(alt_storage);
             return *this;
         }
 
-        bitset& operator|=(bitset const& alt_storage) noexcept {
+        bitset& operator|=(bitset const &alt_storage) noexcept {
             segment_handler<std::bit_or<T>>(alt_storage);
             return *this;
         }
@@ -1122,13 +1122,13 @@ namespace dice::template_library {
             return tmp;
         }
 
-        bitset operator&(bitset const& bitset_v_second) const noexcept {
+        bitset operator&(bitset const &bitset_v_second) const noexcept {
             bitset tmp = *this;
             tmp &= bitset_v_second;
             return tmp;
         }
 
-        bitset operator|(bitset const& bitset_v_second) const noexcept {
+        bitset operator|(bitset const &bitset_v_second) const noexcept {
             bitset tmp = *this;
             tmp |= bitset_v_second;
             return tmp;
@@ -1143,7 +1143,7 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
     bool binary = false;
 
     ///> parse formatter context, only allowing hex, debug and binary symbol
-    constexpr auto parse(std::format_parse_context& ctx) {
+    constexpr auto parse(std::format_parse_context &ctx) {
         auto it = ctx.begin();
         while (it != ctx.end() && *it != '}') {
             if (*it != 'x' && *it != '?' && *it != 'b') {
@@ -1165,7 +1165,7 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
         return it;
     }
 
-    auto format(dice::template_library::bitset<extent_, max_extent_, T> const& storage, std::format_context& ctx) const {
+    auto format(dice::template_library::bitset<extent_, max_extent_, T> const &storage, std::format_context &ctx) const {
         auto it = storage.begin();
         auto const end = storage.end();
         auto const total_bits = storage.size_in_bits();
@@ -1200,7 +1200,7 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
         while (it != end) {
             *out++ = '[';
             if (hex) {
-                auto const& segment = it.get();
+                auto const &segment = it.get();
                 out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
                 it = storage.advance_segment(it);
             }
