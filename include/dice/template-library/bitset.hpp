@@ -449,7 +449,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        auto bitset_mod_cntl(F&& ops, global_ix const ix) -> std::invoke_result_t<F, bitset*, size_t, size_t> {
+        auto bitset_mod_cntl(F &&ops, global_ix const ix) -> std::invoke_result_t<F, bitset*, size_t, size_t> {
             if (!fits_in_storage(ix)) {
                 throw std::out_of_range{"bitset::set: ix out of range"};
             }
@@ -647,7 +647,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        void positions_cntl(std::ranges::input_range auto&& positions, F&& pos_f) {
+        void positions_cntl(std::ranges::input_range auto &&positions, F &&pos_f) {
             if constexpr (std::ranges::sized_range<decltype(positions)>) {
                 auto position_elements = std::ranges::size(positions);
                 if (position_elements >= storage_size_in_bits) {
@@ -934,7 +934,7 @@ namespace dice::template_library {
          *
          * @param positions input range of positions
          */
-        void set_positions(std::ranges::input_range auto&& positions) {
+        void set_positions(std::ranges::input_range auto &&positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
                 this->set(pos);
             });
@@ -945,7 +945,7 @@ namespace dice::template_library {
          *
          * @param positions input range of positions
          */
-        void reset_positions(std::ranges::input_range auto&& positions) {
+        void reset_positions(std::ranges::input_range auto &&positions) {
             positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
                 this->reset(pos);
             });
