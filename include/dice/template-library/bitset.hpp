@@ -206,7 +206,13 @@ namespace dice::template_library {
             }
 
             template<bitset_mode mode = bitset_mode::BitMode>
-            bitset_iterator& operator+=(size_t const skip) noexcept {
+            bitset_iterator& operator+=(difference_type const skip) noexcept {
+                if (skip < 0) {
+                    return operator-=<mode>(-skip);
+                }
+
+                assert(skip >= 0);
+
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
 
@@ -234,7 +240,13 @@ namespace dice::template_library {
             }
 
             template<bitset_mode mode = bitset_mode::BitMode>
-            bitset_iterator& operator-=(size_t const skip) noexcept {
+            bitset_iterator& operator-=(difference_type const skip) noexcept {
+                if (skip < 0) {
+                    return operator+=<mode>(-skip);
+                }
+
+                assert(skip >= 0);
+
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_);
 
@@ -257,13 +269,13 @@ namespace dice::template_library {
                 return *this;
             }
 
-            bitset_iterator operator+(size_t rh_add) const noexcept {
+            bitset_iterator operator+(difference_type rh_add) const noexcept {
                 bitset_iterator tmp = *this;
                 tmp += rh_add;
                 return tmp;
             }
 
-            bitset_iterator operator-(size_t rh_sub) const noexcept {
+            bitset_iterator operator-(difference_type rh_sub) const noexcept {
                 bitset_iterator tmp = *this;
                 tmp -= rh_sub;
                 return tmp;
@@ -281,11 +293,11 @@ namespace dice::template_library {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
-            friend bitset_iterator operator+(size_t lh_add, bitset_iterator const &rhs) noexcept {
+            friend bitset_iterator operator+(difference_type lh_add, bitset_iterator const &rhs) noexcept {
                 return rhs + lh_add;
             }
 
-            friend bitset_iterator operator-(size_t lh_sub, bitset_iterator const &rhs) noexcept {
+            friend bitset_iterator operator-(difference_type lh_sub, bitset_iterator const &rhs) noexcept {
                 return rhs - lh_sub;
             }
 
