@@ -8,6 +8,7 @@
 #include <format>
 #include <iterator>
 #include <ranges>
+#include <compare>
 
 namespace dice::template_library {
     /**
@@ -121,6 +122,8 @@ namespace dice::template_library {
             using pointer           = void;
             using difference_type   = ptrdiff_t;
 
+            bitset_iterator() noexcept = default;
+
             explicit bitset_iterator(std::conditional_t<is_const, bitset const&, bitset&> bitset) noexcept :
                 backing_bitset_{&bitset} {}
 
@@ -152,6 +155,10 @@ namespace dice::template_library {
 
             reference operator*() const noexcept {
                 return reference {backing_bitset_, cur_segment_, cur_offset_};
+            }
+
+            reference operator[](size_t ix) const noexcept {
+                return *(*this + ix);
             }
 
             // shared iterator for mode=0 (bits) mode>=1 (segments)
@@ -272,6 +279,29 @@ namespace dice::template_library {
 
             [[nodiscard]] T& get() noexcept requires(!is_const){
                 return *(backing_bitset_->inner_.data() + cur_segment_);
+            }
+
+            friend bitset_iterator operator+(size_t lh_add, bitset_iterator const &rhs) noexcept {
+                return rhs + lh_add;
+            }
+
+            friend bitset_iterator operator-(size_t lh_sub, bitset_iterator const &rhs) noexcept {
+                return rhs - lh_sub;
+            }
+
+            friend std::strong_ordering operator<=>(bitset_iterator const &lhs, bitset_iterator const &rhs) noexcept {
+                if (lhs == rhs) {
+                    return std::strong_ordering::equal;
+                }
+
+                auto const lhs_ix = calc_global_idx(lhs.cur_segment_, lhs.cur_offset_);
+                auto const rhs_ix = calc_global_idx(rhs.cur_segment_, rhs.cur_offset_);
+
+                if (lhs_ix > rhs_ix) {
+                    return std::strong_ordering::greater;
+                }
+
+                return std::strong_ordering::less;
             }
 
             friend bool operator==(bitset_iterator const &lhs, bitset_iterator const &rhs){
