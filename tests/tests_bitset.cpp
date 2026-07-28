@@ -11,6 +11,12 @@
 #include <type_traits>
 #include <utility>
 
+// helper for the position_iterator concept checks below: requires-expressions need a genuine
+// template parameter to fail via substitution rather than a hard compile error, so this can't be
+// inlined as `requires(dyn64::positional_iterator it, ...) { it[n]; }` inside the static_assert.
+template<typename I>
+concept has_subscript_operator = requires(I i, std::iter_difference_t<I> n) { i[n]; };
+
 TEST_SUITE("bitset") {
 	using namespace dice::template_library;
 
@@ -530,6 +536,144 @@ TEST_SUITE("bitset") {
 		}
 	}
 
+	TEST_CASE("bitset_iterator satisfies std::random_access_iterator") {
+		// compile-time only: if these ever regress, this is where it should surface, rather than
+		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>.
+		static_assert(std::default_initializable<dyn64::iterator>);
+		static_assert(std::default_initializable<dyn64::const_iterator>);
+		static_assert(std::totally_ordered<dyn64::iterator>);
+		static_assert(std::totally_ordered<dyn64::const_iterator>);
+		static_assert(std::sized_sentinel_for<dyn64::iterator, dyn64::iterator>);
+		static_assert(std::random_access_iterator<dyn64::iterator>);
+		static_assert(std::random_access_iterator<dyn64::const_iterator>);
+		CHECK(true);
+	}
+
+	TEST_CASE("bitset_iterator new random-access operations") {
+		SUBCASE("operator[] reads the bit at begin() + n without moving the iterator") {
+			dyn8 b{0b00000000, 0b00000010};
+			auto const it = b.begin();
+
+			CHECK_FALSE(static_cast<bool>(it[0]));
+			CHECK(static_cast<bool>(it[9])); // segment 1, offset 1
+			CHECK_EQ(it[9].ix(), 9);
+
+			// must not have moved
+			CHECK_EQ(it, b.begin());
+		}
+
+		SUBCASE("operator[] matches *(it + n) for every position") {
+			dyn8 b{0b10110010, 0b01001101};
+			auto const it = b.begin();
+			for (size_t n = 0; n < b.size_in_bits(); ++n) {
+				CAPTURE(n);
+				CHECK_EQ(static_cast<bool>(it[n]), static_cast<bool>(*(it + n)));
+			}
+		}
+
+		SUBCASE("relational operators order iterators by their global bit position") {
+			dyn8 b{0x00, 0x00, 0x00};
+			auto const low = b.begin() + 3;
+			auto const mid = b.begin() + 9;   // different segment
+			auto const high = b.begin() + 20;
+
+			CHECK(low < mid);
+			CHECK(mid < high);
+			CHECK(low < high);
+			CHECK(mid > low);
+			CHECK(low <= low);
+			CHECK(low <= mid);
+			CHECK(mid >= low);
+			CHECK(low >= low);
+			CHECK_FALSE(mid < low);
+			CHECK_FALSE(high <= mid);
+
+			CHECK_EQ(low <=> low, std::strong_ordering::equal);
+			CHECK_EQ(low <=> mid, std::strong_ordering::less);
+			CHECK_EQ(high <=> mid, std::strong_ordering::greater);
+		}
+
+		SUBCASE("commutative operator+ : n + it == it + n") {
+			dyn8 b{0x00, 0x00};
+			auto const it = b.begin() + 2;
+
+			CHECK((5 + it) == (it + 5));
+			CHECK_EQ((5 + it).get(), (it + 5).get());
+		}
+
+		SUBCASE("free operator- : n - it == it - n (library-defined symmetric semantics)") {
+			dyn8 b{0x00, 0x00};
+			auto const it = b.begin() + 10;
+
+			CHECK((3 - it) == (it - 3));
+		}
+
+		SUBCASE("default-constructed iterators are equality-comparable and independent of any bitset") {
+			dyn8::iterator a{};
+			dyn8::iterator b{};
+			CHECK(a == b);
+
+			dyn8 bs{0x00};
+			auto valid = bs.begin();
+			a = valid;
+			CHECK(a == valid);
+			CHECK(a != b);
+		}
+
+		SUBCASE("negative offsets: it += (-n) matches it -= n, it -= (-n) matches it += n") {
+			dyn8 b{0x00, 0x00};
+			auto const base = b.begin() + 9;
+
+			dyn8::iterator::difference_type const n = 3;
+
+			auto plus_neg = base;
+			plus_neg += -n;
+			CHECK_EQ(plus_neg, base - n);
+
+			auto minus_neg = base;
+			minus_neg -= -n;
+			CHECK_EQ(minus_neg, base + n);
+
+			CHECK_EQ(base + (-n), base - n);
+			CHECK_EQ(base - (-n), base + n);
+		}
+
+		SUBCASE("negative offsets round-trip back to the exact starting position") {
+			dyn8 b{0x00, 0x00, 0x00};
+			auto const base = b.begin() + 15;
+			dyn8::iterator::difference_type const n = 7;
+
+			auto it = base + n;
+			it += -n;
+			CHECK_EQ(it, base);
+
+			auto it2 = base - n;
+			it2 -= -n;
+			CHECK_EQ(it2, base);
+		}
+
+		SUBCASE("std::next/std::prev/std::distance work via the random-access fast path") {
+			dyn8 b{0x00, 0x00, 0x00};
+			auto const it = b.begin() + 5;
+
+			auto const next5 = std::next(it, 5);
+			CHECK_EQ(next5, b.begin() + 10);
+
+			auto const prev3 = std::prev(it, 3);
+			CHECK_EQ(prev3, b.begin() + 2);
+
+			CHECK_EQ(std::distance(prev3, next5), 8);
+			CHECK_EQ(std::distance(next5, prev3), -8);
+		}
+
+		SUBCASE("std::advance with a negative distance moves backwards correctly") {
+			dyn8 b{0x00, 0x00, 0x00};
+			auto it = b.begin() + 12;
+			std::advance(it, -5);
+			CHECK_EQ(it, b.begin() + 7);
+		}
+	}
+
 	TEST_CASE("shifts") {
 		SUBCASE("operator<<= moves bits toward lower indices and clears vacated bits") {
 			dyn8 b{0b10110011}; // bit(i): 1,1,0,0,1,1,0,1 for i = 0..7
@@ -901,6 +1045,43 @@ TEST_SUITE("bitset") {
 			static_assert(std::sentinel_for<std::default_sentinel_t, dyn64::const_positional_iterator>);
 			static_assert(std::ranges::input_range<decltype(std::declval<dyn64 const&>().positions())>);
 			CHECK(true);
+		}
+
+		SUBCASE("is exactly an input_iterator - it does not (over-)satisfy any stronger category") {
+			// position_iterator only ever moves forward one step at a time via seek(), has no
+			// default constructor (ctor requires a bitset&), and has no operator+=/-=/[] at all -
+			// so unlike bitset_iterator, it must fail default_initializable and every iterator
+			// category above input_iterator, and must not expose a subscript operator either
+			// (operator[] is a random_access_iterator-only requirement, not an input_iterator one).
+			static_assert(!std::default_initializable<dyn64::positional_iterator>);
+			static_assert(!std::default_initializable<dyn64::const_positional_iterator>);
+
+			static_assert(!std::forward_iterator<dyn64::positional_iterator>);
+			static_assert(!std::forward_iterator<dyn64::const_positional_iterator>);
+
+			static_assert(!std::bidirectional_iterator<dyn64::positional_iterator>);
+			static_assert(!std::random_access_iterator<dyn64::positional_iterator>);
+
+			static_assert(!has_subscript_operator<dyn64::positional_iterator>);
+			static_assert(!has_subscript_operator<dyn64::const_positional_iterator>);
+			CHECK(true);
+		}
+
+		SUBCASE("input_iterator semantics: single-pass forward traversal reaches the sentinel") {
+			// exercises the actual runtime behavior behind the concept check above: only
+			// operator++ (no --, no +=), operator*, and comparison against std::default_sentinel_t.
+			static_assert(std::is_same_v<decltype(std::declval<dyn64::positional_iterator&>()++), dyn64::positional_iterator>);
+			static_assert(std::is_same_v<decltype(++std::declval<dyn64::positional_iterator&>()), dyn64::positional_iterator&>);
+
+			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set -> 4 set bits total
+			auto it = b.pbegin(); // already positioned at the first set bit (ix 0)
+
+			size_t steps = 0;
+			for (; it != std::default_sentinel; ++it) {
+				++steps;
+				REQUIRE_LE(steps, 4); // guard against an infinite loop if seek() ever regresses
+			}
+			CHECK_EQ(steps, 4);
 		}
 
 		SUBCASE("empty bitset: pbegin() equals pend() immediately") {
