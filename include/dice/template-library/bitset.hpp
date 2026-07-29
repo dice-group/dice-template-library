@@ -695,15 +695,7 @@ namespace dice::template_library {
         template<typename F, typename Range>
         requires std::ranges::input_range<Range>
         void positions_cntl(Range &&positions, F &&pos_f) {
-            if constexpr (has_dynamic_extent) {
-                std::ranges::for_each(std::forward<Range>(positions), [pos_f = std::forward<F>(pos_f), this](auto pos) {
-                    expand_segments(pos);
-                    std::invoke(std::move(pos_f), pos);
-                });
-            }
-            else {
-                std::ranges::for_each(std::forward<Range>(positions), std::forward<F>(pos_f));
-            }
+            std::ranges::for_each(std::forward<Range>(positions), std::forward<F>(pos_f));
         }
 
     public:
