@@ -558,6 +558,126 @@ TEST_SUITE("bitset") {
 		}
 	}
 
+	TEST_CASE("segment-mode dereferencing: T& reference vs plain T value semantics") {
+		// segment_iterator's reference has operator std::conditional_t<is_const, T const&, T&>()
+		// (SegmentMode-only) - this exercises both sides: binding the dereference to a T&
+		// (an actual alias into storage) vs binding it to a plain T (an independent copy).
+
+		SUBCASE("value_type for a segment_iterator reports T, not bool") {
+			// bit_iterator's value_type is bool (one bit); segment_iterator's is the segment
+			// type itself - the two modes really do carry different logical types.
+			static_assert(std::is_same_v<dyn8::segment_iterator::value_type, dyn8::value_type>);
+			static_assert(std::is_same_v<dyn8::bit_iterator::value_type, bool>);
+			CHECK(true);
+		}
+
+		SUBCASE("dereferencing as T& yields a real reference - mutating it writes through to storage") {
+			dyn8 b{0xAA, 0x00}; // 2nd segment left at 0 so b.count() cleanly reflects only segment 0
+			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
+
+			dyn8::value_type &seg_ref = *it; // binds the proxy's conversion to an actual T&
+			CHECK_EQ(seg_ref, 0xAA);
+
+			seg_ref = 0xFF; // mutate through the reference, not through the iterator/bitset API
+			CHECK_EQ(it.get(), 0xFF);      // storage itself changed
+			CHECK_EQ(b.count(), 8);        // and is visible through completely separate accessors
+		}
+
+		SUBCASE("dereferencing as a plain T yields an independent copy - mutating it leaves storage untouched") {
+			dyn8 b{0xAA, 0xBB};
+			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
+
+			dyn8::value_type seg_val = *it; // binds to a plain T, not a reference: a copy
+			CHECK_EQ(seg_val, 0xAA);
+
+			seg_val = 0xFF; // only the local copy changes
+			CHECK_EQ(it.get(), 0xAA);      // storage is untouched
+			CHECK_EQ(seg_val, 0xFF);       // the copy did change, proving it's genuinely independent
+		}
+
+		SUBCASE("two iterators over the same segment alias each other through T&, proving real reference semantics") {
+			// the clearest way to tell a reference from a value: write through one iterator's
+			// T& and read it back through a second, independently-obtained iterator/reference.
+			dyn8 b{0x00, 0x00};
+			auto writer = b.begin<dyn8::bitset_mode::SegmentMode>();
+			auto reader = b.begin<dyn8::bitset_mode::SegmentMode>();
+
+			dyn8::value_type &write_ref = *writer;
+			dyn8::value_type &read_ref = *reader;
+
+			CHECK_EQ(read_ref, 0x00);
+			write_ref = 0x42;
+			CHECK_EQ(read_ref, 0x42); // read_ref observes the mutation - genuinely the same storage
+		}
+
+		SUBCASE("const_segment_iterator dereferences to T const& - reads live storage, cannot write") {
+			dyn8 b{0xAA, 0xBB};
+			dyn8 const &cb = b;
+
+			auto non_const_it = b.begin<dyn8::bitset_mode::SegmentMode>();
+			auto const_it = cb.begin<dyn8::bitset_mode::SegmentMode>();
+
+			dyn8::value_type const &const_ref = *const_it;
+			CHECK_EQ(const_ref, 0xAA);
+
+			// mutate through the *non-const* iterator over the same underlying bitset...
+			dyn8::value_type &mutable_ref = *non_const_it;
+			mutable_ref = 0x77;
+
+			// ...and the const reference, still bound to the same storage, observes it.
+			CHECK_EQ(const_ref, 0x77);
+
+			static_assert(std::is_same_v<decltype(const_ref), dyn8::value_type const&>);
+		}
+
+		SUBCASE("advancing a segment_iterator and rebinding to T& tracks the new segment, not the old one") {
+			dyn8 b{0xAA, 0xBB, 0xCC};
+			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
+
+			dyn8::value_type &first = *it;
+			CHECK_EQ(first, 0xAA);
+
+			++it;
+			dyn8::value_type &second = *it; // a fresh reference for the new position
+			CHECK_EQ(second, 0xBB);
+			CHECK_EQ(first, 0xAA); // the earlier reference is untouched - it aliases segment 0, not segment 1
+
+			second = 0x11;
+			CHECK_EQ(it.get(), 0x11);
+			CHECK_EQ(first, 0xAA); // still segment 0 - confirms `first` and `second` alias different segments
+		}
+
+		SUBCASE("rbegin/rend segment-mode traversal dereferences to T& and supports write-through") {
+			dyn8 b{0x11, 0x22, 0x33};
+
+			std::array<dyn8::value_type, 3> visited{};
+			size_t i = 0;
+			for (auto it = b.rbegin<dyn8::bitset_mode::SegmentMode>(); it != b.rend<dyn8::bitset_mode::SegmentMode>(); ++it) {
+				dyn8::value_type &seg_ref = *it;
+				REQUIRE_LT(i, visited.size());
+				visited[i++] = seg_ref;
+			}
+			CHECK_EQ(i, 3);
+			CHECK_EQ(visited[0], 0x33); // last segment first
+			CHECK_EQ(visited[1], 0x22);
+			CHECK_EQ(visited[2], 0x11); // first segment last
+
+			// write through the reverse-order reference and confirm it lands on the right segment
+			for (auto it = b.rbegin<dyn8::bitset_mode::SegmentMode>(); it != b.rend<dyn8::bitset_mode::SegmentMode>(); ++it) {
+				dyn8::value_type &seg_ref = *it;
+				if (seg_ref == 0x22) {
+					seg_ref = 0x99;
+				}
+			}
+			auto check_it = b.begin<dyn8::bitset_mode::SegmentMode>();
+			CHECK_EQ(check_it.get(), 0x11);
+			++check_it;
+			CHECK_EQ(check_it.get(), 0x99); // middle segment was the one mutated
+			++check_it;
+			CHECK_EQ(check_it.get(), 0x33);
+		}
+	}
+
 	TEST_CASE("bitset_iterator satisfies std::random_access_iterator") {
 		// compile-time only: if these ever regress, this is where it should surface, rather than
 		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>. Traversal
@@ -1069,12 +1189,12 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("position_iterator behavior") {
-		// positional_iterator/const_positional_iterator are template aliases parameterized by
-		// bitset_mode with no default (unlike bitset_iterator's bit_iterator/segment_iterator,
-		// there's no public non-template convenience alias for these) - name the BitMode
-		// instantiation once here for readability, since positional iteration is always bit-mode.
-		using pos_it = dyn64::positional_iterator<dyn64::bitset_mode::BitMode>;
-		using const_pos_it = dyn64::const_positional_iterator<dyn64::bitset_mode::BitMode>;
+		// positional_iterator/const_positional_iterator are now plain (non-template) aliases -
+		// position_iterator itself dropped its bitset_mode parameter and always uses BitMode
+		// internally, since positional iteration is only ever meaningful bit-by-bit. Local
+		// aliases kept here purely for the shorter names used throughout this TEST_CASE.
+		using pos_it = dyn64::positional_iterator;
+		using const_pos_it = dyn64::const_positional_iterator;
 
 		SUBCASE("satisfies std::input_iterator and positions() satisfies std::ranges::input_range") {
 			// compile-time only: if these ever regress, this is where it should surface, rather
