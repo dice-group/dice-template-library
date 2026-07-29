@@ -81,6 +81,7 @@ namespace dice::template_library {
         struct bitset_iterator {
         private:
             using bitset_pointer = std::conditional_t<is_const, bitset const*, bitset*>;
+            constexpr static bool using_bit_mode = mode == bitset_mode::BitMode;
 
             segment       cur_segment_{};
             offset        cur_offset_{};
@@ -103,12 +104,16 @@ namespace dice::template_library {
                 reference(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
                     : backing_bitset_{backing_bitset}, seg{seg}, off{off} {}
 
-                operator bool() const noexcept {
+                operator bool() const noexcept requires(using_bit_mode) {
                     return backing_bitset_->test(calc_global_idx(seg, off));
                 }
 
-                operator size_t() const noexcept {
+                operator size_t() const noexcept requires(using_bit_mode) {
                     return ix();
+                }
+
+                operator std::conditional_t<is_const, T const&, T&>() const noexcept requires(!using_bit_mode) {
+                    return *(backing_bitset_->inner_.data() + seg);
                 }
 
                 reference const& operator=(bool const b) const noexcept {
@@ -123,7 +128,7 @@ namespace dice::template_library {
 
             using iterator_category = std::random_access_iterator_tag;
             using iterator_concept  = std::random_access_iterator_tag;
-            using value_type        = bool;
+            using value_type        = std::conditional_t<using_bit_mode, bool, value_type>;
             using pointer           = void;
             using difference_type   = ptrdiff_t;
 
@@ -330,13 +335,14 @@ namespace dice::template_library {
             }
         };
 
-        template<bool is_const, bitset_mode mode>
+        ///> enforce only bit mode in the position iterator
+        template<bool is_const>
         struct position_iterator {
         private:
             using bitset_pointer = std::conditional_t<is_const, bitset const*, bitset*>;
             using reference = bitset_iterator<is_const>::reference;
 
-            bitset_iterator<is_const, mode> it_;
+            bitset_iterator<is_const> it_;
             bitset_pointer backing_bitset_ = nullptr;
 
             ///> add bool to allow setting a start point, without skipping the initial offset
@@ -664,7 +670,7 @@ namespace dice::template_library {
             Tp merge_val{initial};
 
             while (self_it != end_it) {
-                Tp const val = std::invoke(std::forward<F>(handler), (*self_it).get());
+                Tp const val = std::invoke(std::forward<F>(handler), *self_it);
                 merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
@@ -705,11 +711,8 @@ namespace dice::template_library {
         template<bitset_mode mode>
         using const_reverse_iterator = std::reverse_iterator<const_iterator<mode>>;
 
-        template<bitset_mode mode>
-        using positional_iterator = position_iterator<false, mode>;
-
-        template<bitset_mode mode>
-        using const_positional_iterator = position_iterator<true, mode>;
+        using positional_iterator = position_iterator<false>;
+        using const_positional_iterator = position_iterator<true>;
 
         using bit_iterator     = iterator<bitset_mode::BitMode>;
         using segment_iterator = iterator<bitset_mode::SegmentMode>;
@@ -814,7 +817,7 @@ namespace dice::template_library {
             auto end = rend<bitset_mode::SegmentMode>();
 
             while (it != end) {
-                auto &segment = (*it).get();
+                T &segment = *it;
                 if (static_cast<value_type>(~segment) != 0x00) {
                     auto ptr_dist = std::distance(inner_.data(), &segment);
                     if constexpr (!has_max_extent) {
@@ -1013,36 +1016,42 @@ namespace dice::template_library {
 
         template<bitset_mode mode=bitset_mode::BitMode>
         constexpr reverse_iterator<mode> rbegin() noexcept {
-            return reverse_iterator<mode>{begin() + size_in_bits()};
+            if constexpr (mode == bitset_mode::BitMode) {
+                return reverse_iterator<mode>{begin<mode>() + size_in_bits()};
+            } else {
+                return reverse_iterator<mode>{begin<mode>() + size()};
+            }
         }
 
         template<bitset_mode mode=bitset_mode::BitMode>
         constexpr const_reverse_iterator<mode> rbegin() const noexcept {
-            return const_reverse_iterator<mode>{begin() + size_in_bits()};
+            if constexpr (mode == bitset_mode::BitMode) {
+                return const_reverse_iterator<mode>{begin<mode>() + size_in_bits()};
+            } else {
+                return const_reverse_iterator<mode>{begin<mode>() + size()};
+            }
         }
 
         template<bitset_mode mode=bitset_mode::BitMode>
         constexpr reverse_iterator<mode> rend() noexcept {
-            return reverse_iterator<mode>{begin()};
+            return reverse_iterator<mode>{begin<mode>()};
         }
 
         template<bitset_mode mode=bitset_mode::BitMode>
         constexpr const_reverse_iterator<mode> rend() const noexcept {
-            return const_reverse_iterator<mode>{begin()};
+            return const_reverse_iterator<mode>{begin<mode>()};
         }
 
         constexpr std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;
         }
 
-        template<bitset_mode mode=bitset_mode::BitMode>
-        constexpr positional_iterator<mode> pbegin() noexcept {
-            return positional_iterator<mode>{*this};
+        constexpr positional_iterator pbegin() noexcept {
+            return positional_iterator{*this};
         }
 
-        template<bitset_mode mode=bitset_mode::BitMode>
-        constexpr const_positional_iterator<mode> pbegin() const noexcept {
-            return const_positional_iterator<mode>{*this};
+        constexpr const_positional_iterator pbegin() const noexcept {
+            return const_positional_iterator{*this};
         }
 
         constexpr std::default_sentinel_t pend() const noexcept {
