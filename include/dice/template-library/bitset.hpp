@@ -658,18 +658,18 @@ namespace dice::template_library {
 
         template<typename F, typename Pr, typename M, typename Tp>
         Tp segment_handler_backwards(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
-            auto self_it = begin<bitset_mode::SegmentMode>() + size();
-            auto end_it = begin<bitset_mode::SegmentMode>();
+            auto self_it = rbegin<bitset_mode::SegmentMode>();
+            auto end_it = rend<bitset_mode::SegmentMode>();
 
             Tp merge_val{initial};
 
             while (self_it != end_it) {
-                Tp const val = std::invoke(std::forward<F>(handler), (self_it-1).get());
+                Tp const val = std::invoke(std::forward<F>(handler), (*self_it).get());
                 merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
                 if (!std::invoke(std::forward<Pr>(pred), val)) {
                     return merge_val;
                 }
-                --self_it;
+                ++self_it;
             }
             return merge_val;
         }
@@ -810,11 +810,11 @@ namespace dice::template_library {
          * Compacts the underlying storage backend, if applicable
          */
         void shrink_to_fit() requires (has_dynamic_extent){
-            auto it = begin<bitset_mode::SegmentMode>() + size();
-            auto end = begin<bitset_mode::SegmentMode>();
+            auto it = rbegin<bitset_mode::SegmentMode>();
+            auto end = rend<bitset_mode::SegmentMode>();
 
             while (it != end) {
-                auto &segment = (it - 1).get();
+                auto &segment = (*it).get();
                 if (static_cast<value_type>(~segment) != 0x00) {
                     auto ptr_dist = std::distance(inner_.data(), &segment);
                     if constexpr (!has_max_extent) {
@@ -825,7 +825,7 @@ namespace dice::template_library {
                     }
                     return;
                 }
-                --it;
+                ++it;
             }
         }
 
