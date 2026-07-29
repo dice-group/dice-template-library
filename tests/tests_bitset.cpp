@@ -13,7 +13,7 @@
 
 // helper for the position_iterator concept checks below: requires-expressions need a genuine
 // template parameter to fail via substitution rather than a hard compile error, so this can't be
-// inlined as `requires(dyn64::positional_iterator it, ...) { it[n]; }` inside the static_assert.
+// inlined as `requires(dyn64::positional_iterator<...> it, ...) { it[n]; }` inside the static_assert.
 template<typename I>
 concept has_subscript_operator = requires(I i, std::iter_difference_t<I> n) { i[n]; };
 
@@ -399,6 +399,24 @@ TEST_SUITE("bitset") {
 			CHECK(*it); // bit 2
 		}
 
+		SUBCASE("operator* converts directly to bool - no static_cast needed") {
+			// bitset_iterator::reference has an implicit operator bool(), so the logical type
+			// behind the proxy (a single bit) comes out with a plain assignment, not a cast.
+			dyn8 b{0b00000101};
+			auto it = b.begin();
+
+			bool const bit0 = *it; // direct conversion, not static_cast<bool>(*it)
+			CHECK(bit0);
+
+			++it;
+			bool const bit1 = *it;
+			CHECK_FALSE(bit1);
+
+			++it;
+			bool const bit2 = *it;
+			CHECK(bit2);
+		}
+
 		SUBCASE("writing through the iterator itself (not *it) sets the underlying bit") {
 			dyn8 b{0x00};
 			auto it = b.begin();
@@ -414,10 +432,12 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("segment-mode increment advances by a whole segment") {
+			// the traversal policy is now baked into the iterator's own type - request a
+			// segment_iterator up front instead of calling a separate advance_segment() helper.
 			dyn8 b{0xAA, 0xBB};
-			auto it = b.begin();
+			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
 			CHECK_EQ(it.get(), 0xAA);
-			it = b.advance_segment(it); // advance_segment takes/returns by value - capture the result
+			++it;
 			CHECK_EQ(it.get(), 0xBB);
 		}
 
@@ -431,8 +451,8 @@ TEST_SUITE("bitset") {
 			auto const it2 = b.begin() + 9;
 			CHECK(*it2);
 
-			auto it3 = b.begin();
-			it3 = b.advance_segment(it3, 1);
+			auto it3 = b.begin<dyn8::bitset_mode::SegmentMode>();
+			it3 += 1;
 			CHECK_EQ(it3.get(), 0b00000010);
 		}
 
@@ -465,10 +485,10 @@ TEST_SUITE("bitset") {
 			CHECK(it2 == b.begin());
 
 			dyn8 b2{0xAA, 0xBB};
-			auto it3 = b2.begin();
-			it3 = b2.advance_segment(it3);
+			auto it3 = b2.begin<dyn8::bitset_mode::SegmentMode>();
+			++it3;
 			CHECK_EQ(it3.get(), 0xBB);
-			it3 = b2.advance_segment_backwards(it3);
+			--it3;
 			CHECK_EQ(it3.get(), 0xAA);
 		}
 
@@ -494,21 +514,23 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("explicit iterator construction with an offset validates the offset") {
+			// dyn8::iterator is now a template alias (parameterized by bitset_mode) - bit_iterator
+			// is the public non-template convenience alias for the BitMode instantiation.
 			dyn8 b{0x00};
-			CHECK_NOTHROW((dyn8::iterator{b, 7}));
-			CHECK_THROWS_AS((dyn8::iterator{b, 8}), std::out_of_range); // dyn8's segment width is 8 bits
+			CHECK_NOTHROW((dyn8::bit_iterator{b, 7}));
+			CHECK_THROWS_AS((dyn8::bit_iterator{b, 8}), std::out_of_range); // dyn8's segment width is 8 bits
 
-			dyn8::iterator it{b, 3};
+			dyn8::bit_iterator it{b, 3};
 			CHECK(it == b.begin() + 3);
 		}
 
 		SUBCASE("explicit iterator construction with an offset and segment validates both") {
 			dyn8 b{0x00, 0x00};
-			CHECK_NOTHROW((dyn8::iterator{b, 0, 1}));
-			CHECK_THROWS_AS((dyn8::iterator{b, 8, 0}), std::out_of_range); // bad offset
-			CHECK_THROWS_AS((dyn8::iterator{b, 0, 2}), std::out_of_range); // segment out of bounds (only 2 segments exist)
+			CHECK_NOTHROW((dyn8::bit_iterator{b, 0, 1}));
+			CHECK_THROWS_AS((dyn8::bit_iterator{b, 8, 0}), std::out_of_range); // bad offset
+			CHECK_THROWS_AS((dyn8::bit_iterator{b, 0, 2}), std::out_of_range); // segment out of bounds (only 2 segments exist)
 
-			dyn8::iterator it{b, 2, 1};
+			dyn8::bit_iterator it{b, 2, 1};
 			CHECK(it == b.begin() + 10);
 		}
 
@@ -538,14 +560,25 @@ TEST_SUITE("bitset") {
 
 	TEST_CASE("bitset_iterator satisfies std::random_access_iterator") {
 		// compile-time only: if these ever regress, this is where it should surface, rather than
-		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>.
-		static_assert(std::default_initializable<dyn64::iterator>);
-		static_assert(std::default_initializable<dyn64::const_iterator>);
-		static_assert(std::totally_ordered<dyn64::iterator>);
-		static_assert(std::totally_ordered<dyn64::const_iterator>);
-		static_assert(std::sized_sentinel_for<dyn64::iterator, dyn64::iterator>);
-		static_assert(std::random_access_iterator<dyn64::iterator>);
-		static_assert(std::random_access_iterator<dyn64::const_iterator>);
+		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>. Traversal
+		// policy is now a template parameter baked into the iterator's type (bit_iterator /
+		// segment_iterator, plus their const_ counterparts) rather than a per-call argument, so
+		// both instantiations need to be checked independently.
+		static_assert(std::default_initializable<dyn64::bit_iterator>);
+		static_assert(std::default_initializable<dyn64::const_bit_iterator>);
+		static_assert(std::totally_ordered<dyn64::bit_iterator>);
+		static_assert(std::totally_ordered<dyn64::const_bit_iterator>);
+		static_assert(std::sized_sentinel_for<dyn64::bit_iterator, dyn64::bit_iterator>);
+		static_assert(std::random_access_iterator<dyn64::bit_iterator>);
+		static_assert(std::random_access_iterator<dyn64::const_bit_iterator>);
+
+		static_assert(std::default_initializable<dyn64::segment_iterator>);
+		static_assert(std::default_initializable<dyn64::const_segment_iterator>);
+		static_assert(std::totally_ordered<dyn64::segment_iterator>);
+		static_assert(std::totally_ordered<dyn64::const_segment_iterator>);
+		static_assert(std::sized_sentinel_for<dyn64::segment_iterator, dyn64::segment_iterator>);
+		static_assert(std::random_access_iterator<dyn64::segment_iterator>);
+		static_assert(std::random_access_iterator<dyn64::const_segment_iterator>);
 		CHECK(true);
 	}
 
@@ -609,8 +642,8 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("default-constructed iterators are equality-comparable and independent of any bitset") {
-			dyn8::iterator a{};
-			dyn8::iterator b{};
+			dyn8::bit_iterator a{};
+			dyn8::bit_iterator b{};
 			CHECK(a == b);
 
 			dyn8 bs{0x00};
@@ -624,7 +657,7 @@ TEST_SUITE("bitset") {
 			dyn8 b{0x00, 0x00};
 			auto const base = b.begin() + 9;
 
-			dyn8::iterator::difference_type const n = 3;
+			dyn8::bit_iterator::difference_type const n = 3;
 
 			auto plus_neg = base;
 			plus_neg += -n;
@@ -641,7 +674,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("negative offsets round-trip back to the exact starting position") {
 			dyn8 b{0x00, 0x00, 0x00};
 			auto const base = b.begin() + 15;
-			dyn8::iterator::difference_type const n = 7;
+			dyn8::bit_iterator::difference_type const n = 7;
 
 			auto it = base + n;
 			it += -n;
@@ -1036,13 +1069,20 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("position_iterator behavior") {
+		// positional_iterator/const_positional_iterator are template aliases parameterized by
+		// bitset_mode with no default (unlike bitset_iterator's bit_iterator/segment_iterator,
+		// there's no public non-template convenience alias for these) - name the BitMode
+		// instantiation once here for readability, since positional iteration is always bit-mode.
+		using pos_it = dyn64::positional_iterator<dyn64::bitset_mode::BitMode>;
+		using const_pos_it = dyn64::const_positional_iterator<dyn64::bitset_mode::BitMode>;
+
 		SUBCASE("satisfies std::input_iterator and positions() satisfies std::ranges::input_range") {
 			// compile-time only: if these ever regress, this is where it should surface, rather
 			// than as a cryptic "no viable constructor/deduction guide" deep inside <ranges>.
-			static_assert(std::input_iterator<dyn64::positional_iterator>);
-			static_assert(std::input_iterator<dyn64::const_positional_iterator>);
-			static_assert(std::sentinel_for<std::default_sentinel_t, dyn64::positional_iterator>);
-			static_assert(std::sentinel_for<std::default_sentinel_t, dyn64::const_positional_iterator>);
+			static_assert(std::input_iterator<pos_it>);
+			static_assert(std::input_iterator<const_pos_it>);
+			static_assert(std::sentinel_for<std::default_sentinel_t, pos_it>);
+			static_assert(std::sentinel_for<std::default_sentinel_t, const_pos_it>);
 			static_assert(std::ranges::input_range<decltype(std::declval<dyn64 const&>().positions())>);
 			CHECK(true);
 		}
@@ -1053,25 +1093,25 @@ TEST_SUITE("bitset") {
 			// so unlike bitset_iterator, it must fail default_initializable and every iterator
 			// category above input_iterator, and must not expose a subscript operator either
 			// (operator[] is a random_access_iterator-only requirement, not an input_iterator one).
-			static_assert(!std::default_initializable<dyn64::positional_iterator>);
-			static_assert(!std::default_initializable<dyn64::const_positional_iterator>);
+			static_assert(!std::default_initializable<pos_it>);
+			static_assert(!std::default_initializable<const_pos_it>);
 
-			static_assert(!std::forward_iterator<dyn64::positional_iterator>);
-			static_assert(!std::forward_iterator<dyn64::const_positional_iterator>);
+			static_assert(!std::forward_iterator<pos_it>);
+			static_assert(!std::forward_iterator<const_pos_it>);
 
-			static_assert(!std::bidirectional_iterator<dyn64::positional_iterator>);
-			static_assert(!std::random_access_iterator<dyn64::positional_iterator>);
+			static_assert(!std::bidirectional_iterator<pos_it>);
+			static_assert(!std::random_access_iterator<pos_it>);
 
-			static_assert(!has_subscript_operator<dyn64::positional_iterator>);
-			static_assert(!has_subscript_operator<dyn64::const_positional_iterator>);
+			static_assert(!has_subscript_operator<pos_it>);
+			static_assert(!has_subscript_operator<const_pos_it>);
 			CHECK(true);
 		}
 
 		SUBCASE("input_iterator semantics: single-pass forward traversal reaches the sentinel") {
 			// exercises the actual runtime behavior behind the concept check above: only
 			// operator++ (no --, no +=), operator*, and comparison against std::default_sentinel_t.
-			static_assert(std::is_same_v<decltype(std::declval<dyn64::positional_iterator&>()++), dyn64::positional_iterator>);
-			static_assert(std::is_same_v<decltype(++std::declval<dyn64::positional_iterator&>()), dyn64::positional_iterator&>);
+			static_assert(std::is_same_v<decltype(std::declval<pos_it&>()++), pos_it>);
+			static_assert(std::is_same_v<decltype(++std::declval<pos_it&>()), pos_it&>);
 
 			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set -> 4 set bits total
 			auto it = b.pbegin(); // already positioned at the first set bit (ix 0)
@@ -1104,9 +1144,40 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(i, expected.size());
 		}
 
+		SUBCASE("dereferencing converts directly to size_t - no .ix() call needed") {
+			// the same reference proxy bitset_iterator dereferences to also has an implicit
+			// operator size_t() (returning ix()), so a plain assignment - not a call to .ix() -
+			// is enough to pull the logical position back out.
+			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set
+			std::array<size_t, 4> const expected{0, 2, 4, 64};
+
+			size_t i = 0;
+			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+				REQUIRE_LT(i, expected.size());
+				size_t const pos = *it; // direct conversion, not (*it).ix()
+				CHECK_EQ(pos, expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
+		SUBCASE("positions() elements convert directly to size_t as well") {
+			dyn64 b{0b10101, 0b1};
+			std::array<size_t, 4> const expected{0, 2, 4, 64};
+
+			size_t i = 0;
+			for (auto pos_ref : b.positions()) {
+				REQUIRE_LT(i, expected.size());
+				size_t const pos = pos_ref; // direct conversion, not pos_ref.ix()
+				CHECK_EQ(pos, expected[i]);
+				++i;
+			}
+			CHECK_EQ(i, expected.size());
+		}
+
 		SUBCASE("pbegin()/pend() on a const bitset yield a const_positional_iterator") {
 			dyn64 const b{0b10101, 0b1};
-			static_assert(std::is_same_v<decltype(b.pbegin()), dyn64::const_positional_iterator>);
+			static_assert(std::is_same_v<decltype(b.pbegin()), const_pos_it>);
 
 			std::array<size_t, 4> const expected{0, 2, 4, 64};
 			size_t i = 0;
