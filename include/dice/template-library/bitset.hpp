@@ -106,6 +106,10 @@ namespace dice::template_library {
                     return backing_bitset_->test(calc_global_idx(seg, off));
                 }
 
+                operator size_t() const noexcept {
+                    return ix();
+                }
+
                 reference const& operator=(bool const b) const noexcept {
                     backing_bitset_->set(calc_global_idx(seg, off), b);
                     return *this;
@@ -371,7 +375,7 @@ namespace dice::template_library {
         public:
             using iterator_category = std::input_iterator_tag;
             using iterator_concept  = std::input_iterator_tag;
-            using value_type        = bool;
+            using value_type        = size_t;
             using pointer           = void;
             using difference_type   = ptrdiff_t;
 
@@ -688,22 +692,18 @@ namespace dice::template_library {
             return std::popcount(segment) == 0x00;
         }
 
-        template<typename F>
-        void positions_cntl(std::ranges::input_range auto &&positions, F &&pos_f) {
-            if constexpr (std::ranges::sized_range<decltype(positions)>) {
-                auto position_elements = std::ranges::size(positions);
-                if (position_elements >= storage_size_in_bits) {
-                    throw std::range_error{"bitset::set_positions range out of bounds"};
-                }
+        template<typename F, typename Range>
+        requires std::ranges::input_range<Range>
+        void positions_cntl(Range &&positions, F &&pos_f) {
+            if constexpr (has_dynamic_extent) {
+                std::ranges::for_each(std::forward<Range>(positions), [pos_f = std::forward<F>(pos_f), this](auto pos) {
+                    expand_segments(pos);
+                    std::invoke(std::move(pos_f), pos);
+                });
             }
             else {
-                auto position_elements = std::ranges::distance(positions);
-                if (position_elements >= storage_size_in_bits) {
-                    throw std::range_error{"bitset::set_positions range out of bounds"};
-                }
+                std::ranges::for_each(std::forward<Range>(positions), std::forward<F>(pos_f));
             }
-
-            std::ranges::for_each(positions, std::forward<F>(pos_f));
         }
 
     public:
@@ -976,8 +976,10 @@ namespace dice::template_library {
          *
          * @param positions input range of positions
          */
-        void set_positions(std::ranges::input_range auto &&positions) {
-            positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
+        template<typename Range>
+        requires std::ranges::input_range<Range>
+        void set_positions(Range &&positions) {
+            positions_cntl(std::forward<Range>(positions), [this](auto pos) {
                 this->set(pos);
             });
         }
@@ -987,8 +989,10 @@ namespace dice::template_library {
          *
          * @param positions input range of positions
          */
-        void reset_positions(std::ranges::input_range auto &&positions) {
-            positions_cntl(std::forward<decltype(positions)>(positions), [this](auto pos) {
+        template<typename Range>
+        requires std::ranges::input_range<Range>
+        void reset_positions(Range &&positions) {
+            positions_cntl(std::forward<Range>(positions), [this](auto pos) {
                 this->reset(pos);
             });
         }
