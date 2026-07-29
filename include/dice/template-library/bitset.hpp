@@ -1,14 +1,17 @@
 #ifndef DICE_TEMPLATELIBRARY_BITSET_HPP
 #define DICE_TEMPLATELIBRARY_BITSET_HPP
 
-#include <dice/template-library/flex_array.hpp>
+#include "memfn.hpp"
+
+
 #include <bit>
-#include <functional>
-#include <numeric>
-#include <format>
-#include <iterator>
-#include <ranges>
 #include <compare>
+#include <dice/template-library/flex_array.hpp>
+#include <format>
+#include <functional>
+#include <iterator>
+#include <numeric>
+#include <ranges>
 
 namespace dice::template_library {
     /**
@@ -496,7 +499,7 @@ namespace dice::template_library {
         }
 
         template<typename F>
-        auto bitset_mod_cntl(F &&ops, global_ix const ix) -> std::invoke_result_t<F, bitset*, size_t, size_t> {
+        auto bitset_mod_cntl(F &&ops, global_ix const ix) -> std::invoke_result_t<F, size_t, size_t> {
             if (!fits_in_storage(ix)) {
                 throw std::out_of_range{"bitset::set: ix out of range"};
             }
@@ -509,25 +512,12 @@ namespace dice::template_library {
             auto const segment = calc_which_segment(ix);
             auto const offset  = calc_which_offset(ix);
 
-            using result_t = std::invoke_result_t<F, bitset*, size_t, size_t>;
-
-            if constexpr (std::is_void_v<result_t>) {
-                return std::invoke(std::forward<F>(ops), this, segment, offset);
-            }
-            else {
-                return std::invoke(std::forward<F>(ops), this, segment, offset);
-            }
+            return std::invoke(std::forward<F>(ops), segment, offset);
         }
 
         template<typename F>
-        auto bitset_op_cntl(F &&ops, const_reference segment) const -> std::invoke_result_t<F, bitset*, const_reference> {
-            if constexpr (std::is_void_v<std::invoke_result_t<F, bitset*, const_reference>>) {
-                std::invoke(std::forward<F>(ops), this, segment);
-                return;
-            }
-            else {
-                return std::invoke(std::forward<F>(ops), this, segment);
-            }
+        auto bitset_op_cntl(F &&ops, const_reference segment) const -> std::invoke_result_t<F, const_reference> {
+            return std::invoke(std::forward<F>(ops), segment);
         }
 
         [[nodiscard]] static size_t offset_in_chunk(offset const o) noexcept {
@@ -750,7 +740,7 @@ namespace dice::template_library {
          * @param ix offset to use
          */
         void set(global_ix const ix) {
-            bitset_mod_cntl(&bitset::segment_set, ix);
+            bitset_mod_cntl(DICE_MEMFN(segment_set), ix);
         }
 
         /**
@@ -776,7 +766,7 @@ namespace dice::template_library {
          * @param ix offset to use
          */
         void flip(global_ix const ix) {
-            bitset_mod_cntl(&bitset::segment_flip, ix);
+            bitset_mod_cntl(DICE_MEMFN(segment_flip), ix);
         }
 
         /**
@@ -785,7 +775,7 @@ namespace dice::template_library {
          * @param ix offset to use
          */
         void reset(global_ix const ix) {
-            bitset_mod_cntl(&bitset::segment_unset, ix);
+            bitset_mod_cntl(DICE_MEMFN(segment_unset), ix);
         }
 
         void reset_all() requires(!has_dynamic_extent) {
@@ -939,7 +929,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool all_set() const {
             return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_all_set, segment);
+                return bitset_op_cntl(DICE_MEMFN(segment_all_set), segment);
             }, [](bool const val) {
                 return val;
             });
@@ -952,7 +942,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool any_set() const {
             return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_any_set, segment);
+                return bitset_op_cntl(DICE_MEMFN(segment_any_set), segment);
             }, std::bit_or<bool>{}, false);
         }
 
@@ -963,7 +953,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool none_set() const {
             return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(&bitset::segment_none_set, segment);
+                return bitset_op_cntl(DICE_MEMFN(segment_none_set), segment);
             }, [](bool const val) {
                 return val;
             }, std::bit_and<bool>{}, true);
