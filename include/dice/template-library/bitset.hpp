@@ -300,10 +300,6 @@ namespace dice::template_library {
                 return *(backing_bitset_->inner_.data() + cur_segment_);
             }
 
-            friend bitset_iterator operator+(difference_type lh_add, bitset_iterator const &rhs) noexcept {
-                return rhs + lh_add;
-            }
-
             friend bitset_iterator operator-(difference_type lh_sub, bitset_iterator const &rhs) noexcept {
                 return rhs - lh_sub;
             }
@@ -1222,25 +1218,17 @@ namespace dice::template_library {
 
 template<typename T, size_t extent_, size_t max_extent_>
 struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
-    bool hex = false;
-    bool debug = false;
     bool binary = false;
 
     ///> parse formatter context, only allowing hex, debug and binary symbol
     constexpr auto parse(std::format_parse_context &ctx) {
         auto it = ctx.begin();
         while (it != ctx.end() && *it != '}') {
-            if (*it != 'x' && *it != '?' && *it != 'b') {
+            if (*it != 'b') {
                 throw std::format_error("Invalid format args for dice::template_library::bitset.");
             }
 
-            if (*it == '?') {
-                debug = true;
-            }
-
-            if (*it == 'x') {
-                hex = true;
-            } else if (*it == 'b') {
+            if (*it == 'b') {
                 binary = true;
             }
             ++it;
@@ -1251,48 +1239,22 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
     auto format(dice::template_library::bitset<extent_, max_extent_, T> const &storage, std::format_context &ctx) const {
         auto it = storage.begin();
         auto const end = storage.end();
-        auto const total_bits = storage.size_in_bits();
-
         auto out = ctx.out();
+
         *out++ = '[';
         *out++ = '\n';
 
-        if (debug) {
-            size_t segment_bits = 0;
-            if (it != end) {
-                auto const seg_end = it + static_cast<ptrdiff_t>(sizeof(T) * 8);
-                for (auto p = it; p != seg_end; ++p) {
-                    ++segment_bits;
-                }
-            }
-            auto const segments = (segment_bits == 0) ? 0uz : (total_bits / segment_bits);
-
-            out = std::format_to(out, "Segments : {}\n", segments);
-            out = std::format_to(out, "Segment size : {}\n", segment_bits);
-            out = std::format_to(out, "Storage size : {}\n", total_bits);
-
-            if (hex) {
-                out = std::format_to(out, "Segment Representation -> Hex(0xFF)\n");
-            } else {
-                out = std::format_to(out, "Segment Representation -> Bin(0b00)\n");
-            }
-            *out++ = '\n';
-        }
-
         while (it != end) {
             *out++ = '[';
-            if (hex) {
-                auto const &segment = it.get();
-                out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
-                it += static_cast<ptrdiff_t>(sizeof(T) * 8);
-            } else if (binary) {
+            if (binary) {
                 auto const seg_end = it + static_cast<ptrdiff_t>(sizeof(T) * 8);
                 for (; it != seg_end; ++it) {
                     *out++ = *it ? '1' : '0';
                 }
-            } else {
-                // if no mode is supported and somehow it goes throught consider just to step through, for compatible
-                ++it;
+            } else { // default to hex
+                auto const &segment = it.get();
+                out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
+                it += static_cast<ptrdiff_t>(sizeof(T) * 8);
             }
             *out++ = ']';
             *out++ = '\n';
