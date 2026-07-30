@@ -1,16 +1,13 @@
 #ifndef DICE_TEMPLATELIBRARY_BITSET_HPP
 #define DICE_TEMPLATELIBRARY_BITSET_HPP
 
-#include "memfn.hpp"
-
-
+#include <dice/template-library/memfn.hpp>
 #include <bit>
 #include <compare>
 #include <dice/template-library/flex_array.hpp>
 #include <format>
 #include <functional>
 #include <iterator>
-#include <numeric>
 #include <ranges>
 
 namespace dice::template_library {
