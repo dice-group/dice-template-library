@@ -961,6 +961,9 @@ namespace dice::template_library {
             return segment_handler([this](const_reference segment) {
                 return bitset_op_cntl(DICE_MEMFN(segment_any_set), segment);
             },
+                                   [](bool const val) { // only terminate if we find a bit set
+                                       return !val;
+                                   },
                                    std::bit_or<bool>{},
                                    false);
         }
