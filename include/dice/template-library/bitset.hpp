@@ -679,6 +679,10 @@ namespace dice::template_library {
             return std::popcount(segment) == 0x00;
         }
 
+        [[nodiscard]] bool size_match(bitset const& other) {
+            return size() == other.size();
+        }
+
         template<typename F, typename Range>
         requires std::ranges::input_range<Range>
         void positions_cntl(Range &&positions, F &&pos_f) {
@@ -707,6 +711,10 @@ namespace dice::template_library {
         using const_bit_iterator = const_iterator<bitset_mode::BitMode>;
         using const_segment_iterator = const_iterator<bitset_mode::SegmentMode>;
 
+        /**
+         * Empty bitset
+         */
+        constexpr bitset() = default;
 
         /**
          * Initializes the bitset using an initializer list
@@ -1094,47 +1102,85 @@ namespace dice::template_library {
                                    alt_storage);
         }
 
+        template<bitset_mode mode = bitset_mode::BitMode>
         bitset &operator<<=(size_t shift) {
-            auto dest_it = std::move(begin() + shift, begin() + size_in_bits(), begin());
-            std::fill(dest_it, begin() + size_in_bits(), false);
-            return *this;
+            if constexpr (mode == bitset_mode::SegmentMode) {
+                auto dest_it = std::move(begin<mode>() + shift, begin<mode>() + size(), begin<mode>());
+                std::fill(dest_it, begin<mode>() + size(), false);
+                return *this;
+            }
+            else if constexpr (mode == bitset_mode::BitMode){
+                auto dest_it = std::move(begin() + shift, begin() + size_in_bits(), begin());
+                std::fill(dest_it, begin() + size_in_bits(), false);
+                return *this;
+            }
+            else {
+                throw std::logic_error("bitset:: bitset mode not supported");
+            }
         }
 
+        template<bitset_mode mode = bitset_mode::BitMode>
         bitset &operator>>=(size_t shift) {
-            auto dest_it = std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
-            std::fill(begin(), dest_it, false);
-            return *this;
+            if constexpr (mode == bitset_mode::SegmentMode) {
+                auto dest_it = std::move_backward(begin<mode>(), begin<mode>() + size() - shift, begin<mode>() + size());
+                std::fill(dest_it, begin<mode>() + size(), false);
+                return *this;
+            }
+            else if constexpr (mode == bitset_mode::BitMode){
+                auto dest_it = std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
+                std::fill(begin(), dest_it, false);
+                return *this;
+            }
+            else {
+                throw std::logic_error("bitset:: bitset mode not supported");
+            }
         }
 
-        bitset &operator&=(bitset const &alt_storage) noexcept {
+        bitset &operator&=(bitset const &alt_storage) {
+            if (!size_match(alt_storage)) {
+                throw std::logic_error("bitset:: bitset size not match");
+            }
+            
             segment_handler<std::bit_and<T>>(alt_storage);
             return *this;
         }
 
-        bitset &operator|=(bitset const &alt_storage) noexcept {
+        bitset &operator|=(bitset const &alt_storage) {
+            if (!size_match(alt_storage)) {
+                throw std::logic_error("bitset:: bitset size not match");
+            }
+
             segment_handler<std::bit_or<T>>(alt_storage);
             return *this;
         }
 
-        bitset operator<<(size_t shift) const noexcept {
+        bitset operator<<(size_t shift) const {
             bitset tmp = *this;
             tmp <<= shift;
             return tmp;
         }
 
-        bitset operator>>(size_t shift) const noexcept {
+        bitset operator>>(size_t shift) const {
             bitset tmp = *this;
             tmp >>= shift;
             return tmp;
         }
 
-        bitset operator&(bitset const &bitset_v_second) const noexcept {
+        bitset operator&(bitset const &bitset_v_second) const {
+            if (!size_match(bitset_v_second)) {
+                throw std::logic_error("bitset:: bitset size not match");
+            }
+
             bitset tmp = *this;
             tmp &= bitset_v_second;
             return tmp;
         }
 
-        bitset operator|(bitset const &bitset_v_second) const noexcept {
+        bitset operator|(bitset const &bitset_v_second) const {
+            if (!size_match(bitset_v_second)) {
+                throw std::logic_error("bitset:: bitset size not match");
+            }
+
             bitset tmp = *this;
             tmp |= bitset_v_second;
             return tmp;
