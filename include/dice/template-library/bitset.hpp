@@ -554,14 +554,26 @@ namespace dice::template_library {
         }
 
         template<typename Ops>
+        void segment_handler() {
+            auto self_it = begin<bitset_mode::SegmentMode>();
+            auto end_sentinel = end();
+
+            auto ops = Ops{};
+
+            while (self_it != end_sentinel) {
+                auto &seg_this = self_it.get();
+                seg_this = ops(seg_this);
+                ++self_it;
+            }
+        }
+
+        template<typename Ops>
         void segment_handler(bitset const &other) {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
             auto ops = Ops{};
 
-            if (size() != other.size()) {
-                return;
-            }
+            assert(size() != other.size());
 
             auto end_sentinel = end();
 
@@ -1140,7 +1152,7 @@ namespace dice::template_library {
             if (!size_match(alt_storage)) {
                 throw std::logic_error("bitset:: bitset size not match");
             }
-            
+
             segment_handler<std::bit_and<T>>(alt_storage);
             return *this;
         }
@@ -1151,6 +1163,15 @@ namespace dice::template_library {
             }
 
             segment_handler<std::bit_or<T>>(alt_storage);
+            return *this;
+        }
+
+        bitset &operator^=(bitset const &alt_storage) {
+            if (!size_match(alt_storage)) {
+                throw std::logic_error("bitset:: bitset size not match");
+            }
+
+            segment_handler<std::bit_xor<T>>(alt_storage);
             return *this;
         }
 
@@ -1183,6 +1204,22 @@ namespace dice::template_library {
 
             bitset tmp = *this;
             tmp |= bitset_v_second;
+            return tmp;
+        }
+
+        bitset operator^(bitset const &bitset_v_second) const {
+            if (!size_match(bitset_v_second)) {
+                throw std::logic_error("bitset:: bitset size not match");
+            }
+
+            bitset tmp = *this;
+            tmp ^= bitset_v_second;
+            return tmp;
+        }
+
+        bitset operator~() const {
+            bitset tmp = *this;
+            tmp.segment_handler<std::negate<T>>();
             return tmp;
         }
     };
