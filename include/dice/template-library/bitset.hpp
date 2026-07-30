@@ -515,7 +515,7 @@ namespace dice::template_library {
 
         template<typename F>
         auto bitset_op_cntl(F &&ops, const_reference segment) const -> std::invoke_result_t<F, const_reference> {
-            return std::invoke(std::forward<F>(ops), segment);
+            return
         }
 
         [[nodiscard]] static size_t offset_in_chunk(offset const o) noexcept {
@@ -970,7 +970,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool all_set() const {
             return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(DICE_MEMFN(segment_all_set), segment);
+                return DICE_MEMFN(segment_all_set)(segment);
             },
                                    [](bool const val) {
                                        return val;
@@ -984,7 +984,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool any_set() const {
             return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(DICE_MEMFN(segment_any_set), segment);
+                return DICE_MEMFN(segment_any_set)(segment);
             },
                                    [](bool const val) { // only terminate if we find a bit set
                                        return !val;
@@ -1000,7 +1000,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool none_set() const {
             return segment_handler([this](const_reference segment) {
-                return bitset_op_cntl(DICE_MEMFN(segment_none_set), segment);
+                return DICE_MEMFN(segment_none_set)(segment);
             },
                                    [](bool const val) {
                                        return val;
