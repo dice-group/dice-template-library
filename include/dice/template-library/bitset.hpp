@@ -513,11 +513,6 @@ namespace dice::template_library {
             return std::invoke(std::forward<F>(ops), segment, offset);
         }
 
-        template<typename F>
-        auto bitset_op_cntl(F &&ops, const_reference segment) const -> std::invoke_result_t<F, const_reference> {
-            return
-        }
-
         [[nodiscard]] static size_t offset_in_chunk(offset const o) noexcept {
             return o % (segment_align * 8);
         }
@@ -527,19 +522,19 @@ namespace dice::template_library {
         }
 
         void segment_set(segment const s, offset const o) noexcept {
-            *(inner_.data() + s) |= 1uz << o;
+            *(inner_.data() + s) |= T{1} << o;
         }
 
         void segment_flip(segment const s, offset const o) noexcept {
-            *(inner_.data() + s) ^= 1uz << o;
+            *(inner_.data() + s) ^= T{1} << o;
         }
 
         void segment_unset(segment const s, offset const o) noexcept {
-            *(inner_.data() + s) &= ~(1uz << o);
+            *(inner_.data() + s) &= static_cast<T>(~(T{1} << o));
         }
 
         [[nodiscard]] bool segment_test(segment const s, offset const o) const noexcept {
-            return *(inner_.data() + s) & 1uz << o;
+            return *(inner_.data() + s) & T{1} << o;
         }
 
         template<typename F, typename M, typename Tp>
