@@ -797,6 +797,11 @@ namespace dice::template_library {
                 throw std::out_of_range{"bitset::set: ix out of range"};
             }
 
+            // if the ix is not in the bits consumed range, return false
+            if (ix >= bits_consumed()) {
+                return false;
+            }
+
             auto const segment = calc_which_segment(ix);
             auto const offset = calc_which_offset(ix);
             return segment_test(segment, offset);
