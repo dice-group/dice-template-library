@@ -63,7 +63,7 @@ namespace dice::template_library {
         using const_reference = storage::const_reference;
 
         ///> mode to be used for the underlying iterator - make caller enforce policy
-        enum class bitset_mode : uint8_t {
+        enum struct bitset_mode : uint8_t {
             BitMode = 0x00,
             SegmentMode = 0x01,
         };
