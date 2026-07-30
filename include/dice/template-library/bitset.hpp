@@ -113,11 +113,6 @@ namespace dice::template_library {
                     return backing_bitset_->test(calc_global_idx(seg, off));
                 }
 
-                operator size_t() const noexcept requires (using_bit_mode)
-                {
-                    return ix();
-                }
-
                 operator std::conditional_t<is_const, T const &, T &>() const noexcept requires (!using_bit_mode)
                 {
                     return *(backing_bitset_->inner_.data() + seg);
@@ -405,8 +400,8 @@ namespace dice::template_library {
                 return tmp;
             }
 
-            reference operator*() const noexcept {
-                return *it_;
+            value_type operator*() const noexcept {
+                return (*it_).ix();
             }
 
             friend bool operator==(position_iterator const &lhs, position_iterator const &rhs) {
