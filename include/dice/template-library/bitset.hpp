@@ -986,7 +986,7 @@ namespace dice::template_library {
          *
          * @return input range containing the positions
          */
-        auto positions() const -> std::ranges::input_range auto {
+        std::ranges::input_range auto positions() const {
             return std::ranges::subrange(pbegin(), pend());
         }
 
