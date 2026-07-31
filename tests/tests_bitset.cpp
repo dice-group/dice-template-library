@@ -1022,10 +1022,10 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("formatting") {
-		// the formatter's output isn't specified/stable enough to assert on - just make sure the
-		// supported format specs run without throwing, and print the result for a human to eyeball.
-		// debug mode ('?') and an explicit 'x' spec were removed: hex is now the default (no spec
-		// at all), and 'b' is the only settable spec.
+		// exact content is locked down in "formatter output content (hex and binary, big
+		// endian)" below - this is just a smoke test that also prints the result for a human to
+		// eyeball. debug mode ('?') and an explicit 'x' spec were removed: hex is now the
+		// default (no spec at all), and 'b' is the only settable spec.
 		dyn8 b{0b10110011, 0x00};
 		MESSAGE("hex (default): ", std::format("{}", b));
 		MESSAGE("binary: ", std::format("{:b}", b));
@@ -1035,6 +1035,68 @@ TEST_SUITE("bitset") {
 	    dyn64 b_long(32); // parens - see the "size constructor zero-fills every segment" note above
 	    MESSAGE("hex (default): ", std::format("{}", b_long));
 	    MESSAGE("binary: ", std::format("{:b}", b_long));
+	}
+
+	TEST_CASE("formatter output content (hex and binary, big endian)") {
+		// bit_iterator itself walks LEAST-significant bit first: offset 0 is bit 0 of a segment
+		// (segment_set uses "1 << offset", so offset 0 is the LSB), and ++it moves toward higher
+		// offsets, i.e. toward the MSB. Printing must NOT follow that raw traversal order - a
+		// human reads/writes binary and hex MSB-first - so the formatter reverses direction for
+		// display. This is the specific behavior under test here, primarily in binary mode, where
+		// the formatter explicitly does `subrange(it, seg_end) | std::views::reverse` before
+		// emitting characters (bitset.hpp's format()). Segments themselves are still emitted in
+		// storage order (segment 0 first) - only the bit order *within* a segment is reversed.
+
+		SUBCASE("binary mode: bit at offset 0 (first bit the iterator visits) prints LAST") {
+			// the iterator's first bit (lowest offset, LSB) must end up as the rightmost/last
+			// character - the opposite of iteration order.
+			dyn8 b{0b00000001};
+			CHECK_EQ(std::format("{:b}", b), "[\n[00000001]\n]\n");
+		}
+
+		SUBCASE("binary mode: bit at offset 7 (last bit the iterator visits) prints FIRST") {
+			// the iterator's last bit (highest offset, MSB) must end up as the leftmost/first
+			// character.
+			dyn8 b{0b10000000};
+			CHECK_EQ(std::format("{:b}", b), "[\n[10000000]\n]\n");
+		}
+
+		SUBCASE("binary mode reproduces a mixed bit pattern exactly as written (MSB-first)") {
+			// 0b10110011 is itself written MSB-first in the source; if the formatter forgot to
+			// reverse the LSB-first iteration order, this would come out as "11001101" instead
+			// (the bit-reversal of the actual pattern).
+			dyn8 b{0b10110011};
+			CHECK_EQ(std::format("{:b}", b), "[\n[10110011]\n]\n");
+		}
+
+		SUBCASE("binary mode reverses within each segment independently, segments stay in storage order") {
+			dyn8 b{0x00, 0xFF};
+			CHECK_EQ(std::format("{:b}", b), "[\n[00000000]\n[11111111]\n]\n");
+		}
+
+		SUBCASE("hex mode renders one segment per line, in storage order") {
+			// hex mode reads the raw segment value via it.get() and lets std::format's own hex
+			// notation render it - it does not iterate bit-by-bit, so there is no LSB/MSB
+			// traversal to reverse here. The MSB-first digit order (0xa5, not 0x5a) simply comes
+			// from std::format's normal hex formatting of an integer, not from bitset's own logic.
+			dyn8 b{0x12, 0x34};
+			CHECK_EQ(std::format("{}", b), "[\n[0x12]\n[0x34]\n]\n");
+		}
+
+		SUBCASE("hex mode drops a fully-zero segment's leading zero (no fixed-width zero padding)") {
+			// documents the actual current width behavior rather than assuming it: the format
+			// spec's width only reserves 2*sizeof(T) characters, which already covers "0x" plus
+			// every significant digit for a non-zero byte, but is one digit short of the full
+			// 2-digit zero-padded form for a segment that is exactly 0.
+			dyn8 b{0x00, 0xFF};
+			CHECK_EQ(std::format("{}", b), "[\n[0x0]\n[0xff]\n]\n");
+		}
+
+		SUBCASE("empty bitset formats identically regardless of mode - no segment lines") {
+			dyn8 b{};
+			CHECK_EQ(std::format("{}", b), "[\n]\n");
+			CHECK_EQ(std::format("{:b}", b), "[\n]\n");
+		}
 	}
 
 	TEST_CASE("formatting edge cases") {
