@@ -1105,38 +1105,16 @@ namespace dice::template_library {
                                    alt_storage);
         }
 
-        template<bitset_mode mode = bitset_mode::BitMode>
         bitset &operator<<=(size_t shift) {
-            if constexpr (mode == bitset_mode::SegmentMode) {
-                auto dest_it = std::move(begin<mode>() + shift, begin<mode>() + size(), begin<mode>());
-                std::fill(dest_it, begin<mode>() + size(), false);
-                return *this;
-            }
-            else if constexpr (mode == bitset_mode::BitMode){
-                auto dest_it = std::move(begin() + shift, begin() + size_in_bits(), begin());
-                std::fill(dest_it, begin() + size_in_bits(), false);
-                return *this;
-            }
-            else {
-                throw std::logic_error("bitset:: bitset mode not supported");
-            }
+            auto dest_it = std::move(begin() + shift, begin() + size_in_bits(), begin());
+            std::fill(dest_it, begin() + size_in_bits(), false);
+            return *this;
         }
 
-        template<bitset_mode mode = bitset_mode::BitMode>
         bitset &operator>>=(size_t shift) {
-            if constexpr (mode == bitset_mode::SegmentMode) {
-                auto dest_it = std::move_backward(begin<mode>(), begin<mode>() + size() - shift, begin<mode>() + size());
-                std::fill(dest_it, begin<mode>() + size(), false);
-                return *this;
-            }
-            else if constexpr (mode == bitset_mode::BitMode){
-                auto dest_it = std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
-                std::fill(begin(), dest_it, false);
-                return *this;
-            }
-            else {
-                throw std::logic_error("bitset:: bitset mode not supported");
-            }
+            auto dest_it = std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
+            std::fill(begin(), dest_it, false);
+            return *this;
         }
 
         bitset &operator&=(bitset const &alt_storage) {
