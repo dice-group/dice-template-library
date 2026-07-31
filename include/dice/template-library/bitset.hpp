@@ -529,9 +529,10 @@ namespace dice::template_library {
             return *(inner_.data() + s) & T{1} << o;
         }
 
+        ///> folds across every segment via merge, no early exit
         template<typename F, typename M, typename Tp>
         requires std::is_same_v<std::invoke_result_t<F, segment_const_reference>, Tp> && std::invocable<M, Tp, Tp>
-        [[nodiscard]] Tp segment_handler(F &&handler, M &&merge, Tp initial) const {
+        [[nodiscard]] Tp segments_reduce(F &&handler, M &&merge, Tp initial) const {
             Tp merge_val{initial};
             for (auto const &segment : inner_) {
                 merge_val = std::invoke(std::forward<M>(merge), merge_val, std::invoke(std::forward<F>(handler), segment));
@@ -540,8 +541,9 @@ namespace dice::template_library {
             return merge_val;
         }
 
+        ///> in-place unary transform
         template<typename Ops>
-        void segment_handler() {
+        void segments_transform() {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto end_sentinel = end();
 
@@ -554,8 +556,9 @@ namespace dice::template_library {
             }
         }
 
+        ///> in-place binary transform
         template<typename Ops>
-        void segment_handler(bitset const &other) {
+        void segments_transform_with(bitset const &other) {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
             auto ops = Ops{};
@@ -574,8 +577,9 @@ namespace dice::template_library {
             }
         }
 
+        ///> true iff sizes match and handler(seg_this, seg_other) holds for every segment pair
         template<typename F>
-        bool segment_handler(F &&handler, bitset const &other) {
+        bool segments_pairwise_all_of(F &&handler, bitset const &other) const {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
 
@@ -595,29 +599,9 @@ namespace dice::template_library {
             return true;
         }
 
-        template<typename F>
-        bool segment_handler(F &&handler, bitset const &other) const {
-            auto self_it = begin<bitset_mode::SegmentMode>();
-            auto outer_it = other.begin<bitset_mode::SegmentMode>();
-
-            if (size() != other.size()) {
-                return false;
-            }
-
-            auto end_sentinel = end();
-
-            while (self_it != end_sentinel) {
-                if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
-                    return false;
-                }
-                ++self_it;
-                ++outer_it;
-            }
-            return true;
-        }
-
+        ///> true iff pred(handler(segment)) holds for every segment, early-exit on the first failure
         template<typename F, typename Pr>
-        bool segment_handler(F &&handler, Pr &&pred) const {
+        bool segments_all_of(F &&handler, Pr &&pred) const {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto end_sentinel = end();
 
@@ -630,8 +614,9 @@ namespace dice::template_library {
             return true;
         }
 
+        ///> folds handler(segment) across every segment, stopping early once pred(val) fails
         template<typename F, typename Pr, typename M, typename Tp>
-        Tp segment_handler(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
+        Tp segments_reduce_while(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto end_sentinel = end();
 
@@ -648,8 +633,9 @@ namespace dice::template_library {
             return merge_val;
         }
 
+        ///> same as segments_reduce_while, but iterates segments in reverse order
         template<typename F, typename Pr, typename M, typename Tp>
-        Tp segment_handler_backwards(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
+        Tp segments_reduce_while_reverse(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
             auto self_it = rbegin<bitset_mode::SegmentMode>();
             auto end_it = rend<bitset_mode::SegmentMode>();
 
@@ -846,7 +832,7 @@ namespace dice::template_library {
          * @return total bits set
          */
         [[nodiscard]] size_t count() const {
-            return segment_handler([](segment_const_reference segment) -> size_t {
+            return segments_reduce([](segment_const_reference segment) -> size_t {
                 return std::popcount(segment);
             },
                                    std::plus<size_t>{},
@@ -895,7 +881,7 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countr_zero() const {
-            return segment_handler([](segment_const_reference segment) {
+            return segments_reduce_while([](segment_const_reference segment) {
                 return std::countr_zero(segment);
             },
                                    [](size_t const val) {
@@ -911,7 +897,7 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countl_zero() const {
-            return segment_handler_backwards([](segment_const_reference segment) {
+            return segments_reduce_while_reverse([](segment_const_reference segment) {
                 return std::countl_zero(segment);
             },
                                              [](size_t const val) {
@@ -927,7 +913,7 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countr_one() const {
-            return segment_handler([](segment_const_reference segment) {
+            return segments_reduce_while([](segment_const_reference segment) {
                 return std::countr_one(segment);
             },
                                    [](size_t const val) {
@@ -943,7 +929,7 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countl_one() const {
-            return segment_handler_backwards([](segment_const_reference segment) {
+            return segments_reduce_while_reverse([](segment_const_reference segment) {
                 return std::countl_one(segment);
             },
                                              [](size_t const val) {
@@ -959,7 +945,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool all_set() const {
-            return segment_handler([this](segment_const_reference segment) {
+            return segments_all_of([this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_all_set)(segment);
             },
                                    [](bool const val) {
@@ -973,7 +959,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool any_set() const {
-            return segment_handler([this](segment_const_reference segment) {
+            return segments_reduce_while([this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_any_set)(segment);
             },
                                    [](bool const val) { // only terminate if we find a bit set
@@ -989,7 +975,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool none_set() const {
-            return segment_handler([this](segment_const_reference segment) {
+            return segments_reduce_while([this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_none_set)(segment);
             },
                                    [](bool const val) {
@@ -1108,7 +1094,7 @@ namespace dice::template_library {
         }
 
         bool operator==(bitset const &alt_storage) const noexcept {
-            return segment_handler([](segment_const_reference segment_first, segment_const_reference segment_second) {
+            return segments_pairwise_all_of([](segment_const_reference segment_first, segment_const_reference segment_second) {
                 return segment_first == segment_second;
             },
                                    alt_storage);
@@ -1131,7 +1117,7 @@ namespace dice::template_library {
                 throw std::logic_error("bitset:: bitset size not match");
             }
 
-            segment_handler<std::bit_and<T>>(alt_storage);
+            segments_transform_with<std::bit_and<T>>(alt_storage);
             return *this;
         }
 
@@ -1140,7 +1126,7 @@ namespace dice::template_library {
                 throw std::logic_error("bitset:: bitset size not match");
             }
 
-            segment_handler<std::bit_or<T>>(alt_storage);
+            segments_transform_with<std::bit_or<T>>(alt_storage);
             return *this;
         }
 
@@ -1149,7 +1135,7 @@ namespace dice::template_library {
                 throw std::logic_error("bitset:: bitset size not match");
             }
 
-            segment_handler<std::bit_xor<T>>(alt_storage);
+            segments_transform_with<std::bit_xor<T>>(alt_storage);
             return *this;
         }
 
@@ -1197,7 +1183,7 @@ namespace dice::template_library {
 
         bitset operator~() const {
             bitset tmp = *this;
-            tmp.segment_handler<std::negate<T>>();
+            tmp.segments_transform<std::negate<T>>();
             return tmp;
         }
     };
