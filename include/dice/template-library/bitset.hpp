@@ -302,7 +302,14 @@ namespace dice::template_library {
                 return rhs - lh_sub;
             }
 
+            friend bitset_iterator operator+(difference_type lh_add, bitset_iterator const &rhs) noexcept {
+                return rhs + lh_add;
+            }
+
             friend std::strong_ordering operator<=>(bitset_iterator const &lhs, bitset_iterator const &rhs) noexcept {
+                // UB comparing different bitsets
+                assert(lhs.backing_bitset_ == rhs.backing_bitset_);
+
                 if (lhs == rhs) {
                     return std::strong_ordering::equal;
                 }
@@ -554,7 +561,7 @@ namespace dice::template_library {
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
             auto ops = Ops{};
 
-            assert(size() != other.size());
+            assert(size() == other.size());
 
             auto end_sentinel = end();
 
@@ -672,7 +679,7 @@ namespace dice::template_library {
             return std::popcount(segment) == 0x00;
         }
 
-        [[nodiscard]] bool size_match(bitset const& other) {
+        [[nodiscard]] bool size_match(bitset const& other) const noexcept {
             return size() == other.size();
         }
 
@@ -1038,7 +1045,7 @@ namespace dice::template_library {
         template<bitset_mode mode = bitset_mode::BitMode>
         constexpr reverse_iterator<mode> rbegin() noexcept {
             if constexpr (mode == bitset_mode::BitMode) {
-                return reverse_iterator<mode>{begin<mode>() + size_in_bits()};
+                return reverse_iterator<mode>{begin<mode>() + capacity_in_bits()};
             } else {
                 return reverse_iterator<mode>{begin<mode>() + size()};
             }
@@ -1047,7 +1054,7 @@ namespace dice::template_library {
         template<bitset_mode mode = bitset_mode::BitMode>
         constexpr const_reverse_iterator<mode> rbegin() const noexcept {
             if constexpr (mode == bitset_mode::BitMode) {
-                return const_reverse_iterator<mode>{begin<mode>() + size_in_bits()};
+                return const_reverse_iterator<mode>{begin<mode>() + capacity_in_bits()};
             } else {
                 return const_reverse_iterator<mode>{begin<mode>() + size()};
             }
@@ -1225,10 +1232,11 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
         while (it != end) {
             *out++ = '[';
             if (binary) {
-                auto const seg_end = it + static_cast<ptrdiff_t>(sizeof(T) * 8);
-                for (; it != seg_end; ++it) {
-                    *out++ = *it ? '1' : '0';
+                auto const bits =  static_cast<ptrdiff_t>(sizeof(T) * 8);
+                for (auto const seg_end = it + bits; bool const b : std::ranges::subrange(it, seg_end) | std::views::reverse) {
+                    *out++ = b ? '1' : '0';
                 }
+                it += bits;
             } else { // default to hex
                 auto const &segment = it.get();
                 out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
