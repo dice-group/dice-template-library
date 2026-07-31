@@ -58,11 +58,10 @@ namespace dice::template_library {
         using segment = size_t;
         using offset = size_t;
 
+        using segment_type = storage::value_type;
+        using segment_reference = storage::reference;
+        using segment_const_reference = storage::const_reference;
     public:
-        using value_type = storage::value_type;
-        using reference = storage::reference;
-        using const_reference = storage::const_reference;
-
         ///> mode to be used for the underlying iterator - make caller enforce policy
         enum struct bitset_mode : uint8_t {
             BitMode = 0x00,
@@ -129,7 +128,7 @@ namespace dice::template_library {
 
             using iterator_category = std::random_access_iterator_tag;
             using iterator_concept = std::random_access_iterator_tag;
-            using value_type = std::conditional_t<using_bit_mode, bool, value_type>;
+            using value_type = std::conditional_t<using_bit_mode, bool, segment_type>;
             using pointer = void;
             using difference_type = ptrdiff_t;
 
@@ -531,7 +530,7 @@ namespace dice::template_library {
         }
 
         template<typename F, typename M, typename Tp>
-        requires std::is_same_v<std::invoke_result_t<F, const_reference>, Tp> && std::invocable<M, Tp, Tp>
+        requires std::is_same_v<std::invoke_result_t<F, segment_const_reference>, Tp> && std::invocable<M, Tp, Tp>
         [[nodiscard]] Tp segment_handler(F &&handler, M &&merge, Tp initial) const {
             Tp merge_val{initial};
             for (auto const &segment : inner_) {
@@ -667,15 +666,15 @@ namespace dice::template_library {
             return merge_val;
         }
 
-        [[nodiscard]] bool segment_all_set(const_reference segment) const noexcept {
+        [[nodiscard]] bool segment_all_set(segment_const_reference segment) const noexcept {
             return std::popcount(segment) == segment_size_in_bits;
         }
 
-        [[nodiscard]] bool segment_any_set(const_reference segment) const noexcept {
+        [[nodiscard]] bool segment_any_set(segment_const_reference segment) const noexcept {
             return std::popcount(segment) != 0x00;
         }
 
-        [[nodiscard]] bool segment_none_set(const_reference segment) const noexcept {
+        [[nodiscard]] bool segment_none_set(segment_const_reference segment) const noexcept {
             return std::popcount(segment) == 0x00;
         }
 
@@ -710,6 +709,9 @@ namespace dice::template_library {
 
         using const_bit_iterator = const_iterator<bitset_mode::BitMode>;
         using const_segment_iterator = const_iterator<bitset_mode::SegmentMode>;
+
+        using reference = bit_iterator::reference;
+        using value_type = bit_iterator::value_type;
 
         /**
          * Empty bitset
@@ -767,7 +769,7 @@ namespace dice::template_library {
 
         void set_all() requires (!has_dynamic_extent)
         {
-            std::fill(inner_.begin(), inner_.end(), static_cast<value_type>(~value_type{0}));
+            std::fill(inner_.begin(), inner_.end(), static_cast<segment_type>(~segment_type{0}));
         }
 
         /**
@@ -790,7 +792,7 @@ namespace dice::template_library {
 
         void reset_all() requires (!has_dynamic_extent)
         {
-            std::fill(inner_.begin(), inner_.end(), value_type{});
+            std::fill(inner_.begin(), inner_.end(), segment_type{});
         }
 
         /**
@@ -825,7 +827,7 @@ namespace dice::template_library {
 
             while (it != end) {
                 T &segment = *it;
-                if (static_cast<value_type>(~segment) != 0x00) {
+                if (static_cast<segment_type>(~segment) != 0x00) {
                     auto ptr_dist = std::distance(inner_.data(), &segment);
                     if constexpr (!has_max_extent) {
                         inner_ = storage(inner_.data(), inner_.data() + ptr_dist);
@@ -844,7 +846,7 @@ namespace dice::template_library {
          * @return total bits set
          */
         [[nodiscard]] size_t count() const {
-            return segment_handler([](const_reference segment) -> size_t {
+            return segment_handler([](segment_const_reference segment) -> size_t {
                 return std::popcount(segment);
             },
                                    std::plus<size_t>{},
@@ -858,7 +860,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] size_t set_first_free() {
             for (auto &segment : inner_) {
-                auto offset = std::countr_zero(static_cast<value_type>(~segment));
+                auto offset = std::countr_zero(static_cast<segment_type>(~segment));
 
                 if (offset != segment_size_in_bits) {
                     auto seg = std::distance(inner_.data(), &segment);
@@ -893,7 +895,7 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countr_zero() const {
-            return segment_handler([](const_reference segment) {
+            return segment_handler([](segment_const_reference segment) {
                 return std::countr_zero(segment);
             },
                                    [](size_t const val) {
@@ -909,7 +911,7 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countl_zero() const {
-            return segment_handler_backwards([](const_reference segment) {
+            return segment_handler_backwards([](segment_const_reference segment) {
                 return std::countl_zero(segment);
             },
                                              [](size_t const val) {
@@ -925,7 +927,7 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countr_one() const {
-            return segment_handler([](const_reference segment) {
+            return segment_handler([](segment_const_reference segment) {
                 return std::countr_one(segment);
             },
                                    [](size_t const val) {
@@ -941,7 +943,7 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countl_one() const {
-            return segment_handler_backwards([](const_reference segment) {
+            return segment_handler_backwards([](segment_const_reference segment) {
                 return std::countl_one(segment);
             },
                                              [](size_t const val) {
@@ -957,7 +959,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool all_set() const {
-            return segment_handler([this](const_reference segment) {
+            return segment_handler([this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_all_set)(segment);
             },
                                    [](bool const val) {
@@ -971,7 +973,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool any_set() const {
-            return segment_handler([this](const_reference segment) {
+            return segment_handler([this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_any_set)(segment);
             },
                                    [](bool const val) { // only terminate if we find a bit set
@@ -987,7 +989,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool none_set() const {
-            return segment_handler([this](const_reference segment) {
+            return segment_handler([this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_none_set)(segment);
             },
                                    [](bool const val) {
@@ -1106,7 +1108,7 @@ namespace dice::template_library {
         }
 
         bool operator==(bitset const &alt_storage) const noexcept {
-            return segment_handler([](const_reference segment_first, const_reference segment_second) {
+            return segment_handler([](segment_const_reference segment_first, segment_const_reference segment_second) {
                 return segment_first == segment_second;
             },
                                    alt_storage);
