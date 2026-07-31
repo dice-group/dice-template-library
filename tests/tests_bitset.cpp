@@ -17,6 +17,17 @@
 template<typename I>
 concept has_subscript_operator = requires(I i, std::iter_difference_t<I> n) { i[n]; };
 
+// size_in_bits() is now a static, has_max_extent-only member (the "separation between logical
+// size and capacity" change) - a genuine template parameter is needed here too so a fully dynamic
+// bitset fails via substitution rather than a hard compile error.
+template<typename B>
+concept has_static_size_in_bits = requires { B::size_in_bits(); };
+
+// position_iterator's dereference is a plain value_type (size_t) now, not a writable proxy -
+// verifies there is nothing to assign through it.
+template<typename I>
+concept dereference_is_assignable = requires(I i, bool b) { *i = b; };
+
 TEST_SUITE("bitset") {
 	using namespace dice::template_library;
 
@@ -33,7 +44,7 @@ TEST_SUITE("bitset") {
 	TEST_CASE("construction") {
 		SUBCASE("initializer list") {
 			dyn8 b{0b00000001, 0b10000000};
-			REQUIRE_EQ(b.size_in_bits(), 16);
+			REQUIRE_EQ(b.capacity_in_bits(), 16);
 
 			CHECK(b.test(0));
 			for (size_t i = 1; i < 7; ++i) {
@@ -53,8 +64,8 @@ TEST_SUITE("bitset") {
 			// segment holding the value 3 instead of calling the explicit size_t constructor,
 			// since a viable initializer_list constructor always wins list-initialization.
 			dyn64 b(3);
-			REQUIRE_EQ(b.size_in_bits(), 3 * 64);
-			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+			REQUIRE_EQ(b.capacity_in_bits(), 3 * 64);
+			for (size_t i = 0; i < b.capacity_in_bits(); ++i) {
 				CHECK_FALSE(b.test(i));
 			}
 		}
@@ -73,7 +84,7 @@ TEST_SUITE("bitset") {
 			dyn8 d{0xFF};
 			d = a;
 			CHECK_FALSE(d.test(3));
-			CHECK_EQ(d.size_in_bits(), 2 * 8);
+			CHECK_EQ(d.capacity_in_bits(), 2 * 8);
 		}
 	}
 
@@ -81,13 +92,13 @@ TEST_SUITE("bitset") {
 		SUBCASE("set/reset/flip/test grows storage automatically") {
 			dyn64 b{};
 			b.set(5);
-			REQUIRE_EQ(b.size_in_bits(), 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 64);
 			CHECK(b.test(5));
 			CHECK_FALSE(b.test(0));
 			CHECK_FALSE(b.test(63));
 
 			b.set(130); // segment 2, offset 2 -> needs 3 segments total
-			REQUIRE_EQ(b.size_in_bits(), 3 * 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 3 * 64);
 			CHECK(b.test(130));
 
 			b.flip(130);
@@ -107,7 +118,7 @@ TEST_SUITE("bitset") {
 			// the fact that bit index 64 needs capacity > 64 bits, not merely >= 64 bits.
 			dyn64 b{};
 			b.set(64);
-			REQUIRE_EQ(b.size_in_bits(), 2 * 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 2 * 64);
 			CHECK(b.test(64));
 			CHECK_FALSE(b.test(0));
 			CHECK_FALSE(b.test(63));
@@ -117,7 +128,7 @@ TEST_SUITE("bitset") {
 			bounded64 b{};
 			REQUIRE_THROWS_AS(b.set(bounded64_capacity_bits), std::out_of_range);
 			REQUIRE_THROWS_AS((void)b.test(bounded64_capacity_bits), std::out_of_range);
-			CHECK_EQ(b.size_in_bits(), 0); // rejected out-of-range set() must not have grown anything
+			CHECK_EQ(b.capacity_in_bits(), 0); // rejected out-of-range set() must not have grown anything
 			CHECK_NOTHROW(b.set(bounded64_capacity_bits - 1));
 		}
 
@@ -126,10 +137,10 @@ TEST_SUITE("bitset") {
 			// more than one extra segment), not just the "next segment" case exercised above.
 			dyn64 b{};
 			b.set(1000); // segment 15 (1000 / 64), so 16 segments are required in total
-			REQUIRE_EQ(b.size_in_bits(), 16 * 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 16 * 64);
 			CHECK(b.test(1000));
 
-			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+			for (size_t i = 0; i < b.capacity_in_bits(); ++i) {
 				if (i == 1000) continue;
 				CAPTURE(i);
 				CHECK_FALSE(b.test(i));
@@ -139,10 +150,10 @@ TEST_SUITE("bitset") {
 		SUBCASE("setting a lower index after a large-index growth does not grow further") {
 			dyn64 b{};
 			b.set(1000);
-			REQUIRE_EQ(b.size_in_bits(), 16 * 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 16 * 64);
 
 			b.set(0);
-			CHECK_EQ(b.size_in_bits(), 16 * 64); // already had enough room, must not have resized again
+			CHECK_EQ(b.capacity_in_bits(), 16 * 64); // already had enough room, must not have resized again
 			CHECK(b.test(0));
 			CHECK(b.test(1000));
 		}
@@ -152,22 +163,25 @@ TEST_SUITE("bitset") {
 			// growing size(), so test() would report the bit as set while count()/iteration/
 			// all_set()/etc (which all iterate up to size()) stayed blind to it entirely.
 			bounded64 b{};
-			REQUIRE_EQ(b.size_in_bits(), 0);
+			REQUIRE_EQ(b.capacity_in_bits(), 0);
 
 			b.set(5);
-			CHECK_EQ(b.size_in_bits(), 64);
+			CHECK_EQ(b.capacity_in_bits(), 64);
 			CHECK(b.test(5));
 			CHECK_EQ(b.count(), 1);
 
 			size_t visited = 0;
 			for (auto it = b.begin(); it != b.end(); ++it) ++visited;
-			CHECK_EQ(visited, b.size_in_bits());
+			CHECK_EQ(visited, b.capacity_in_bits());
 		}
 
 		SUBCASE("bounded capacity growth stops exactly at its static maximum and stays zero-filled") {
 			bounded64 b{};
 			b.set(bounded64_capacity_bits - 1); // last valid bit, far beyond current size()
-			REQUIRE_EQ(b.size_in_bits(), 4 * 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 4 * 64);
+			// size_in_bits() is now the static, growth-independent logical bound (max_bits) -
+			// it must equal capacity_in_bits() here since growth reached the maximum.
+			CHECK_EQ(bounded64::size_in_bits(), bounded64_capacity_bits);
 			CHECK(b.test(bounded64_capacity_bits - 1));
 			CHECK_EQ(b.count(), 1); // every other (newly exposed) bit must be zero, not garbage
 		}
@@ -323,7 +337,7 @@ TEST_SUITE("bitset") {
 			dyn8 b{0xFF};
 			auto const ix = b.set_first_free();
 			CHECK_EQ(ix, 8); // new segment appended, first bit of it
-			REQUIRE_EQ(b.size_in_bits(), 2 * 8);
+			REQUIRE_EQ(b.capacity_in_bits(), 2 * 8);
 			CHECK(b.test(8));
 		}
 
@@ -386,7 +400,7 @@ TEST_SUITE("bitset") {
 				++visited;
 				++it;
 			}
-			CHECK_EQ(visited, b.size_in_bits());
+			CHECK_EQ(visited, b.capacity_in_bits());
 		}
 
 		SUBCASE("operator* reads the bit at the iterator's current position") {
@@ -544,7 +558,7 @@ TEST_SUITE("bitset") {
 				CHECK_EQ(static_cast<bool>(*it), expected);
 				++visited;
 			}
-			CHECK_EQ(visited, b.size_in_bits());
+			CHECK_EQ(visited, b.capacity_in_bits());
 			CHECK_EQ(global_ix, -1);
 		}
 
@@ -554,7 +568,7 @@ TEST_SUITE("bitset") {
 			for (auto it = b.rbegin(); it != b.rend(); ++it) {
 				++visited;
 			}
-			CHECK_EQ(visited, b.size_in_bits());
+			CHECK_EQ(visited, b.capacity_in_bits());
 		}
 	}
 
@@ -562,11 +576,16 @@ TEST_SUITE("bitset") {
 		// segment_iterator's reference has operator std::conditional_t<is_const, T const&, T&>()
 		// (SegmentMode-only) - this exercises both sides: binding the dereference to a T&
 		// (an actual alias into storage) vs binding it to a plain T (an independent copy).
+		// bitset itself keeps its segment/storage type private - these tests spell it out as
+		// plain uint8_t (the T dyn8 was defined with below), never referring to any bitset-side
+		// alias for it.
 
-		SUBCASE("value_type for a segment_iterator reports T, not bool") {
-			// bit_iterator's value_type is bool (one bit); segment_iterator's is the segment
-			// type itself - the two modes really do carry different logical types.
-			static_assert(std::is_same_v<dyn8::segment_iterator::value_type, dyn8::value_type>);
+		SUBCASE("value_type for a segment_iterator reports the underlying storage type, not bool") {
+			// bit_iterator's value_type is bool (one bit), matching bitset::value_type itself;
+			// segment_iterator's value_type is the underlying storage word type (uint8_t for
+			// dyn8) - the two modes really do carry different logical types.
+			static_assert(std::is_same_v<dyn8::segment_iterator::value_type, uint8_t>);
+			static_assert(std::is_same_v<dyn8::bit_iterator::value_type, dyn8::value_type>);
 			static_assert(std::is_same_v<dyn8::bit_iterator::value_type, bool>);
 			CHECK(true);
 		}
@@ -575,7 +594,7 @@ TEST_SUITE("bitset") {
 			dyn8 b{0xAA, 0x00}; // 2nd segment left at 0 so b.count() cleanly reflects only segment 0
 			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
 
-			dyn8::value_type &seg_ref = *it; // binds the proxy's conversion to an actual T&
+			uint8_t &seg_ref = *it; // binds the proxy's conversion to an actual T&
 			CHECK_EQ(seg_ref, 0xAA);
 
 			seg_ref = 0xFF; // mutate through the reference, not through the iterator/bitset API
@@ -587,7 +606,7 @@ TEST_SUITE("bitset") {
 			dyn8 b{0xAA, 0xBB};
 			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
 
-			dyn8::value_type seg_val = *it; // binds to a plain T, not a reference: a copy
+			uint8_t seg_val = *it; // binds to a plain T, not a reference: a copy
 			CHECK_EQ(seg_val, 0xAA);
 
 			seg_val = 0xFF; // only the local copy changes
@@ -602,8 +621,8 @@ TEST_SUITE("bitset") {
 			auto writer = b.begin<dyn8::bitset_mode::SegmentMode>();
 			auto reader = b.begin<dyn8::bitset_mode::SegmentMode>();
 
-			dyn8::value_type &write_ref = *writer;
-			dyn8::value_type &read_ref = *reader;
+			uint8_t &write_ref = *writer;
+			uint8_t &read_ref = *reader;
 
 			CHECK_EQ(read_ref, 0x00);
 			write_ref = 0x42;
@@ -617,28 +636,28 @@ TEST_SUITE("bitset") {
 			auto non_const_it = b.begin<dyn8::bitset_mode::SegmentMode>();
 			auto const_it = cb.begin<dyn8::bitset_mode::SegmentMode>();
 
-			dyn8::value_type const &const_ref = *const_it;
+			uint8_t const &const_ref = *const_it;
 			CHECK_EQ(const_ref, 0xAA);
 
 			// mutate through the *non-const* iterator over the same underlying bitset...
-			dyn8::value_type &mutable_ref = *non_const_it;
+			uint8_t &mutable_ref = *non_const_it;
 			mutable_ref = 0x77;
 
 			// ...and the const reference, still bound to the same storage, observes it.
 			CHECK_EQ(const_ref, 0x77);
 
-			static_assert(std::is_same_v<decltype(const_ref), dyn8::value_type const&>);
+			static_assert(std::is_same_v<decltype(const_ref), uint8_t const&>);
 		}
 
 		SUBCASE("advancing a segment_iterator and rebinding to T& tracks the new segment, not the old one") {
 			dyn8 b{0xAA, 0xBB, 0xCC};
 			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
 
-			dyn8::value_type &first = *it;
+			uint8_t &first = *it;
 			CHECK_EQ(first, 0xAA);
 
 			++it;
-			dyn8::value_type &second = *it; // a fresh reference for the new position
+			uint8_t &second = *it; // a fresh reference for the new position
 			CHECK_EQ(second, 0xBB);
 			CHECK_EQ(first, 0xAA); // the earlier reference is untouched - it aliases segment 0, not segment 1
 
@@ -650,10 +669,10 @@ TEST_SUITE("bitset") {
 		SUBCASE("rbegin/rend segment-mode traversal dereferences to T& and supports write-through") {
 			dyn8 b{0x11, 0x22, 0x33};
 
-			std::array<dyn8::value_type, 3> visited{};
+			std::array<uint8_t, 3> visited{};
 			size_t i = 0;
 			for (auto it = b.rbegin<dyn8::bitset_mode::SegmentMode>(); it != b.rend<dyn8::bitset_mode::SegmentMode>(); ++it) {
-				dyn8::value_type &seg_ref = *it;
+				uint8_t &seg_ref = *it;
 				REQUIRE_LT(i, visited.size());
 				visited[i++] = seg_ref;
 			}
@@ -664,7 +683,7 @@ TEST_SUITE("bitset") {
 
 			// write through the reverse-order reference and confirm it lands on the right segment
 			for (auto it = b.rbegin<dyn8::bitset_mode::SegmentMode>(); it != b.rend<dyn8::bitset_mode::SegmentMode>(); ++it) {
-				dyn8::value_type &seg_ref = *it;
+				uint8_t &seg_ref = *it;
 				if (seg_ref == 0x22) {
 					seg_ref = 0x99;
 				}
@@ -718,7 +737,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("operator[] matches *(it + n) for every position") {
 			dyn8 b{0b10110010, 0b01001101};
 			auto const it = b.begin();
-			for (size_t n = 0; n < b.size_in_bits(); ++n) {
+			for (size_t n = 0; n < b.capacity_in_bits(); ++n) {
 				CAPTURE(n);
 				CHECK_EQ(static_cast<bool>(it[n]), static_cast<bool>(*(it + n)));
 			}
@@ -875,31 +894,31 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(b.count(), 5);
 		}
 
-		SUBCASE("shift by exactly size_in_bits() clears everything") {
+		SUBCASE("shift by exactly capacity_in_bits() clears everything") {
 			dyn8 b{0xFF, 0xFF};
-			b <<= b.size_in_bits();
+			b <<= b.capacity_in_bits();
 			CHECK_EQ(b.count(), 0);
 
 			dyn8 b2{0xFF, 0xFF};
-			b2 >>= b2.size_in_bits();
+			b2 >>= b2.capacity_in_bits();
 			CHECK_EQ(b2.count(), 0);
 		}
 
-		SUBCASE("shift by more than size_in_bits() clears everything (regression: used to hang)") {
+		SUBCASE("shift by more than capacity_in_bits() clears everything (regression: used to hang)") {
 			// previously, shifting by more bits than the bitset holds caused the internal
 			// iterator arithmetic to compare against the static storage capacity instead of
 			// the bitset's actual size, so the move/fill loop in operator<<=/>>= never
 			// terminated for bitsets whose size() can be less than their max capacity.
 			dyn8 b{0xFF, 0xFF};
-			b <<= b.size_in_bits() + 5;
+			b <<= b.capacity_in_bits() + 5;
 			CHECK_EQ(b.count(), 0);
 
 			dyn8 b2{0xFF, 0xFF};
-			b2 >>= b2.size_in_bits() + 5;
+			b2 >>= b2.capacity_in_bits() + 5;
 			CHECK_EQ(b2.count(), 0);
 
 			bounded64 b3{~0ull, ~0ull}; // size() == 2 segments, capacity 4 segments
-			b3 <<= b3.size_in_bits() + 30; // within capacity, beyond current size
+			b3 <<= b3.capacity_in_bits() + 30; // within capacity, beyond current size
 			CHECK_EQ(b3.count(), 0);
 
 			bounded64 b4{~0ull, ~0ull};
@@ -926,27 +945,27 @@ TEST_SUITE("bitset") {
 
 	TEST_CASE("all_set / any_set / none_set on an empty bitset") {
 		dyn8 b{};
-		REQUIRE_EQ(b.size_in_bits(), 0);
+		REQUIRE_EQ(b.capacity_in_bits(), 0);
 		CHECK(b.all_set());   // vacuously true: no bit fails to be set
 		CHECK_FALSE(b.any_set());
 		CHECK(b.none_set());  // vacuously true: no bit is set
 	}
 
-	TEST_CASE("bitwise combination with mismatched sizes leaves the receiver untouched") {
-		// segment_handler(bitset const&) bails out (returns false) as soon as it sees a size
-		// mismatch, before touching any segment - documenting that &=/|= are silent no-ops here
-		// rather than throwing, unlike e.g. set()/test() which throw on out-of-range access.
+	TEST_CASE("bitwise combination with mismatched sizes throws, leaving the receiver untouched") {
+		// operator&=/|=/^= check size_match() first and throw std::logic_error immediately on
+		// any mismatch, before touching any segment - unlike e.g. set()/test() which throw
+		// std::out_of_range instead, and unlike operator== which just reports false.
 		SUBCASE("operator&= with a differently-sized operand") {
 			dyn8 a{0xFF, 0xFF};
 			dyn8 b{0xFF};
-			a &= b;
-			CHECK_EQ(a.count(), 16);
+			CHECK_THROWS_AS(a &= b, std::logic_error);
+			CHECK_EQ(a.count(), 16); // untouched: the throw happens before any segment is combined
 		}
 
 		SUBCASE("operator|= with a differently-sized operand") {
 			dyn8 a{0x00, 0x00};
 			dyn8 b{0xFF};
-			a |= b;
+			CHECK_THROWS_AS(a |= b, std::logic_error);
 			CHECK_EQ(a.count(), 0);
 		}
 	}
@@ -997,40 +1016,32 @@ TEST_SUITE("bitset") {
 			bounded64 b{~0ull, ~0ull}; // 2 of 4 segments used, both full
 			auto const ix = b.set_first_free();
 			CHECK_EQ(ix, bounded64_segment_bits * 2); // first bit of the freshly grown 3rd segment
-			REQUIRE_EQ(b.size_in_bits(), 3 * bounded64_segment_bits);
+			REQUIRE_EQ(b.capacity_in_bits(), 3 * bounded64_segment_bits);
 			CHECK(b.test(ix));
 		}
 	}
 
 	TEST_CASE("formatting") {
 		// the formatter's output isn't specified/stable enough to assert on - just make sure the
-		// various format specs run without throwing, and print the result for a human to eyeball.
+		// supported format specs run without throwing, and print the result for a human to eyeball.
+		// debug mode ('?') and an explicit 'x' spec were removed: hex is now the default (no spec
+		// at all), and 'b' is the only settable spec.
 		dyn8 b{0b10110011, 0x00};
-		MESSAGE("hex: ", std::format("{:x}", b));
+		MESSAGE("hex (default): ", std::format("{}", b));
 		MESSAGE("binary: ", std::format("{:b}", b));
-		MESSAGE("debug+hex: ", std::format("{:?x}", b));
-		MESSAGE("debug+binary: ", std::format("{:?b}", b));
 	}
 
     TEST_CASE("formatting long") {
 	    dyn64 b_long(32); // parens - see the "size constructor zero-fills every segment" note above
-	    MESSAGE("hex: ", std::format("{:x}", b_long));
+	    MESSAGE("hex (default): ", std::format("{}", b_long));
 	    MESSAGE("binary: ", std::format("{:b}", b_long));
-	    MESSAGE("debug+hex: ", std::format("{:?x}", b_long));
-	    MESSAGE("debug+binary: ", std::format("{:?b}", b_long));
 	}
 
 	TEST_CASE("formatting edge cases") {
-		SUBCASE("no format spec just steps through without hex/binary rendering") {
+		SUBCASE("no format spec defaults to hex rendering") {
 			dyn8 b{0b10110011};
 			std::string s;
 			CHECK_NOTHROW(s = std::format("{}", b));
-		}
-
-		SUBCASE("debug spec alone (no hex/binary) is accepted") {
-			dyn8 b{0b10110011};
-			std::string s;
-			CHECK_NOTHROW(s = std::format("{:?}", b));
 		}
 
 		SUBCASE("an unrecognized format spec character throws format_error") {
@@ -1039,6 +1050,15 @@ TEST_SUITE("bitset") {
 			dyn8 b{0x00};
 			std::string s;
 			CHECK_THROWS_AS(s = std::vformat("{:z}", std::make_format_args(b)), std::format_error);
+		}
+
+		SUBCASE("debug spec ('?') was removed and is now just as invalid as any other character") {
+			// same reasoning as above: a compile-time literal "{:?}" would fail to compile
+			// (consteval parse() validation), so a runtime format string is used to exercise
+			// the throwing path instead.
+			dyn8 b{0x00};
+			std::string s;
+			CHECK_THROWS_AS(s = std::vformat("{:?}", std::make_format_args(b)), std::format_error);
 		}
 	}
 
@@ -1054,7 +1074,7 @@ TEST_SUITE("bitset") {
 			b.set(3);
 			b.set(segment_bits + 1); // force growth into a 2nd segment
 
-			CHECK_EQ(b.size_in_bits(), 2 * segment_bits);
+			CHECK_EQ(b.capacity_in_bits(), 2 * segment_bits);
 			CHECK_EQ(b.count(), 2);
 			CHECK(b.test(3));
 			CHECK(b.test(segment_bits + 1));
@@ -1108,8 +1128,8 @@ TEST_SUITE("bitset") {
 		SUBCASE("drops a trailing not-fully-set segment") {
 			dyn8 b{0xFF, 0xFF, 0x0F};
 			b.shrink_to_fit();
-			REQUIRE_EQ(b.size_in_bits(), 2 * 8);
-			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+			REQUIRE_EQ(b.capacity_in_bits(), 2 * 8);
+			for (size_t i = 0; i < b.capacity_in_bits(); ++i) {
 				CHECK(b.test(i));
 			}
 		}
@@ -1120,8 +1140,8 @@ TEST_SUITE("bitset") {
 			// to exclude it and everything after it, keeping only segment 0.
 			dyn8 b{0xFF, 0x0F, 0xFF, 0xFF};
 			b.shrink_to_fit();
-			REQUIRE_EQ(b.size_in_bits(), 1 * 8);
-			for (size_t i = 0; i < b.size_in_bits(); ++i) {
+			REQUIRE_EQ(b.capacity_in_bits(), 1 * 8);
+			for (size_t i = 0; i < b.capacity_in_bits(); ++i) {
 				CHECK(b.test(i));
 			}
 		}
@@ -1129,14 +1149,14 @@ TEST_SUITE("bitset") {
 		SUBCASE("no shrink happens when every segment is fully set") {
 			dyn8 b{0xFF, 0xFF, 0xFF};
 			b.shrink_to_fit();
-			CHECK_EQ(b.size_in_bits(), 3 * 8);
+			CHECK_EQ(b.capacity_in_bits(), 3 * 8);
 			CHECK_EQ(b.count(), 24);
 		}
 
 		SUBCASE("bounded (max-extent) capacity uses resize instead of storage reconstruction") {
 			bounded64 b{~0ull, 0x0Full};
 			b.shrink_to_fit();
-			REQUIRE_EQ(b.size_in_bits(), bounded64_segment_bits);
+			REQUIRE_EQ(b.capacity_in_bits(), bounded64_segment_bits);
 			CHECK_EQ(b.count(), 64);
 		}
 	}
@@ -1149,8 +1169,10 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
-				CHECK(static_cast<bool>(pos));
+				// pos is a plain value_type (size_t) now - it IS the position, not a proxy with
+				// .ix()/operator bool() (position_iterator only ever yields set-bit positions,
+				// so there's no separate "is it set" state left to query here).
+				CHECK_EQ(pos, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1163,7 +1185,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
+				CHECK_EQ(pos, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1257,17 +1279,17 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto it = b.pbegin(); it != b.pend(); ++it) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ((*it).ix(), expected[i]);
-				CHECK(static_cast<bool>(*it));
+				// *it is a plain value_type (size_t) now - it IS the position directly, not a
+				// proxy with .ix()/operator bool().
+				CHECK_EQ(*it, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
 		}
 
 		SUBCASE("dereferencing converts directly to size_t - no .ix() call needed") {
-			// the same reference proxy bitset_iterator dereferences to also has an implicit
-			// operator size_t() (returning ix()), so a plain assignment - not a call to .ix() -
-			// is enough to pull the logical position back out.
+			// position_iterator::operator*() returns value_type (size_t) by value directly -
+			// a plain assignment, not a call to .ix(), is enough to pull the position back out.
 			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set
 			std::array<size_t, 4> const expected{0, 2, 4, 64};
 
@@ -1303,7 +1325,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto it = b.pbegin(); it != b.pend(); ++it) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ((*it).ix(), expected[i]);
+				CHECK_EQ(*it, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1314,8 +1336,8 @@ TEST_SUITE("bitset") {
 			auto it = b.pbegin();
 
 			auto const before = it++;
-			CHECK_EQ((*before).ix(), 0);
-			CHECK_EQ((*it).ix(), 2);
+			CHECK_EQ(*before, 0);
+			CHECK_EQ(*it, 2);
 
 			auto &ref = ++it;
 			CHECK_EQ(&ref, &it); // weakly_incrementable requires "{ ++i } -> same_as<I&>"
@@ -1329,26 +1351,28 @@ TEST_SUITE("bitset") {
 			++it1;
 
 			CHECK(it1 != it2);
-			CHECK_EQ((*it2).ix(), 0);
-			CHECK_EQ((*it1).ix(), 2);
+			CHECK_EQ(*it2, 0);
+			CHECK_EQ(*it1, 2);
 
 			it2 = it1;
 			CHECK(it1 == it2);
 		}
 
-		SUBCASE("dereferencing yields the same writable proxy as the bit-mode iterator") {
+		SUBCASE("dereferencing yields a read-only size_t, not a writable proxy") {
+			// unlike bit_iterator's reference proxy, position_iterator::operator*() returns
+			// value_type (size_t) by value - there is nothing left to assign through.
+			static_assert(!dereference_is_assignable<pos_it>);
+			static_assert(!dereference_is_assignable<const_pos_it>);
+
 			dyn64 b{0b1};
 			auto it = b.pbegin();
-			CHECK(static_cast<bool>(*it));
-			*it = false;
-			CHECK_FALSE(b.test(0));
+			CHECK_EQ(*it, 0);
 		}
 
 		SUBCASE("pbegin() skips forward when bit 0 of segment 0 is not actually set") {
 			dyn64 b{0b100}; // bit 2 set, bit 0 NOT set
 			auto it = b.pbegin();
-			CHECK(static_cast<bool>(*it));
-			CHECK_EQ((*it).ix(), 2);
+			CHECK_EQ(*it, 2);
 		}
 
 		SUBCASE("multiple jumps within one segment: bits at its beginning, middle and end") {
@@ -1358,7 +1382,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
+				CHECK_EQ(pos, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1382,7 +1406,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
+				CHECK_EQ(pos, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1395,7 +1419,7 @@ TEST_SUITE("bitset") {
 			size_t i = 0;
 			for (auto pos : b.positions()) {
 				REQUIRE_LT(i, expected.size());
-				CHECK_EQ(pos.ix(), expected[i]);
+				CHECK_EQ(pos, expected[i]);
 				++i;
 			}
 			CHECK_EQ(i, expected.size());
@@ -1415,8 +1439,12 @@ TEST_SUITE("bitset") {
 
 			bounded_odd b{};
 			CHECK_NOTHROW(b.set(expected_capacity_bits - 1)); // last bit of the 4th (rounded-up) segment
-			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits); // grew to a whole segment, not just to 200 bits
+			REQUIRE_EQ(b.capacity_in_bits(), expected_capacity_bits); // grew to a whole segment, not just to 200 bits
 			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range); // truly out of capacity
+
+			// size_in_bits() is the static, un-rounded logical bound (max_bits itself, 200) - it
+			// stays fixed regardless of growth, unlike capacity_in_bits() which just grew to 256.
+			CHECK_EQ(bounded_odd::size_in_bits(), 200);
 		}
 
 		SUBCASE("fully static capacity: uint64_t segments") {
@@ -1428,6 +1456,11 @@ TEST_SUITE("bitset") {
 			fixed_odd b{0, 0, 0, 0};
 			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
 			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
+
+			// even fully static, size_in_bits() is still the raw max_bits (200), not the
+			// segment-rounded capacity_in_bits() (256) - the two are deliberately distinct concepts.
+			CHECK_EQ(fixed_odd::size_in_bits(), 200);
+			CHECK_EQ(b.capacity_in_bits(), expected_capacity_bits);
 		}
 
 		SUBCASE("bounded capacity: narrow (uint8_t) segments") {
@@ -1437,8 +1470,19 @@ TEST_SUITE("bitset") {
 
 			bounded_odd8 b{};
 			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
-			REQUIRE_EQ(b.size_in_bits(), expected_capacity_bits);
+			REQUIRE_EQ(b.capacity_in_bits(), expected_capacity_bits);
 			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
+			CHECK_EQ(bounded_odd8::size_in_bits(), 20);
+		}
+
+		SUBCASE("fully dynamic capacity has no static size_in_bits() at all") {
+			// size_in_bits() requires has_max_extent - a fully dynamic bitset (both template
+			// parameters left as dynamic_extent) has no compile-time logical bound to report.
+			static_assert(!has_static_size_in_bits<dyn64>);
+			static_assert(!has_static_size_in_bits<dyn8>);
+			static_assert(has_static_size_in_bits<bounded64>);
+			static_assert(has_static_size_in_bits<bitset<4, 4 * 64>>);
+			CHECK(true);
 		}
 	}
 }
