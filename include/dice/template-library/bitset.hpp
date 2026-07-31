@@ -223,7 +223,7 @@ namespace dice::template_library {
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
 
-                    if (global_ix >= backing_bitset_->size_in_bits()) {
+                    if (global_ix >= backing_bitset_->capacity_in_bits()) {
                         cur_segment_ = backing_bitset_->size();
                         cur_offset_ = 0;
                         return;
@@ -1080,12 +1080,22 @@ namespace dice::template_library {
         }
 
         /**
-         * Returns consumed bits in bits
+         * Returns total capacity bit size (rounded up)
          *
-         * @return consumed bits
+         * @return total capacity
          */
-        constexpr size_t size_in_bits() const noexcept {
+        constexpr size_t capacity_in_bits() const noexcept {
             return size() * segment_size_in_bits;
+        }
+
+        /**
+         * Returns logical bit size
+         *
+         * @return logical bits
+         */
+        static constexpr size_t size_in_bits() noexcept requires (has_max_extent)
+        {
+            return max_bits;
         }
 
         bool operator==(bitset const &alt_storage) const noexcept {
@@ -1096,13 +1106,13 @@ namespace dice::template_library {
         }
 
         bitset &operator<<=(size_t shift) {
-            auto dest_it = std::move(begin() + shift, begin() + size_in_bits(), begin());
-            std::fill(dest_it, begin() + size_in_bits(), false);
+            auto dest_it = std::move(begin() + shift, begin() + capacity_in_bits(), begin());
+            std::fill(dest_it, begin() + capacity_in_bits(), false);
             return *this;
         }
 
         bitset &operator>>=(size_t shift) {
-            auto dest_it = std::move_backward(begin(), begin() + size_in_bits() - shift, begin() + size_in_bits());
+            auto dest_it = std::move_backward(begin(), begin() + capacity_in_bits() - shift, begin() + capacity_in_bits());
             std::fill(begin(), dest_it, false);
             return *this;
         }
