@@ -72,8 +72,6 @@ namespace dice::template_library {
     private:
         static constexpr bool has_max_extent = storage::has_max_extent;
         static constexpr bool has_dynamic_extent = storage::has_dynamic_extent;
-        static constexpr size_t segment_align = alignof(T);
-        static constexpr size_t segment_steps = segment_size / segment_align;  ///> how many chunks fit within one segment
 
         static constexpr size_t storage_size = !has_max_extent ? dynamic_extent : segment_size * max_segments;
         static constexpr size_t storage_size_in_bits = !has_max_extent ? dynamic_extent : storage_size * 8;
@@ -507,14 +505,6 @@ namespace dice::template_library {
             auto const offset = calc_which_offset(ix);
 
             return std::invoke(std::forward<F>(ops), segment, offset);
-        }
-
-        [[nodiscard]] static size_t offset_in_chunk(offset const o) noexcept {
-            return o % (segment_align * 8);
-        }
-
-        [[nodiscard]] static size_t which_chunk(offset const o) noexcept {
-            return o / (segment_align * 8);
         }
 
         void segment_set(segment const s, offset const o) noexcept {
