@@ -991,7 +991,7 @@ namespace dice::template_library {
          * @return input range containing the positions
          */
         std::ranges::input_range auto positions() const {
-            return std::ranges::subrange(pbegin(), pend());
+            return std::ranges::subrange(positions_begin(), positions_end());
         }
 
         /**
@@ -1062,15 +1062,15 @@ namespace dice::template_library {
             return std::default_sentinel;
         }
 
-        constexpr positional_iterator pbegin() noexcept {
+        constexpr positional_iterator positions_begin() noexcept {
             return positional_iterator{*this};
         }
 
-        constexpr const_positional_iterator pbegin() const noexcept {
+        constexpr const_positional_iterator positions_begin() const noexcept {
             return const_positional_iterator{*this};
         }
 
-        constexpr std::default_sentinel_t pend() const noexcept {
+        constexpr std::default_sentinel_t positions_end() const noexcept {
             return std::default_sentinel;
         }
 

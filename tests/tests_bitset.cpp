@@ -70,7 +70,7 @@ TEST_SUITE("bitset") {
 			}
 		}
 
-		SUBCASE("copy/move construction and assignment are independent of the source") {
+		SUBCASE("copy/move construction and assignment are indepositions_endent of the source") {
 			dyn8 a{0x00, 0x00};
 
 			dyn8 b{a};
@@ -179,7 +179,7 @@ TEST_SUITE("bitset") {
 			bounded64 b{};
 			b.set(bounded64_capacity_bits - 1); // last valid bit, far beyond current size()
 			REQUIRE_EQ(b.capacity_in_bits(), 4 * 64);
-			// size_in_bits() is now the static, growth-independent logical bound (max_bits) -
+			// size_in_bits() is now the static, growth-indepositions_endent logical bound (max_bits) -
 			// it must equal capacity_in_bits() here since growth reached the maximum.
 			CHECK_EQ(bounded64::size_in_bits(), bounded64_capacity_bits);
 			CHECK(b.test(bounded64_capacity_bits - 1));
@@ -336,7 +336,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("grows storage when all existing segments are full") {
 			dyn8 b{0xFF};
 			auto const ix = b.set_first_free();
-			CHECK_EQ(ix, 8); // new segment appended, first bit of it
+			CHECK_EQ(ix, 8); // new segment appositions_ended, first bit of it
 			REQUIRE_EQ(b.capacity_in_bits(), 2 * 8);
 			CHECK(b.test(8));
 		}
@@ -575,7 +575,7 @@ TEST_SUITE("bitset") {
 	TEST_CASE("segment-mode dereferencing: T& reference vs plain T value semantics") {
 		// segment_iterator's reference has operator std::conditional_t<is_const, T const&, T&>()
 		// (SegmentMode-only) - this exercises both sides: binding the dereference to a T&
-		// (an actual alias into storage) vs binding it to a plain T (an independent copy).
+		// (an actual alias into storage) vs binding it to a plain T (an indepositions_endent copy).
 		// bitset itself keeps its segment/storage type private - these tests spell it out as
 		// plain uint8_t (the T dyn8 was defined with below), never referring to any bitset-side
 		// alias for it.
@@ -602,7 +602,7 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(b.count(), 8);        // and is visible through completely separate accessors
 		}
 
-		SUBCASE("dereferencing as a plain T yields an independent copy - mutating it leaves storage untouched") {
+		SUBCASE("dereferencing as a plain T yields an indepositions_endent copy - mutating it leaves storage untouched") {
 			dyn8 b{0xAA, 0xBB};
 			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
 
@@ -611,12 +611,12 @@ TEST_SUITE("bitset") {
 
 			seg_val = 0xFF; // only the local copy changes
 			CHECK_EQ(it.get(), 0xAA);      // storage is untouched
-			CHECK_EQ(seg_val, 0xFF);       // the copy did change, proving it's genuinely independent
+			CHECK_EQ(seg_val, 0xFF);       // the copy did change, proving it's genuinely indepositions_endent
 		}
 
 		SUBCASE("two iterators over the same segment alias each other through T&, proving real reference semantics") {
 			// the clearest way to tell a reference from a value: write through one iterator's
-			// T& and read it back through a second, independently-obtained iterator/reference.
+			// T& and read it back through a second, indepositions_endently-obtained iterator/reference.
 			dyn8 b{0x00, 0x00};
 			auto writer = b.begin<dyn8::bitset_mode::SegmentMode>();
 			auto reader = b.begin<dyn8::bitset_mode::SegmentMode>();
@@ -702,7 +702,7 @@ TEST_SUITE("bitset") {
 		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>. Traversal
 		// policy is now a template parameter baked into the iterator's type (bit_iterator /
 		// segment_iterator, plus their const_ counterparts) rather than a per-call argument, so
-		// both instantiations need to be checked independently.
+		// both instantiations need to be checked indepositions_endently.
 		static_assert(std::default_initializable<dyn64::bit_iterator>);
 		static_assert(std::default_initializable<dyn64::const_bit_iterator>);
 		static_assert(std::totally_ordered<dyn64::bit_iterator>);
@@ -780,7 +780,7 @@ TEST_SUITE("bitset") {
 			CHECK((3 - it) == (it - 3));
 		}
 
-		SUBCASE("default-constructed iterators are equality-comparable and independent of any bitset") {
+		SUBCASE("default-constructed iterators are equality-comparable and indepositions_endent of any bitset") {
 			dyn8::bit_iterator a{};
 			dyn8::bit_iterator b{};
 			CHECK(a == b);
@@ -1069,7 +1069,7 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(std::format("{:b}", b), "[\n[10110011]\n]\n");
 		}
 
-		SUBCASE("binary mode reverses within each segment independently, segments stay in storage order") {
+		SUBCASE("binary mode reverses within each segment indepositions_endently, segments stay in storage order") {
 			dyn8 b{0x00, 0xFF};
 			CHECK_EQ(std::format("{:b}", b), "[\n[00000000]\n[11111111]\n]\n");
 		}
@@ -1318,7 +1318,7 @@ TEST_SUITE("bitset") {
 			static_assert(std::is_same_v<decltype(++std::declval<pos_it&>()), pos_it&>);
 
 			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set -> 4 set bits total
-			auto it = b.pbegin(); // already positioned at the first set bit (ix 0)
+			auto it = b.positions_begin(); // already positioned at the first set bit (ix 0)
 
 			size_t steps = 0;
 			for (; it != std::default_sentinel; ++it) {
@@ -1328,18 +1328,18 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(steps, 4);
 		}
 
-		SUBCASE("empty bitset: pbegin() equals pend() immediately") {
+		SUBCASE("empty bitset: positions_begin() equals positions_end() immediately") {
 			dyn64 b{};
-			CHECK(b.pbegin() == b.pend());
-			CHECK(b.pend() == b.pbegin());
+			CHECK(b.positions_begin() == b.positions_end());
+			CHECK(b.positions_end() == b.positions_begin());
 		}
 
-		SUBCASE("pbegin()/pend() walked directly (without positions()) on a non-const bitset") {
+		SUBCASE("positions_begin()/positions_end() walked directly (without positions()) on a non-const bitset") {
 			dyn64 b{0b10101, 0b1}; // segment 0: bits 0,2,4 set; segment 1: bit 0 set
 			std::array<size_t, 4> const expected{0, 2, 4, 64};
 
 			size_t i = 0;
-			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+			for (auto it = b.positions_begin(); it != b.positions_end(); ++it) {
 				REQUIRE_LT(i, expected.size());
 				// *it is a plain value_type (size_t) now - it IS the position directly, not a
 				// proxy with .ix()/operator bool().
@@ -1356,7 +1356,7 @@ TEST_SUITE("bitset") {
 			std::array<size_t, 4> const expected{0, 2, 4, 64};
 
 			size_t i = 0;
-			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+			for (auto it = b.positions_begin(); it != b.positions_end(); ++it) {
 				REQUIRE_LT(i, expected.size());
 				size_t const pos = *it; // direct conversion, not (*it).ix()
 				CHECK_EQ(pos, expected[i]);
@@ -1379,13 +1379,13 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(i, expected.size());
 		}
 
-		SUBCASE("pbegin()/pend() on a const bitset yield a const_positional_iterator") {
+		SUBCASE("positions_begin()/positions_end() on a const bitset yield a const_positional_iterator") {
 			dyn64 const b{0b10101, 0b1};
-			static_assert(std::is_same_v<decltype(b.pbegin()), const_pos_it>);
+			static_assert(std::is_same_v<decltype(b.positions_begin()), const_pos_it>);
 
 			std::array<size_t, 4> const expected{0, 2, 4, 64};
 			size_t i = 0;
-			for (auto it = b.pbegin(); it != b.pend(); ++it) {
+			for (auto it = b.positions_begin(); it != b.positions_end(); ++it) {
 				REQUIRE_LT(i, expected.size());
 				CHECK_EQ(*it, expected[i]);
 				++i;
@@ -1395,7 +1395,7 @@ TEST_SUITE("bitset") {
 
 		SUBCASE("postfix increment returns the pre-increment position; prefix returns *this by reference") {
 			dyn64 b{0b101}; // bits 0 and 2 set
-			auto it = b.pbegin();
+			auto it = b.positions_begin();
 
 			auto const before = it++;
 			CHECK_EQ(*before, 0);
@@ -1403,12 +1403,12 @@ TEST_SUITE("bitset") {
 
 			auto &ref = ++it;
 			CHECK_EQ(&ref, &it); // weakly_incrementable requires "{ ++i } -> same_as<I&>"
-			CHECK(it == b.pend());
+			CHECK(it == b.positions_end());
 		}
 
-		SUBCASE("copies are independent") {
+		SUBCASE("copies are indepositions_endent") {
 			dyn64 b{0b101}; // bits 0 and 2 set
-			auto it1 = b.pbegin();
+			auto it1 = b.positions_begin();
 			auto it2 = it1;
 			++it1;
 
@@ -1427,13 +1427,13 @@ TEST_SUITE("bitset") {
 			static_assert(!dereference_is_assignable<const_pos_it>);
 
 			dyn64 b{0b1};
-			auto it = b.pbegin();
+			auto it = b.positions_begin();
 			CHECK_EQ(*it, 0);
 		}
 
-		SUBCASE("pbegin() skips forward when bit 0 of segment 0 is not actually set") {
+		SUBCASE("positions_begin() skips forward when bit 0 of segment 0 is not actually set") {
 			dyn64 b{0b100}; // bit 2 set, bit 0 NOT set
-			auto it = b.pbegin();
+			auto it = b.positions_begin();
 			CHECK_EQ(*it, 2);
 		}
 
