@@ -9,6 +9,7 @@
 #include <functional>
 #include <iterator>
 #include <ranges>
+#include <algorithm>
 
 namespace dice::template_library {
     /**
@@ -945,12 +946,9 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool all_set() const {
-            return segments_all_of([this](segment_const_reference segment) {
+            return std::ranges::all_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_all_set)(segment);
-            },
-                                   [](bool const val) {
-                                       return val;
-                                   });
+            });
         }
 
         /**
@@ -959,14 +957,9 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool any_set() const {
-            return segments_reduce_while([this](segment_const_reference segment) {
+            return std::ranges::any_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_any_set)(segment);
-            },
-                                   [](bool const val) { // only terminate if we find a bit set
-                                       return !val;
-                                   },
-                                   std::bit_or<bool>{},
-                                   false);
+            });
         }
 
         /**
@@ -975,14 +968,9 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool none_set() const {
-            return segments_reduce_while([this](segment_const_reference segment) {
-                return DICE_MEMFN(segment_none_set)(segment);
-            },
-                                   [](bool const val) {
-                                       return val;
-                                   },
-                                   std::bit_and<bool>{},
-                                   true);
+            return std::ranges::none_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
+                return !DICE_MEMFN(segment_none_set)(segment); // flip since none_of evaluates on false
+            });
         }
 
         /**
@@ -990,7 +978,7 @@ namespace dice::template_library {
          *
          * @return input range containing the positions
          */
-        std::ranges::input_range auto positions() const {
+        [[nodiscard]] std::ranges::input_range auto positions() const {
             return std::ranges::subrange(positions_begin(), positions_end());
         }
 
