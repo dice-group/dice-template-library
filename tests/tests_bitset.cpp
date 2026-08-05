@@ -17,12 +17,6 @@
 template<typename I>
 concept has_subscript_operator = requires(I i, std::iter_difference_t<I> n) { i[n]; };
 
-// size_in_bits() is now a static, has_max_extent-only member (the "separation between logical
-// size and capacity" change) - a genuine template parameter is needed here too so a fully dynamic
-// bitset fails via substitution rather than a hard compile error.
-template<typename B>
-concept has_static_size_in_bits = requires { B::size_in_bits(); };
-
 // position_iterator's dereference is a plain value_type (size_t) now, not a writable proxy -
 // verifies there is nothing to assign through it.
 template<typename I>
@@ -70,7 +64,7 @@ TEST_SUITE("bitset") {
 			}
 		}
 
-		SUBCASE("copy/move construction and assignment are indepositions_endent of the source") {
+		SUBCASE("copy/move construction and assignment are independent of the source") {
 			dyn8 a{0x00, 0x00};
 
 			dyn8 b{a};
@@ -166,22 +160,29 @@ TEST_SUITE("bitset") {
 			REQUIRE_EQ(b.capacity_in_bits(), 0);
 
 			b.set(5);
+			// logical size (size_in_bits()) tracks the exact bit index reached, NOT rounded up to
+			// a whole segment - capacity_in_bits() is the (larger) physically-allocated amount.
+			CHECK_EQ(b.size_in_bits(), 6);
 			CHECK_EQ(b.capacity_in_bits(), 64);
 			CHECK(b.test(5));
 			CHECK_EQ(b.count(), 1);
 
+			// bit-mode iteration (begin()/end()) is bounded by the exact logical size, not the
+			// rounded-up physical capacity - only the 6 logically-used bits are visited.
 			size_t visited = 0;
 			for (auto it = b.begin(); it != b.end(); ++it) ++visited;
-			CHECK_EQ(visited, b.capacity_in_bits());
+			CHECK_EQ(visited, b.size_in_bits());
 		}
 
 		SUBCASE("bounded capacity growth stops exactly at its static maximum and stays zero-filled") {
 			bounded64 b{};
-			b.set(bounded64_capacity_bits - 1); // last valid bit, far beyond current size()
-			REQUIRE_EQ(b.capacity_in_bits(), 4 * 64);
-			// size_in_bits() is now the static, growth-indepositions_endent logical bound (max_bits) -
-			// it must equal capacity_in_bits() here since growth reached the maximum.
-			CHECK_EQ(bounded64::size_in_bits(), bounded64_capacity_bits);
+			b.set(bounded64_capacity_bits - 1); // last valid bit, right at the maximum
+			// setting the very last valid index grows logical size to exactly its maximum, so
+			// size_in_bits() and capacity_in_bits() coincide here - not because size_in_bits() is
+			// static (it isn't - it's the same dynamic logical size as above), but because this
+			// particular index happens to be capacity_in_bits() - 1.
+			CHECK_EQ(b.size_in_bits(), bounded64_capacity_bits);
+			CHECK_EQ(b.capacity_in_bits(), 4 * 64);
 			CHECK(b.test(bounded64_capacity_bits - 1));
 			CHECK_EQ(b.count(), 1); // every other (newly exposed) bit must be zero, not garbage
 		}
@@ -575,7 +576,7 @@ TEST_SUITE("bitset") {
 	TEST_CASE("segment-mode dereferencing: T& reference vs plain T value semantics") {
 		// segment_iterator's reference has operator std::conditional_t<is_const, T const&, T&>()
 		// (SegmentMode-only) - this exercises both sides: binding the dereference to a T&
-		// (an actual alias into storage) vs binding it to a plain T (an indepositions_endent copy).
+		// (an actual alias into storage) vs binding it to a plain T (an independent copy).
 		// bitset itself keeps its segment/storage type private - these tests spell it out as
 		// plain uint8_t (the T dyn8 was defined with below), never referring to any bitset-side
 		// alias for it.
@@ -602,7 +603,7 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(b.count(), 8);        // and is visible through completely separate accessors
 		}
 
-		SUBCASE("dereferencing as a plain T yields an indepositions_endent copy - mutating it leaves storage untouched") {
+		SUBCASE("dereferencing as a plain T yields an independent copy - mutating it leaves storage untouched") {
 			dyn8 b{0xAA, 0xBB};
 			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
 
@@ -611,12 +612,12 @@ TEST_SUITE("bitset") {
 
 			seg_val = 0xFF; // only the local copy changes
 			CHECK_EQ(it.get(), 0xAA);      // storage is untouched
-			CHECK_EQ(seg_val, 0xFF);       // the copy did change, proving it's genuinely indepositions_endent
+			CHECK_EQ(seg_val, 0xFF);       // the copy did change, proving it's genuinely independent
 		}
 
 		SUBCASE("two iterators over the same segment alias each other through T&, proving real reference semantics") {
 			// the clearest way to tell a reference from a value: write through one iterator's
-			// T& and read it back through a second, indepositions_endently-obtained iterator/reference.
+			// T& and read it back through a second, independently-obtained iterator/reference.
 			dyn8 b{0x00, 0x00};
 			auto writer = b.begin<dyn8::bitset_mode::SegmentMode>();
 			auto reader = b.begin<dyn8::bitset_mode::SegmentMode>();
@@ -702,7 +703,7 @@ TEST_SUITE("bitset") {
 		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>. Traversal
 		// policy is now a template parameter baked into the iterator's type (bit_iterator /
 		// segment_iterator, plus their const_ counterparts) rather than a per-call argument, so
-		// both instantiations need to be checked indepositions_endently.
+		// both instantiations need to be checked independently.
 		static_assert(std::default_initializable<dyn64::bit_iterator>);
 		static_assert(std::default_initializable<dyn64::const_bit_iterator>);
 		static_assert(std::totally_ordered<dyn64::bit_iterator>);
@@ -780,7 +781,7 @@ TEST_SUITE("bitset") {
 			CHECK((3 - it) == (it - 3));
 		}
 
-		SUBCASE("default-constructed iterators are equality-comparable and indepositions_endent of any bitset") {
+		SUBCASE("default-constructed iterators are equality-comparable and independent of any bitset") {
 			dyn8::bit_iterator a{};
 			dyn8::bit_iterator b{};
 			CHECK(a == b);
@@ -1069,7 +1070,7 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(std::format("{:b}", b), "[\n[10110011]\n]\n");
 		}
 
-		SUBCASE("binary mode reverses within each segment indepositions_endently, segments stay in storage order") {
+		SUBCASE("binary mode reverses within each segment independently, segments stay in storage order") {
 			dyn8 b{0x00, 0xFF};
 			CHECK_EQ(std::format("{:b}", b), "[\n[00000000]\n[11111111]\n]\n");
 		}
@@ -1406,7 +1407,7 @@ TEST_SUITE("bitset") {
 			CHECK(it == b.positions_end());
 		}
 
-		SUBCASE("copies are indepositions_endent") {
+		SUBCASE("copies are independent") {
 			dyn64 b{0b101}; // bits 0 and 2 set
 			auto it1 = b.positions_begin();
 			auto it2 = it1;
@@ -1488,63 +1489,335 @@ TEST_SUITE("bitset") {
 		}
 	}
 
-	TEST_CASE("bit count that isn't a multiple of the segment width rounds up to a whole segment") {
-		// the 2nd template parameter is a bit count; internally it's converted to a segment count via
-		// ceil(bits / segment_size_in_bits). These use bit counts that deliberately don't divide evenly
-		// by the segment width, to verify the *actual* capacity is rounded up to cover them, not
-		// truncated down to fewer segments and not left as some other unrelated fixed value.
+	TEST_CASE("bit count that isn't a multiple of the segment width is honored exactly - no rounding") {
+		// the 2nd template parameter (max_bits) is now an exact logical bit-count bound - it is
+		// NOT rounded up to a whole segment for the purposes of what indices are legal. Physical
+		// storage (capacity_in_bits()) still grows in whole-segment increments under the hood, but
+		// size_in_bits()/fits_in_storage() only ever honor the exact max_bits value: index max_bits-1
+		// is the last legal one, and index max_bits itself is always out of range, even though the
+		// physically-allocated segment has room for it.
 
 		SUBCASE("bounded (dynamic size, capped) capacity: uint64_t segments") {
-			// 200 bits doesn't divide evenly by 64 -> needs ceil(200/64) = 4 segments = 256 bits capacity
+			// 200 bits doesn't divide evenly by 64 -> physically needs ceil(200/64) = 4 segments =
+			// 256 bits of capacity, but the logical bound stays exactly 200.
 			using bounded_odd = bitset<dynamic_extent, 200>;
 			constexpr size_t expected_capacity_bits = 4 * 64;
 
 			bounded_odd b{};
-			CHECK_NOTHROW(b.set(expected_capacity_bits - 1)); // last bit of the 4th (rounded-up) segment
-			REQUIRE_EQ(b.capacity_in_bits(), expected_capacity_bits); // grew to a whole segment, not just to 200 bits
-			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range); // truly out of capacity
-
-			// size_in_bits() is the static, un-rounded logical bound (max_bits itself, 200) - it
-			// stays fixed regardless of growth, unlike capacity_in_bits() which just grew to 256.
-			CHECK_EQ(bounded_odd::size_in_bits(), 200);
+			REQUIRE_EQ(b.size_in_bits(), 0); // nothing used yet - dynamic size starts at 0, not max_bits
+			CHECK_NOTHROW(b.set(199)); // last legal index (max_bits - 1)
+			CHECK_EQ(b.size_in_bits(), 200); // logical size grew to exactly ix + 1, not rounded
+			CHECK_EQ(b.capacity_in_bits(), expected_capacity_bits); // physical storage did round up to whole segments
+			CHECK(b.test(199));
+			CHECK_THROWS_AS(b.set(200), std::out_of_range); // exactly max_bits is out of range, despite spare room in the 4th segment
 		}
 
 		SUBCASE("fully static capacity: uint64_t segments") {
 			// extent must equal the segment count derived from bits (4) for the fully-static flex_array
-			// specialization to apply; using 200 (not 256) here is what actually exercises the rounding
+			// specialization to apply; using 200 (not 256) here is what actually exercises the bound.
 			using fixed_odd = bitset<4, 200>;
 			constexpr size_t expected_capacity_bits = 4 * 64;
 
 			fixed_odd b{0, 0, 0, 0};
-			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
-			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
-
-			// even fully static, size_in_bits() is still the raw max_bits (200), not the
-			// segment-rounded capacity_in_bits() (256) - the two are deliberately distinct concepts.
-			CHECK_EQ(fixed_odd::size_in_bits(), 200);
+			// fully static bitsets have no separate "used so far" tracking - size_in_bits() is
+			// simply max_bits itself from construction, unconditionally.
+			REQUIRE_EQ(b.size_in_bits(), 200);
 			CHECK_EQ(b.capacity_in_bits(), expected_capacity_bits);
+
+			CHECK_NOTHROW(b.set(199));
+			CHECK(b.test(199));
+			CHECK_THROWS_AS(b.set(200), std::out_of_range); // still out of range despite the 4th segment physically existing
 		}
 
 		SUBCASE("bounded capacity: narrow (uint8_t) segments") {
-			// 20 bits doesn't divide evenly by 8 -> needs ceil(20/8) = 3 segments = 24 bits capacity
+			// 20 bits doesn't divide evenly by 8 -> physically needs ceil(20/8) = 3 segments = 24
+			// bits of capacity, but the logical bound stays exactly 20.
 			using bounded_odd8 = bitset<dynamic_extent, 20, uint8_t>;
 			constexpr size_t expected_capacity_bits = 3 * 8;
 
 			bounded_odd8 b{};
-			CHECK_NOTHROW(b.set(expected_capacity_bits - 1));
-			REQUIRE_EQ(b.capacity_in_bits(), expected_capacity_bits);
-			CHECK_THROWS_AS(b.set(expected_capacity_bits), std::out_of_range);
-			CHECK_EQ(bounded_odd8::size_in_bits(), 20);
+			REQUIRE_EQ(b.size_in_bits(), 0);
+			CHECK_NOTHROW(b.set(19));
+			CHECK_EQ(b.size_in_bits(), 20);
+			CHECK_EQ(b.capacity_in_bits(), expected_capacity_bits);
+			CHECK(b.test(19));
+			CHECK_THROWS_AS(b.set(20), std::out_of_range);
+		}
+	}
+
+	TEST_CASE("logical size (size_in_bits()) tracks exact usage, distinct from rounded-up capacity") {
+		SUBCASE("a fresh dynamic bitset starts at logical size 0, not at any rounded segment width") {
+			dyn8 b{};
+			CHECK_EQ(b.size_in_bits(), 0);
+			CHECK_EQ(b.capacity_in_bits(), 0);
 		}
 
-		SUBCASE("fully dynamic capacity has no static size_in_bits() at all") {
-			// size_in_bits() requires has_max_extent - a fully dynamic bitset (both template
-			// parameters left as dynamic_extent) has no compile-time logical bound to report.
-			static_assert(!has_static_size_in_bits<dyn64>);
-			static_assert(!has_static_size_in_bits<dyn8>);
-			static_assert(has_static_size_in_bits<bounded64>);
-			static_assert(has_static_size_in_bits<bitset<4, 4 * 64>>);
-			CHECK(true);
+		SUBCASE("set(ix) grows logical size to exactly ix + 1, never rounded to a segment boundary") {
+			dyn8 b{};
+			b.set(3);
+			CHECK_EQ(b.size_in_bits(), 4); // exactly ix+1, not rounded up to 8
+			CHECK_EQ(b.capacity_in_bits(), 8); // capacity still rounds up to a whole segment
 		}
+
+		SUBCASE("capacity_in_bits() stays a whole-segment multiple while size_in_bits() does not") {
+			dyn8 b{};
+			b.set(9); // segment 1, offset 1 -> needs 2 segments physically
+			CHECK_EQ(b.size_in_bits(), 10);
+			CHECK_EQ(b.capacity_in_bits(), 16);
+		}
+
+		SUBCASE("setting an already-covered lower index does not change logical size") {
+			dyn8 b{};
+			b.set(20);
+			auto const size_after_growth = b.size_in_bits();
+			b.set(3); // well within [0, 21) already
+			CHECK_EQ(b.size_in_bits(), size_after_growth);
+			CHECK_EQ(b.size_in_bits(), 21);
+		}
+
+		SUBCASE("setting the same highest index again does not change logical size") {
+			dyn8 b{};
+			b.set(10);
+			auto const size_after_first = b.size_in_bits();
+			b.set(10);
+			CHECK_EQ(b.size_in_bits(), size_after_first);
+			CHECK_EQ(b.size_in_bits(), 11);
+		}
+
+		SUBCASE("sequential grows each update logical size to the new maximum index reached") {
+			dyn64 b{};
+			b.set(5);
+			CHECK_EQ(b.size_in_bits(), 6);
+			b.set(130);
+			CHECK_EQ(b.size_in_bits(), 131);
+			b.set(20); // lower than current max - no change
+			CHECK_EQ(b.size_in_bits(), 131);
+			b.set(1000);
+			CHECK_EQ(b.size_in_bits(), 1001);
+		}
+	}
+
+	TEST_CASE("every mutating operation updates logical size correctly") {
+		SUBCASE("set(ix) beyond current logical size grows it and sets the bit") {
+			dyn8 b{};
+			b.set(10);
+			CHECK_EQ(b.size_in_bits(), 11);
+			CHECK(b.test(10));
+		}
+
+		SUBCASE("set(ix, false) beyond current logical size grows logical size even though the bit stays low") {
+			// set(ix, false) delegates to reset(ix), which - like set()/flip() - goes through the
+			// same growth path; the bit added by growth is already zero-filled, so this just makes
+			// the (already-implicitly-0) bit explicitly part of the logical range.
+			dyn8 b{};
+			b.set(10, false);
+			CHECK_EQ(b.size_in_bits(), 11);
+			CHECK_FALSE(b.test(10));
+		}
+
+		SUBCASE("reset(ix) beyond current logical size grows logical size, bit stays low") {
+			dyn8 b{};
+			b.reset(10);
+			CHECK_EQ(b.size_in_bits(), 11);
+			CHECK_FALSE(b.test(10));
+		}
+
+		SUBCASE("flip(ix) beyond current logical size grows logical size and flips the implicit 0 to 1") {
+			dyn8 b{};
+			b.flip(10);
+			CHECK_EQ(b.size_in_bits(), 11);
+			CHECK(b.test(10));
+		}
+
+		SUBCASE("set_first_free() grows logical size by exactly 1 when every existing bit is full") {
+			dyn8 b(1); // 1 segment pre-allocated, all zero, logical size 8
+			for (size_t i = 0; i < 8; ++i) b.set(i);
+			REQUIRE_EQ(b.size_in_bits(), 8);
+
+			auto const ix = b.set_first_free();
+			CHECK_EQ(ix, 8);
+			CHECK_EQ(b.size_in_bits(), 9); // grew by exactly the one new bit, not a whole segment
+			CHECK(b.test(8));
+		}
+
+		SUBCASE("set_first_free() returns a free bit within the current logical range without growing it") {
+			dyn8 b{0b11111101}; // bit 1 is the only free bit, logical size already 8
+			auto const ix = b.set_first_free();
+			CHECK_EQ(ix, 1);
+			CHECK_EQ(b.size_in_bits(), 8); // unchanged - the free bit was already within range
+		}
+
+		SUBCASE("set_positions() grows logical size to cover the maximum position given, regardless of order") {
+			dyn64 b(1); // 1 segment, logical size 64
+			b.set_positions(std::array{5uz, 70uz, 3uz}); // 70 is neither first nor last in the list
+			CHECK_EQ(b.size_in_bits(), 71);
+			CHECK(b.test(5));
+			CHECK(b.test(70));
+			CHECK(b.test(3));
+		}
+
+		SUBCASE("reset_positions() also grows logical size for out-of-range positions") {
+			dyn64 b(1);
+			b.reset_positions(std::array{5uz, 70uz});
+			CHECK_EQ(b.size_in_bits(), 71);
+			CHECK_FALSE(b.test(70));
+		}
+	}
+
+	TEST_CASE("a fully static bitset's logical size never changes") {
+		using fixed64 = bitset<4, 4 * 64>;
+
+		fixed64 b{0, 0, 0, 0};
+		REQUIRE_EQ(b.size_in_bits(), 4 * 64); // fixed from construction - has no dynamic tracking at all
+
+		b.set(5);
+		CHECK_EQ(b.size_in_bits(), 4 * 64);
+		b.reset(100);
+		CHECK_EQ(b.size_in_bits(), 4 * 64);
+		b.flip(250);
+		CHECK_EQ(b.size_in_bits(), 4 * 64);
+
+		CHECK_EQ(b.size_in_bits(), b.capacity_in_bits()); // static: logical size and capacity always coincide
+	}
+
+	TEST_CASE("shrink_to_fit keeps logical size and capacity in lockstep") {
+		SUBCASE("dropping a trailing not-fully-set segment shrinks logical size to the new exact capacity") {
+			dyn8 b{0xFF, 0x0F}; // segment 1 (0x0F) is not fully set
+			b.shrink_to_fit();
+			CHECK_EQ(b.size_in_bits(), 8);
+			CHECK_EQ(b.capacity_in_bits(), 8);
+		}
+
+		SUBCASE("no shrink happens when every segment is fully set - logical size is unchanged") {
+			dyn8 b{0xFF, 0xFF};
+			auto const size_before = b.size_in_bits();
+			b.shrink_to_fit();
+			CHECK_EQ(b.size_in_bits(), size_before);
+			CHECK_EQ(b.size_in_bits(), 16);
+			CHECK_EQ(b.capacity_in_bits(), 16);
+		}
+
+		SUBCASE("shrink_to_fit on an empty bitset is a safe no-op") {
+			dyn8 b{};
+			CHECK_NOTHROW(b.shrink_to_fit());
+			CHECK_EQ(b.size_in_bits(), 0);
+			CHECK_EQ(b.capacity_in_bits(), 0);
+		}
+	}
+
+	TEST_CASE("logical size is preserved correctly across copy/move") {
+		SUBCASE("copy construction preserves logical size, and the copy is independent going forward") {
+			dyn8 a{};
+			a.set(20);
+			REQUIRE_EQ(a.size_in_bits(), 21);
+
+			dyn8 b{a};
+			CHECK_EQ(b.size_in_bits(), 21);
+			CHECK(b.test(20));
+
+			b.set(50); // grow only the copy
+			CHECK_EQ(b.size_in_bits(), 51);
+			CHECK_EQ(a.size_in_bits(), 21); // original untouched
+		}
+
+		SUBCASE("copy assignment overwrites logical size with the source's") {
+			dyn8 a{};
+			a.set(20);
+			dyn8 b{};
+			b.set(3);
+			b = a;
+			CHECK_EQ(b.size_in_bits(), 21);
+			CHECK(b.test(20));
+		}
+
+		SUBCASE("move construction preserves logical size") {
+			dyn8 a{};
+			a.set(20);
+			dyn8 b{std::move(a)};
+			CHECK_EQ(b.size_in_bits(), 21);
+			CHECK(b.test(20));
+		}
+
+		SUBCASE("move assignment preserves logical size") {
+			dyn8 a{};
+			a.set(20);
+			dyn8 b{};
+			b = std::move(a);
+			CHECK_EQ(b.size_in_bits(), 21);
+			CHECK(b.test(20));
+		}
+	}
+
+	TEST_CASE("logical size participates in equality, not just physical segment content") {
+		// two bitsets can share the same physical capacity (same number of allocated segments,
+		// all-zero content) while having different logical sizes - equality must still tell them
+		// apart, rather than only comparing raw segment words.
+		dyn8 a{};
+		a.set(5);
+		a.reset(5); // segment content back to all-zero, but logical size stayed at 6
+		REQUIRE_EQ(a.size_in_bits(), 6);
+		REQUIRE_EQ(a.capacity_in_bits(), 8);
+		REQUIRE_EQ(a.count(), 0);
+
+		dyn8 b{};
+		b.set(2);
+		b.reset(2); // all-zero content, logical size 3, same 8-bit physical capacity as a
+		REQUIRE_EQ(b.size_in_bits(), 3);
+		REQUIRE_EQ(b.capacity_in_bits(), 8);
+		REQUIRE_EQ(b.count(), 0);
+
+		CHECK_FALSE(a == b); // same capacity and all-zero content, but different logical size
+	}
+
+	TEST_CASE("logical size bounds iteration and aggregate queries, not physical capacity") {
+		SUBCASE("bit-mode iteration visits exactly size_in_bits() elements") {
+			dyn8 b{};
+			b.set(9); // logical size 10, capacity 16 (2 segments)
+			size_t visited = 0;
+			for (auto it = b.begin(); it != b.end(); ++it) ++visited;
+			CHECK_EQ(visited, b.size_in_bits());
+			CHECK_EQ(visited, 10);
+		}
+
+		SUBCASE("segment-mode iteration still visits every physically-allocated segment") {
+			dyn8 b{};
+			b.set(9); // 2 physical segments, but logical size only reaches partway into the 2nd
+			size_t visited = 0;
+			for (auto it = b.begin<dyn8::bitset_mode::SegmentMode>(); it != b.end(); ++it) ++visited;
+			CHECK_EQ(visited, b.capacity_in_bits() / 8); // capacity_in_bits() / segment width == physical segment count
+			CHECK_EQ(visited, 2);
+		}
+
+		SUBCASE("count()/all_set()/any_set()/none_set() only consider bits within logical size") {
+			dyn8 b(1); // 1 full segment, 8 logical bits
+			for (size_t i = 0; i < 8; ++i) b.set(i);
+			b.set(10); // grows into segment 1; bits 8,9 stay 0, bit 10 is set - segment 1 isn't fully set
+
+			CHECK_EQ(b.count(), 9); // 8 (segment 0) + 1 (bit 10) - not segment 1's unused zero bits
+			CHECK_FALSE(b.all_set()); // segment 1 isn't fully set, so overall not all-set
+			CHECK(b.any_set());
+			CHECK_FALSE(b.none_set());
+		}
+	}
+
+	TEST_CASE("bitwise operators combine bitsets with equal logical size regardless of construction path") {
+		// a grown via set(), b via the size constructor - different histories, same logical size.
+		dyn8 a{};
+		a.set(15);
+		REQUIRE_EQ(a.size_in_bits(), 16);
+
+		dyn8 b(2);
+		b.set(0);
+		REQUIRE_EQ(b.size_in_bits(), 16);
+
+		auto const conjunction = a & b;
+		CHECK_EQ(conjunction.count(), 0); // a has only bit 15 set, b has only bit 0 set - no overlap
+		CHECK_EQ(conjunction.size_in_bits(), 16);
+
+		auto const disjunction = a | b;
+		CHECK_EQ(disjunction.count(), 2);
+		CHECK_EQ(disjunction.size_in_bits(), 16);
+		CHECK(disjunction.test(0));
+		CHECK(disjunction.test(15));
 	}
 }
