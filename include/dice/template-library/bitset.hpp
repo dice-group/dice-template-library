@@ -129,7 +129,7 @@ namespace dice::template_library {
 
             using iterator_category = std::random_access_iterator_tag;
             using iterator_concept = std::random_access_iterator_tag;
-            using value_type = std::conditional_t<using_bit_mode, bool, segment_type>;
+            using value_type = std::conditional_t<using_bit_mode, bool, T>;
             using pointer = void;
             using difference_type = ptrdiff_t;
 
@@ -144,6 +144,11 @@ namespace dice::template_library {
                 if (o >= segment_size_in_bits) {
                     throw std::out_of_range{"bitset_iterator: o >= segment_size"};
                 }
+
+                if (calc_global_idx(cur_segment_, o) >= bitset.logical_size()) {
+                    throw std::out_of_range{"bitset_iterator: index out of bounds"};
+                }
+
                 cur_offset_ = o;
             }
 
@@ -155,6 +160,10 @@ namespace dice::template_library {
 
                 if (s >= bitset.size()) {
                     throw std::out_of_range{"bitset_iterator: segment out of bounds"};
+                }
+
+                if (calc_global_idx(s, o) >= bitset.logical_size()) {
+                    throw std::out_of_range{"bitset_iterator: index out of bounds"};
                 }
 
                 cur_offset_ = o;
@@ -176,7 +185,13 @@ namespace dice::template_library {
 
             bitset_iterator &operator++() noexcept {
                 if constexpr (mode == bitset_mode::BitMode) {
-                    if (++cur_offset_ >= segment_size_in_bits) {
+                    ++cur_offset_;
+                    if (calc_global_idx(cur_segment_, cur_offset_) >= backing_bitset_->logical_size()) {
+                        cur_segment_ = backing_bitset_->size();
+                        cur_offset_ = 0;
+                        return *this;
+                    }
+                    if (cur_offset_ >= segment_size_in_bits) {
                         ++cur_segment_;
                         cur_offset_ = 0;
                         return *this;
@@ -223,7 +238,7 @@ namespace dice::template_library {
                 auto skip_handler = [this](size_t const skip_size) {
                     auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
 
-                    if (global_ix >= backing_bitset_->capacity_in_bits()) {
+                    if (global_ix >= backing_bitset_->logical_size()) {
                         cur_segment_ = backing_bitset_->size();
                         cur_offset_ = 0;
                         return;
@@ -333,7 +348,7 @@ namespace dice::template_library {
             }
 
             friend bool operator==(bitset_iterator const &it, std::default_sentinel_t) {
-                return it.cur_segment_ >= it.backing_bitset_->size();
+                return calc_global_idx(it.cur_segment_, it.cur_offset_) >= it.backing_bitset_->logical_size();
             }
         };
 
@@ -355,7 +370,7 @@ namespace dice::template_library {
                 auto skip = include_current ? offset : offset + 1;
 
                 while (true) {
-                    T const shifted = (skip >= inner_size_in_bits())
+                    T const shifted = (skip >= segment_size_in_bits)
                                           ? T{}
                                           : static_cast<T>(segment >> skip);
 
@@ -364,7 +379,7 @@ namespace dice::template_library {
                         break;
                     }
 
-                    it_ += inner_size_in_bits() - offset;
+                    it_ += segment_size_in_bits - offset;
                     if (it_ == std::default_sentinel) {
                         break;
                     }
@@ -419,23 +434,21 @@ namespace dice::template_library {
         };
 
         storage inner_;
+        mutable size_t bits_{};
 
         [[nodiscard]] constexpr size_t require_segments(global_ix const ix) const requires (has_dynamic_extent)
         {
-            auto const bit_pos = bits_consumed();
+            auto const bit_pos = logical_size();
             if (bit_pos > ix) {
                 return 0;
             }
+            bits_ = ix + 1;
 
-            auto const bit_off = ix - bit_pos;
+            if (ix < capacity_in_bits()) {
+                return 0; // fits within current segment
+            }
 
-            return [bit_off] {
-                if constexpr (std::has_single_bit(segment_size_in_bits)) {
-                    return (bit_off >> std::countr_zero(segment_size_in_bits)) + 1;
-                } else {
-                    return bit_off / segment_size_in_bits + 1;
-                }
-            }();
+            return calc_which_segment(ix) - size() + 1;
         }
 
         constexpr void expand_segments(global_ix const ix) requires (has_dynamic_extent)
@@ -453,48 +466,36 @@ namespace dice::template_library {
             }
         }
 
-        [[nodiscard]] constexpr size_t bits_consumed() const noexcept {
-            return inner_.size() * segment_size_in_bits;
-        }
-
         [[nodiscard]] static constexpr bool fits_in_storage(global_ix const ix) noexcept {
             if constexpr (has_max_extent) {
-                return ix < storage_size_in_bits;
+                return ix < max_bits;
             }
 
             return true;
         }
 
         [[nodiscard]] static constexpr segment calc_which_segment(global_ix const ix) noexcept {
-            if constexpr (std::has_single_bit(segment_size_in_bits)) {
-                return ix >> std::countr_zero(segment_size_in_bits);
-            } else {
-                return ix / segment_size_in_bits;
-            }
+            return ix >> std::countr_zero(segment_size_in_bits);
         }
 
         [[nodiscard]] static constexpr offset calc_which_offset(global_ix const ix) noexcept {
-            if constexpr (std::has_single_bit(segment_size_in_bits)) {
-                return ix & (segment_size_in_bits - 1);
-            } else {
-                return ix % segment_size_in_bits;
-            }
+            return ix & (segment_size_in_bits - 1);
         }
 
         [[nodiscard]] static constexpr global_ix calc_global_idx(segment const s, offset const o) noexcept {
             return s * segment_size_in_bits + o;
         }
 
+        [[nodiscard]] constexpr size_t logical_size() const noexcept {
+            if constexpr (!has_dynamic_extent) {
+                return max_bits;
+            } else {
+                return bits_;
+            }
+        }
+
         [[nodiscard]] constexpr size_t size() const noexcept {
             return inner_.size();
-        }
-
-        [[nodiscard]] static constexpr size_t inner_size() noexcept {
-            return segment_size;
-        }
-
-        [[nodiscard]] static constexpr size_t inner_size_in_bits() noexcept {
-            return segment_size_in_bits;
         }
 
         template<typename F>
@@ -564,7 +565,9 @@ namespace dice::template_library {
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
             auto ops = Ops{};
 
-            assert(size() == other.size());
+            if (logical_size() != other.logical_size()) {
+                return;
+            }
 
             auto end_sentinel = end();
 
@@ -584,7 +587,7 @@ namespace dice::template_library {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
 
-            if (size() != other.size()) {
+            if (logical_size() != other.logical_size()) {
                 return false;
             }
 
@@ -666,7 +669,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] bool size_match(bitset const& other) const noexcept {
-            return size() == other.size();
+            return logical_size() == other.logical_size();
         }
 
         template<typename F, typename Range>
@@ -711,7 +714,8 @@ namespace dice::template_library {
          * @param segment_v initializer list of segment type
          */
         constexpr bitset(std::initializer_list<T> const segment_v)
-            : inner_{segment_v} {
+            : inner_{segment_v},
+              bits_{segment_size_in_bits * segment_v.size()} {
         }
 
         /**
@@ -721,7 +725,8 @@ namespace dice::template_library {
          * @param size segment size to set low
          */
         explicit constexpr bitset(size_t const size) requires (!has_max_extent)
-            : inner_{} {
+            : inner_{},
+              bits_{segment_size_in_bits * size} {
             inner_.resize(size);
         }
 
@@ -756,7 +761,7 @@ namespace dice::template_library {
 
         void set_all() requires (!has_dynamic_extent)
         {
-            std::fill(inner_.begin(), inner_.end(), static_cast<segment_type>(~segment_type{0}));
+            std::fill(inner_.begin(), inner_.end(), static_cast<T>(~T{}));
         }
 
         /**
@@ -779,7 +784,7 @@ namespace dice::template_library {
 
         void reset_all() requires (!has_dynamic_extent)
         {
-            std::fill(inner_.begin(), inner_.end(), segment_type{});
+            std::fill(inner_.begin(), inner_.end(), T{});
         }
 
         /**
@@ -795,7 +800,7 @@ namespace dice::template_library {
             }
 
             // if the ix is not in the bits consumed range, return false
-            if (ix >= bits_consumed()) {
+            if (ix >= logical_size()) {
                 return false;
             }
 
@@ -814,13 +819,14 @@ namespace dice::template_library {
 
             while (it != end) {
                 T &segment = *it;
-                if (static_cast<segment_type>(~segment) != 0x00) {
+                if (static_cast<T>(~segment) != 0x00) {
                     auto ptr_dist = std::distance(inner_.data(), &segment);
                     if constexpr (!has_max_extent) {
                         inner_ = storage(inner_.data(), inner_.data() + ptr_dist);
                     } else {
-                        inner_.resize(std::distance(inner_.data(), &segment));
+                        inner_.resize(ptr_dist);
                     }
+                    bits_ = ptr_dist * segment_size_in_bits;
                     return;
                 }
                 ++it;
@@ -843,37 +849,41 @@ namespace dice::template_library {
         /**
          * Sets the first bit high, and returns the corresponding index
          *
-         * @return ix to first free index in bitset (if there is no free index, storage_size_in_bits is returned)
+         * @return ix to first free index in bitset (if there is no free index, max_bits is returned)
          */
         [[nodiscard]] size_t set_first_free() {
             for (auto &segment : inner_) {
-                auto offset = std::countr_zero(static_cast<segment_type>(~segment));
+                auto offset = std::countr_zero(static_cast<T>(~segment));
+                auto seg = std::distance(inner_.data(), &segment);
 
-                if (offset != segment_size_in_bits) {
-                    auto seg = std::distance(inner_.data(), &segment);
+                auto global_ix = calc_global_idx(seg, offset);
+
+                if (offset != segment_size_in_bits && global_ix < logical_size()) {
                     segment_set(seg, offset);
-                    return calc_global_idx(seg, offset);
+                    return global_ix;
+                }
+            }
+
+            auto const ext_ix = logical_size();
+
+            // can't grow in static mode
+            if constexpr (!has_dynamic_extent) {
+                return max_bits;
+            }
+
+            if constexpr (has_max_extent) {
+                if (!fits_in_storage(ext_ix)) {
+                    return max_bits;
                 }
             }
 
             if constexpr (has_dynamic_extent) {
-                if constexpr (!has_max_extent) {
-                    inner_.resize(inner_.size() + 1);
-                    *(inner_.end() - 1) = 0x01;
-
-                    return calc_global_idx(size() - 1, 0);
-                } else {
-                    if (inner_.size() == inner_.max_size()) {
-                        return storage_size_in_bits;
-                    }
-                    inner_.resize(inner_.size() + 1);
-                    *(inner_.end() - 1) = 0x01;
-
-                    return calc_global_idx(size() - 1, 0);
-                }
+                expand_segments(ext_ix);
             }
 
-            return storage_size_in_bits;
+            set(ext_ix);
+
+            return ext_ix;
         }
 
         /**
@@ -1021,7 +1031,7 @@ namespace dice::template_library {
         template<bitset_mode mode = bitset_mode::BitMode>
         constexpr reverse_iterator<mode> rbegin() noexcept {
             if constexpr (mode == bitset_mode::BitMode) {
-                return reverse_iterator<mode>{begin<mode>() + capacity_in_bits()};
+                return reverse_iterator<mode>{begin<mode>() + logical_size()};
             } else {
                 return reverse_iterator<mode>{begin<mode>() + size()};
             }
@@ -1030,7 +1040,7 @@ namespace dice::template_library {
         template<bitset_mode mode = bitset_mode::BitMode>
         constexpr const_reverse_iterator<mode> rbegin() const noexcept {
             if constexpr (mode == bitset_mode::BitMode) {
-                return const_reverse_iterator<mode>{begin<mode>() + capacity_in_bits()};
+                return const_reverse_iterator<mode>{begin<mode>() + logical_size()};
             } else {
                 return const_reverse_iterator<mode>{begin<mode>() + size()};
             }
@@ -1076,9 +1086,8 @@ namespace dice::template_library {
          *
          * @return logical bits
          */
-        static constexpr size_t size_in_bits() noexcept requires (has_max_extent)
-        {
-            return max_bits;
+        constexpr size_t size_in_bits() const noexcept {
+            return logical_size();
         }
 
         bool operator==(bitset const &alt_storage) const noexcept {
@@ -1089,13 +1098,13 @@ namespace dice::template_library {
         }
 
         bitset &operator<<=(size_t shift) {
-            auto dest_it = std::move(begin() + shift, begin() + capacity_in_bits(), begin());
-            std::fill(dest_it, begin() + capacity_in_bits(), false);
+            auto dest_it = std::move(begin() + shift, begin() + logical_size(), begin());
+            std::fill(dest_it, begin() + logical_size(), false);
             return *this;
         }
 
         bitset &operator>>=(size_t shift) {
-            auto dest_it = std::move_backward(begin(), begin() + capacity_in_bits() - shift, begin() + capacity_in_bits());
+            auto dest_it = std::move_backward(begin(), begin() + logical_size() - shift, begin() + logical_size());
             std::fill(begin(), dest_it, false);
             return *this;
         }
