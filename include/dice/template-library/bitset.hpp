@@ -474,6 +474,14 @@ namespace dice::template_library {
             return true;
         }
 
+        [[nodiscard]] constexpr bool is_aligned() const noexcept {
+            return leftover_bits() == 0;
+        }
+
+        [[nodiscard]] constexpr size_t leftover_bits() const noexcept {
+            return logical_size() % segment_size_in_bits;
+        }
+
         [[nodiscard]] static constexpr segment calc_which_segment(global_ix const ix) noexcept {
             return ix >> std::countr_zero(segment_size_in_bits);
         }
@@ -545,9 +553,9 @@ namespace dice::template_library {
 
         ///> in-place unary transform
         template<typename Ops>
-        void segments_transform() {
+        void segments_transform(size_t stop=0) {
             auto self_it = begin<bitset_mode::SegmentMode>();
-            auto end_sentinel = end();
+            auto end_sentinel = begin<bitset_mode::SegmentMode>() + size() - stop;
 
             auto ops = Ops{};
 
@@ -560,7 +568,7 @@ namespace dice::template_library {
 
         ///> in-place binary transform
         template<typename Ops>
-        void segments_transform_with(bitset const &other) {
+        void segments_transform_with(bitset const &other, size_t stop=0) {
             auto self_it = begin<bitset_mode::SegmentMode>();
             auto outer_it = other.begin<bitset_mode::SegmentMode>();
             auto ops = Ops{};
@@ -569,7 +577,7 @@ namespace dice::template_library {
                 return;
             }
 
-            auto end_sentinel = end();
+            auto end_sentinel = begin<bitset_mode::SegmentMode>() + size() - stop;
 
             while (self_it != end_sentinel) {
                 auto &seg_this = self_it.get();
@@ -605,9 +613,9 @@ namespace dice::template_library {
 
         ///> true iff pred(handler(segment)) holds for every segment, early-exit on the first failure
         template<typename F, typename Pr>
-        bool segments_all_of(F &&handler, Pr &&pred) const {
+        bool segments_all_of(F &&handler, Pr &&pred, size_t stop=0) const {
             auto self_it = begin<bitset_mode::SegmentMode>();
-            auto end_sentinel = end();
+            auto end_sentinel = begin<bitset_mode::SegmentMode>() + size() - stop;
 
             while (self_it != end_sentinel) {
                 if (auto const val = std::invoke(std::forward<F>(handler), self_it.get()); !std::invoke(std::forward<Pr>(pred), val)) {
@@ -620,9 +628,9 @@ namespace dice::template_library {
 
         ///> folds handler(segment) across every segment, stopping early once pred(val) fails
         template<typename F, typename Pr, typename M, typename Tp>
-        Tp segments_reduce_while(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
+        Tp segments_reduce_while(F &&handler, Pr &&pred, M &&merge, Tp initial, size_t stop=0) const {
             auto self_it = begin<bitset_mode::SegmentMode>();
-            auto end_sentinel = end();
+            auto end_sentinel = begin<bitset_mode::SegmentMode>() + size() - stop;
 
             Tp merge_val{initial};
 
@@ -639,8 +647,8 @@ namespace dice::template_library {
 
         ///> same as segments_reduce_while, but iterates segments in reverse order
         template<typename F, typename Pr, typename M, typename Tp>
-        Tp segments_reduce_while_reverse(F &&handler, Pr &&pred, M &&merge, Tp initial) const {
-            auto self_it = rbegin<bitset_mode::SegmentMode>();
+        Tp segments_reduce_while_reverse(F &&handler, Pr &&pred, M &&merge, Tp initial, size_t start=0) const {
+            auto self_it = rbegin<bitset_mode::SegmentMode>() + start;
             auto end_it = rend<bitset_mode::SegmentMode>();
 
             Tp merge_val{initial};
@@ -759,9 +767,13 @@ namespace dice::template_library {
             reset(ix);
         }
 
-        void set_all() requires (!has_dynamic_extent)
-        {
-            std::fill(inner_.begin(), inner_.end(), static_cast<T>(~T{}));
+        void set_all() {
+            if (is_aligned()) {
+                std::fill(inner_.begin(), inner_.end(), static_cast<T>(~T{}));
+                return;
+            }
+            std::fill(inner_.begin(), inner_.end() - 1, static_cast<T>(~T{}));
+            *(inner_.end() - 1) = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - leftover_bits()));
         }
 
         /**
@@ -782,8 +794,7 @@ namespace dice::template_library {
             bitset_mod_cntl(DICE_MEMFN(segment_unset), ix);
         }
 
-        void reset_all() requires (!has_dynamic_extent)
-        {
+        void reset_all() {
             std::fill(inner_.begin(), inner_.end(), T{});
         }
 
@@ -892,14 +903,37 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countr_zero() const {
-            return segments_reduce_while([](segment_const_reference segment) {
-                return std::countr_zero(segment);
-            },
-                                   [](size_t const val) {
-                                       return val == segment_size_in_bits;
-                                   },
-                                   std::plus<size_t>{},
-                                   0uz);
+            if (is_aligned()) {
+                return segments_reduce_while([](segment_const_reference segment) {
+                        return std::countr_zero(segment);
+                    }, [](size_t const val) {
+                        return val == segment_size_in_bits;
+                    },
+                    std::plus<size_t>{},
+                    0uz);
+            }
+
+            auto const full_segments = size() - 1;
+            auto const full_bits = full_segments * segment_size_in_bits;
+
+            auto const full_count = segments_reduce_while([](segment_const_reference segment) {
+                    return std::countr_zero(segment);
+                }, [](size_t const val) {
+                    return val == segment_size_in_bits;
+                },
+                std::plus<size_t>{},
+                0uz,
+                1);
+
+            // if not fully consumed (all zeros) we can stop
+            if (full_count != full_bits) {
+                return full_count;
+            }
+
+            auto const leftover = leftover_bits();
+            auto const &last = *(begin<bitset_mode::SegmentMode>() + full_segments);
+            auto const padding_mask = static_cast<T>(~T{} << leftover);
+            return full_bits + static_cast<size_t>(std::countr_zero(static_cast<T>(last | padding_mask)));
         }
 
         /**
@@ -908,14 +942,36 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countl_zero() const {
+            if (is_aligned()) {
+                return segments_reduce_while_reverse([](segment_const_reference segment) {
+                    return std::countl_zero(segment);
+                },
+                                                 [](size_t const val) {
+                                                     return val == segment_size_in_bits;
+                                                 },
+                                                 std::plus<size_t>{},
+                                                 0uz);
+            }
+            auto const full_segments = size() - 1;
+            auto const leftover = leftover_bits();
+            auto const fill_bits = segment_size_in_bits - leftover;
+
+            auto const &last = *(begin<bitset_mode::SegmentMode>() + full_segments);
+            auto const padding_mask = static_cast<T>(~T{} >> (segment_size_in_bits - fill_bits));
+            auto const zero_bits = static_cast<size_t>(std::countl_zero(static_cast<T>(static_cast<T>(last << fill_bits) | padding_mask)));
+
+            if (zero_bits != leftover) {
+                return zero_bits;
+            }
+
             return segments_reduce_while_reverse([](segment_const_reference segment) {
-                return std::countl_zero(segment);
-            },
-                                             [](size_t const val) {
-                                                 return val == segment_size_in_bits;
-                                             },
-                                             std::plus<size_t>{},
-                                             0uz);
+                    return std::countl_zero(segment);
+                },
+                                                 [](size_t const val) {
+                                                     return val == segment_size_in_bits;
+                                                 },
+                                                 std::plus<size_t>{},
+                                                 0uz, 1) + zero_bits;
         }
 
         /**
@@ -956,9 +1012,23 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool all_set() const {
-            return std::ranges::all_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
+            if (is_aligned()) {
+                return std::ranges::all_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
+                    return DICE_MEMFN(segment_all_set)(segment);
+                });
+            }
+            auto const full_segments = size() - 1;
+
+            auto const all_set_high = std::ranges::all_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), begin<bitset_mode::SegmentMode>() + size() - 1), [this](segment_const_reference segment) {
                 return DICE_MEMFN(segment_all_set)(segment);
             });
+
+            if (!all_set_high) {
+                return false;
+            }
+
+            auto const &last = (begin<bitset_mode::SegmentMode>() + full_segments).get();
+            return (std::popcount(last) == leftover_bits());
         }
 
         /**
@@ -1180,7 +1250,13 @@ namespace dice::template_library {
 
         bitset operator~() const {
             bitset tmp = *this;
-            tmp.segments_transform<std::negate<T>>();
+            tmp.segments_transform<std::bit_not<T>>();
+
+            if (!tmp.is_aligned()) {
+                auto &last = (tmp.begin<bitset_mode::SegmentMode>() + (tmp.size() - 1)).get();
+                last &= static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - tmp.leftover_bits()));
+            }
+
             return tmp;
         }
     };
