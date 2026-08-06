@@ -1165,9 +1165,7 @@ TEST_SUITE("bitset") {
 		CHECK(b.test(3));
 	}
 
-	TEST_CASE("set_all / reset_all (fully static capacity only)") {
-		// set_all()/reset_all() require !has_dynamic_extent, i.e. extent == segments - neither
-		// dyn8/dyn64 (fully dynamic) nor bounded64 (dynamic size, bounded capacity) qualify.
+	TEST_CASE("set_all / reset_all on a fully static, segment-aligned capacity") {
 		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
 		constexpr size_t fixed64_capacity_bits = 4 * 64;
 
@@ -1184,7 +1182,84 @@ TEST_SUITE("bitset") {
 			CHECK(b.none_set());
 			CHECK_EQ(b.count(), 0);
 		}
+	}
 
+	TEST_CASE("set_all / reset_all now work in every capacity mode, including a non-aligned logical size") {
+		// set_all()/reset_all() used to require !has_dynamic_extent; that restriction is gone, so
+		// this exercises the previously-disallowed dynamic/bounded modes, plus the case that
+		// actually stresses the last-segment logic: a logical size that isn't a whole number of
+		// segments, where only the low leftover_bits() bits of the last segment may end up set.
+
+		SUBCASE("dynamic, narrow (uint8_t) segments, non-aligned logical size") {
+			dyn8 b{};
+			b.set(11); // logical size 12: 1 full 8-bit segment + 4 leftover bits
+			REQUIRE_EQ(b.size_in_bits(), 12);
+
+			b.set_all();
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), 12); // exactly the logical size - no leaked padding bits
+			for (size_t i = 0; i < 12; ++i) {
+				CHECK(b.test(i));
+			}
+
+			b.reset_all();
+			CHECK(b.none_set());
+			CHECK_EQ(b.count(), 0);
+		}
+
+		SUBCASE("dynamic, default (uint64_t) segments, non-aligned logical size spanning multiple segments") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70: 1 full 64-bit segment + 6 leftover bits, content all 0
+
+			b.set_all();
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), 70);
+			CHECK(b.test(69)); // last legal (leftover) bit
+			// dyn64 has no max_bits cap, so going past logical size is just "not set", not an
+			// error - unlike the capped/fixed modes below, where fits_in_storage() rejects it.
+			CHECK_FALSE(b.test(70));
+
+			b.reset_all();
+			CHECK(b.none_set());
+			CHECK_EQ(b.count(), 0);
+		}
+
+		SUBCASE("bounded (dynamic size, capped capacity), non-aligned logical size") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+
+			bounded_odd b{};
+			b.set(69);
+			b.reset(69); // logical size 70, capacity rounds up to 128
+			REQUIRE_EQ(b.size_in_bits(), 70);
+
+			b.set_all();
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), 70);
+
+			b.reset_all();
+			CHECK(b.none_set());
+			CHECK_EQ(b.count(), 0);
+		}
+
+		SUBCASE("fully static capacity, permanently non-aligned logical size") {
+			// extent (2 segments = 128 bits of storage) is fixed regardless of max_bits (100) -
+			// logical size is always exactly 100 for this type, never a whole number of segments.
+			using fixed_odd = bitset<2, 100>;
+
+			fixed_odd b{0, 0};
+			REQUIRE_EQ(b.size_in_bits(), 100);
+
+			b.set_all();
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), 100);
+			CHECK(b.test(99));
+			CHECK_THROWS_AS((void)b.test(100), std::out_of_range);
+
+			b.reset_all();
+			CHECK(b.none_set());
+			CHECK_EQ(b.count(), 0);
+		}
 	}
 
 	TEST_CASE("shrink_to_fit") {
@@ -1819,5 +1894,309 @@ TEST_SUITE("bitset") {
 		CHECK_EQ(disjunction.size_in_bits(), 16);
 		CHECK(disjunction.test(0));
 		CHECK(disjunction.test(15));
+	}
+
+	TEST_CASE("countr_zero honors an exact (non-segment-aligned) logical size") {
+		// segment width for the default (uint64_t) instantiations used below; bitset<> keeps this
+		// private, so - like bounded64_segment_bits above - it is hardcoded here from the known
+		// template argument.
+		constexpr size_t seg64 = 64;
+
+		SUBCASE("aligned: the set bit sits in an early segment (non-edge - the leftover segment does not exist)") {
+			dyn64 b{1ull << 5, 0}; // 2 full segments (128 bits, aligned); bit 5 is the first 1
+			CHECK_EQ(b.countr_zero(), 5);
+		}
+
+		SUBCASE("aligned: an entirely-zero bitset returns exactly the (segment-aligned) logical size") {
+			dyn64 b{0, 0};
+			CHECK_EQ(b.countr_zero(), 2 * seg64);
+		}
+
+		SUBCASE("misaligned: the set bit sits in a full segment before the leftover one (non-edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70 (1 full segment + 6 leftover bits), content back to 0
+			b.set(3);    // the only 1 bit is in segment 0, well before the leftover segment
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_zero(), 3);
+		}
+
+		SUBCASE("misaligned: the set bit sits inside the leftover region itself (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, leftover = 6 valid bits (global 64..69)
+			b.set(67);   // offset 3 within the leftover segment
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_zero(), seg64 + 3);
+		}
+
+		SUBCASE("misaligned: everything is zero, including the leftover - capped at the logical size, not the segment width (edge)") {
+			// distinguishes a correct implementation from one that treats the padding bits above
+			// logical size as real zeros (over-counts up to a full extra segment width) or one
+			// that mishandles the leftover scan and stops too early.
+			dyn64 b{};
+			b.set(69);
+			b.reset(69);
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_zero(), 70); // not 128 (2 * seg64)
+		}
+
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			dyn8 b{};
+			b.set(11);
+			b.reset(11); // logical size 12 (1 full 8-bit segment + 4 leftover bits), all zero
+			REQUIRE_EQ(b.size_in_bits(), 12);
+			CHECK_EQ(b.countr_zero(), 12);
+		}
+
+		SUBCASE("misaligned, bounded (capped-dynamic) capacity") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+			bounded_odd b{};
+			b.set(69);
+			b.reset(69);
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_zero(), 70);
+		}
+
+		SUBCASE("misaligned, fully-static (fixed) capacity") {
+			// extent (2 segments = 128 bits of storage) is fixed regardless of max_bits (100) -
+			// logical size is always exactly 100, permanently non-segment-aligned.
+			using fixed_odd = bitset<2, 100>;
+			fixed_odd b{0, 1ull << 26}; // offset 26 within the 36-bit leftover (global bit 90)
+			REQUIRE_EQ(b.size_in_bits(), 100);
+			CHECK_EQ(b.countr_zero(), seg64 + 26);
+		}
+	}
+
+	TEST_CASE("countl_zero honors an exact (non-segment-aligned) logical size") {
+		constexpr size_t seg64 = 64;
+
+		SUBCASE("aligned: the set bit sits in the last segment (non-edge - resolved without any fallback)") {
+			dyn64 b{0, 1ull << 58}; // 2 full segments (128 bits, aligned)
+			CHECK_EQ(b.countl_zero(), 5); // 63 - 58
+		}
+
+		SUBCASE("aligned: an entirely-zero bitset returns exactly the (segment-aligned) logical size") {
+			dyn64 b{0, 0};
+			CHECK_EQ(b.countl_zero(), 2 * seg64);
+		}
+
+		SUBCASE("misaligned: resolved within the leftover region, not at its very top (edge, no fallback)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, leftover = 6 valid bits (global 64..69)
+			b.set(67);   // offset 3 of 0..5 - two leading zero bits (offsets 5, 4) above it
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_zero(), 2);
+		}
+
+		SUBCASE("misaligned: the leftover is entirely zero, so it falls back to an earlier full segment (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, leftover all zero
+			b.set(5);    // segment 0 (a full, non-last segment) decides the answer
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_zero(), 6 + (seg64 - 1 - 5)); // 6 leftover zeros + segment 0's own leading zeros
+		}
+
+		SUBCASE("misaligned: everything is zero - capped at the logical size, not the segment width (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69);
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_zero(), 70); // not 128
+		}
+
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			// this is the exact shape that used to fail to compile: countl_zero() on a non-aligned
+			// bitset with a segment type narrower than int (integer promotion made the masked
+			// operand's type disagree with what std::countl_zero requires).
+			dyn8 b{};
+			b.set(11);
+			b.reset(11); // logical size 12, leftover = 4 valid bits (global 8..11)
+			b.set(9);    // offset 1 of 0..3 - two leading zero bits (offsets 3, 2) above it
+			REQUIRE_EQ(b.size_in_bits(), 12);
+			CHECK_EQ(b.countl_zero(), 2);
+		}
+
+		SUBCASE("misaligned, bounded (capped-dynamic) capacity") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+			bounded_odd b{};
+			b.set(69);
+			b.reset(69);
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_zero(), 70);
+		}
+
+		SUBCASE("misaligned, fully-static (fixed) capacity, falls back into an earlier full segment") {
+			using fixed_odd = bitset<2, 100>;
+			fixed_odd b{1ull << 10, 0}; // leftover (segment 1) all zero; segment 0 decides the answer
+			REQUIRE_EQ(b.size_in_bits(), 100);
+			CHECK_EQ(b.countl_zero(), 36 + (seg64 - 1 - 10)); // 36 leftover zeros + segment 0's leading zeros
+		}
+	}
+
+	TEST_CASE("all_set with a non-segment-aligned logical size") {
+		SUBCASE("misaligned: an earlier full segment isn't fully set - false without the leftover ever mattering (non-edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, segment 0 not fully set (all zero), leftover also all zero
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_FALSE(b.all_set());
+		}
+
+		SUBCASE("misaligned: every full segment is set, but the leftover is only partially set (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, leftover = 6 valid bits (global 64..69)
+			for (size_t i = 0; i < 64; ++i) b.set(i); // segment 0 fully set
+			b.set(64);
+			b.set(65); // only 2 of the 6 leftover bits set
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_FALSE(b.all_set());
+		}
+
+		SUBCASE("misaligned: every full segment is set and the leftover is set exactly up to its width, no more (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69);
+			b.set_all();
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK(b.all_set());
+			CHECK_EQ(b.count(), 70); // not 128 - confirms the leftover comparison isn't just "segment is non-zero"
+		}
+
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			dyn8 full{};
+			full.set(11);
+			full.reset(11);
+			full.set_all();
+			CHECK(full.all_set());
+
+			dyn8 partial{};
+			partial.set(11);
+			partial.reset(11);
+			for (size_t i = 0; i < 8; ++i) partial.set(i); // segment 0 full, leftover untouched
+			CHECK_FALSE(partial.all_set());
+		}
+
+		SUBCASE("misaligned, bounded (capped-dynamic) capacity") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+			bounded_odd b{};
+			b.set(69);
+			b.reset(69);
+			b.set_all();
+			CHECK(b.all_set());
+
+			b.reset(64); // clear a single leftover bit
+			CHECK_FALSE(b.all_set());
+		}
+
+		SUBCASE("misaligned, fully-static (fixed) capacity") {
+			using fixed_odd = bitset<2, 100>;
+			// leftover is 36 valid bits (global 64..99); mask sets exactly those, nothing above.
+			constexpr uint64_t leftover_mask = (uint64_t{1} << 36) - 1;
+
+			fixed_odd full{~0ull, leftover_mask};
+			CHECK(full.all_set());
+
+			fixed_odd partial{~0ull, leftover_mask >> 1}; // one leftover bit short
+			CHECK_FALSE(partial.all_set());
+		}
+	}
+
+	TEST_CASE("operator~ preserves the zero-padding invariant across a non-aligned boundary") {
+		SUBCASE("aligned: NOT of all-zero is all-one and vice versa, double negation is the identity") {
+			dyn64 b{0, 0};
+			auto const notb = ~b;
+			CHECK(notb.all_set());
+			CHECK_EQ(notb.count(), 2 * 64);
+
+			auto const notnotb = ~notb;
+			CHECK(notnotb.none_set());
+			CHECK(notnotb == b);
+		}
+
+		SUBCASE("misaligned: exactly the logical bits flip - no padding bits leak into count()/all_set()") {
+			dyn64 b{};
+			b.set(69); // logical size 70, only bit 69 set
+			REQUIRE_EQ(b.size_in_bits(), 70);
+
+			auto const notb = ~b;
+			CHECK_EQ(notb.count(), 69); // 70 logical bits, 1 was set -> 69 should now be set
+			CHECK_FALSE(notb.test(69));
+			for (size_t i = 0; i < 69; ++i) {
+				CHECK(notb.test(i));
+			}
+			CHECK_FALSE(notb.all_set()); // bit 69 is 0, so not every logical bit is set
+
+			CHECK((~notb) == b); // double negation round-trips exactly
+		}
+
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			dyn8 b{};
+			b.set(11); // logical size 12, only bit 11 set
+			auto const notb = ~b;
+			CHECK_EQ(notb.count(), 11);
+			CHECK_FALSE(notb.test(11));
+			CHECK((~notb) == b);
+		}
+
+		SUBCASE("misaligned, bounded (capped-dynamic) capacity") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+			bounded_odd b{};
+			b.set(69);
+			auto const notb = ~b;
+			CHECK_EQ(notb.count(), 69);
+			CHECK_EQ(notb.size_in_bits(), 70);
+		}
+
+		SUBCASE("misaligned, fully-static (fixed) capacity") {
+			using fixed_odd = bitset<2, 100>;
+			fixed_odd b{0, 1ull << 10}; // one bit set, deep inside the 36-bit leftover
+			auto const notb = ~b;
+			CHECK_EQ(notb.count(), 99); // 100 logical bits, 1 was set
+			CHECK_FALSE(notb.all_set());
+			CHECK((~notb) == b);
+		}
+	}
+
+	TEST_CASE("bitwise and/or/xor preserve the zero-padding invariant across a non-aligned boundary") {
+		// and/or/xor never touch a bit that both operands agree is 0 - so as long as both operands
+		// already keep their padding at 0 (which set()/set_all()/the fixed operator~ above all
+		// guarantee), these can't introduce a leak on their own. These identities exercise exactly
+		// that: mixing in an operator~ result (the operation that used to leak) and checking the
+		// combination still respects the exact logical size.
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			dyn8 a{0b01011010};
+			a.set(11); // logical size 12, a mixed (non-trivial) pattern in segment 0 plus a leftover bit
+
+			CHECK((a ^ a).none_set());
+			CHECK_EQ((a ^ a).count(), 0);
+
+			auto const xor_not = a ^ ~a;
+			CHECK(xor_not.all_set());
+			CHECK_EQ(xor_not.count(), 12);
+
+			CHECK((a & ~a).none_set());
+			CHECK((a | ~a).all_set());
+		}
+
+		SUBCASE("misaligned, default (uint64_t) segments spanning multiple segments") {
+			dyn64 a{};
+			a.set(69);
+			a.reset(69);
+			a.set(40);
+			a.set(3); // mixed pattern: segment 0 has 2 bits set, leftover has none
+
+			CHECK((a ^ a).none_set());
+
+			auto const xor_not = a ^ ~a;
+			CHECK(xor_not.all_set());
+			CHECK_EQ(xor_not.count(), 70);
+
+			CHECK((a & ~a).none_set());
+			CHECK((a | ~a).all_set());
+		}
 	}
 }
