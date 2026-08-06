@@ -957,7 +957,7 @@ namespace dice::template_library {
             auto const fill_bits = segment_size_in_bits - leftover;
 
             auto const &last = *(begin<bitset_mode::SegmentMode>() + full_segments);
-            auto const padding_mask = static_cast<T>(~T{} >> (segment_size_in_bits - fill_bits));
+            auto const padding_mask = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - fill_bits));
             auto const zero_bits = static_cast<size_t>(std::countl_zero(static_cast<T>(static_cast<T>(last << fill_bits) | padding_mask)));
 
             if (zero_bits != leftover) {
