@@ -5,23 +5,30 @@
 #include <dice/template-library/type_traits.hpp>
 
 namespace dice::template_library {
+    /**
+     * The break arm of a control_flow: stop the computation and propagate value to the caller.
+     */
     template<typename T>
     struct cfbreak {
         T value;
 
-        bool operator==(cfbreak const &other) const noexcept = default;
-        auto operator<=>(cfbreak const &other) const noexcept = default;
+        bool operator==(cfbreak const &other) const = default;
+        auto operator<=>(cfbreak const &other) const = default;
     };
 
     template<>
     struct cfbreak<void>;
 
+    /**
+     * The continue arm of a control_flow: carry on with value.
+     * Defaults to std::monostate for computations that have nothing to carry (see try_for_each).
+     */
     template<typename T = std::monostate>
     struct cfcontinue {
         T value;
 
-        bool operator==(cfcontinue const &other) const noexcept = default;
-        auto operator<=>(cfcontinue const &other) const noexcept = default;
+        bool operator==(cfcontinue const &other) const = default;
+        auto operator<=>(cfcontinue const &other) const = default;
     };
 
     template<>
@@ -56,6 +63,16 @@ namespace dice::template_library {
         };
     } // namespace detail_control_flow
 
+    /**
+     * Rust like ControlFlow: holds either a cfbreak<B>, telling the caller to stop and propagate the break value,
+     * or a cfcontinue<C>, telling it to carry on with the continue value. Used by the try_* range algorithms to
+     * decide whether to keep iterating (see try_traits::branch).
+     *
+     * Either arm may be void to express that it cannot occur, e.g. control_flow<E, void> can only ever break.
+     *
+     * @tparam B break type, void if the computation cannot break
+     * @tparam C continue type, void if the computation cannot continue
+     */
     template<typename B, typename C = std::monostate>
     struct control_flow {
         static constexpr bool has_break = !std::is_void_v<B>;
@@ -102,8 +119,18 @@ namespace dice::template_library {
         {
         }
 
+        constexpr control_flow(control_flow<B, void> &&other) requires (has_break)
+            : control_flow{in_place_break, std::move(other).get_break()}
+        {
+        }
+
         constexpr control_flow(control_flow<void, C> const &other) requires (has_continue)
             : control_flow{in_place_continue, other.get_continue()}
+        {
+        }
+
+        constexpr control_flow(control_flow<void, C> &&other) requires (has_continue)
+            : control_flow{in_place_continue, std::move(other).get_continue()}
         {
         }
 
@@ -130,8 +157,8 @@ namespace dice::template_library {
             return visit(std::forward<F>(visitor), dice::template_library::forward_like<Self>(self.data_));
         }
 
-        bool operator==(control_flow const &other) const noexcept = default;
-        auto operator<=>(control_flow const &other) const noexcept = default;
+        bool operator==(control_flow const &other) const = default;
+        auto operator<=>(control_flow const &other) const = default;
     };
 
 } // namespace dice::template_library

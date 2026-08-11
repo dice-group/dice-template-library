@@ -16,6 +16,14 @@ namespace dice::template_library {
     template<typename T>
     struct try_traits;
 
+    namespace detail_try_traits {
+        /**
+         * just a type to check rebind to avoid using
+         * any fixed type that could have been in the try_result before rebind
+         */
+        struct rebind_probe {};
+    } // detail_try_traits
+
     /**
      * A type that can be used in try_* algorithms.
      */
@@ -35,7 +43,7 @@ namespace dice::template_library {
         /**
          * Rebind the output_type of self.
          */
-        typename try_traits<T>::template rebind_output<int>;
+        typename try_traits<T>::template rebind_output<detail_try_traits::rebind_probe>;
 
         /**
          * Construct self from the output_type.
@@ -50,8 +58,8 @@ namespace dice::template_library {
         /**
          * rebinding the output must keep the residual channel intact, i.e. residuals of T must remain usable as residuals of the rebound type
          */
-        requires std::same_as<typename try_traits<typename try_traits<T>::template rebind_output<int>>::output_type, int>;
-        requires std::convertible_to<typename try_traits<T>::residual_type, typename try_traits<T>::template rebind_output<int>>;
+        requires std::same_as<typename try_traits<typename try_traits<T>::template rebind_output<detail_try_traits::rebind_probe>>::output_type, detail_try_traits::rebind_probe>;
+        requires std::convertible_to<typename try_traits<T>::residual_type, typename try_traits<T>::template rebind_output<detail_try_traits::rebind_probe>>;
     };
 
 
@@ -64,11 +72,11 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = control_flow<B, Out>;
 
-        static self_type from_output(output_type &&out) {
+        static constexpr self_type from_output(output_type &&out) {
             return cfcontinue{std::move(out)};
         }
 
-        static control_flow<residual_type, output_type> branch(self_type &&self) {
+        static constexpr control_flow<residual_type, output_type> branch(self_type &&self) {
             return match(std::move(self),
                 [](cfcontinue<C> &&cont) -> control_flow<residual_type, output_type> {
                     return std::move(cont);
@@ -91,11 +99,11 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::optional<Out>;
 
-        static self_type from_output(output_type &&out) {
+        static constexpr self_type from_output(output_type &&out) {
             return self_type{std::move(out)};
         }
 
-        static control_flow<residual_type, output_type> branch(self_type &&self) {
+        static constexpr control_flow<residual_type, output_type> branch(self_type &&self) {
             if (self.has_value()) {
                 return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
             }
@@ -116,11 +124,11 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::expected<Out, E>;
 
-        static self_type from_output(output_type &&out) {
+        static constexpr self_type from_output(output_type &&out) {
             return self_type{std::in_place, std::move(out)};
         }
 
-        static control_flow<residual_type, output_type> branch(self_type &&self) {
+        static constexpr control_flow<residual_type, output_type> branch(self_type &&self) {
             if (self.has_value()) {
                 return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
             }

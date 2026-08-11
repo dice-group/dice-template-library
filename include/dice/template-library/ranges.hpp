@@ -4,6 +4,7 @@
 #include <dice/template-library/next_to_range.hpp>
 #include <dice/template-library/control_flow.hpp>
 #include <dice/template-library/try_traits.hpp>
+#include <dice/template-library/type_traits.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -784,7 +785,7 @@ namespace dice::template_library {
             requires (try_result<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>
                       && try_for_each_output<typename try_traits<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>::output_type>)
             [[nodiscard]] constexpr try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>> operator()(R &&range, Pred pred) const {
-                return try_for_each_fn{}(std::ranges::begin(range), std::ranges::end(range), pred);
+                return try_for_each_fn{}(std::ranges::begin(range), std::ranges::end(range), std::move(pred));
             }
         };
     }  // namespace ranges_algo_detail
