@@ -599,7 +599,8 @@ TEST_SUITE("try_fold_left") {
                     return acc + elem;
                 });
 
-                CHECK_EQ(res, 15);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value, 15);
             }
 
             SUBCASE("break") {
@@ -611,7 +612,8 @@ TEST_SUITE("try_fold_left") {
                     return acc + elem;
                 });
 
-                CHECK_EQ(res, std::nullopt);
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value, std::nullopt);
             }
         }
 
@@ -621,7 +623,8 @@ TEST_SUITE("try_fold_left") {
                     return dtl::cfcontinue{acc + elem};
                 });
 
-                CHECK_EQ(res.get_continue(), 15);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value.get_continue(), 15);
             }
 
             SUBCASE("break") {
@@ -633,7 +636,8 @@ TEST_SUITE("try_fold_left") {
                     return dtl::cfcontinue{acc + elem};
                 });
 
-                CHECK_EQ(res.get_break(), 6);
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value.get_break(), 6);
             }
         }
 
@@ -644,8 +648,9 @@ TEST_SUITE("try_fold_left") {
                     return acc + elem;
                 });
 
-                REQUIRE(res.has_value());
-                CHECK_EQ(*res, 15);
+                CHECK_EQ(res.in, ints.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, 15);
             }
 
             SUBCASE("break") {
@@ -657,8 +662,9 @@ TEST_SUITE("try_fold_left") {
                     return acc + elem;
                 });
 
-                REQUIRE_FALSE(res.has_value());
-                CHECK_EQ(res.error(), "acc too large");
+                CHECK_EQ(res.in, ints.begin() + 3);
+                REQUIRE_FALSE(res.value.has_value());
+                CHECK_EQ(res.value.error(), "acc too large");
             }
         }
 #endif // __cpp_lib_expected >= 202202L
@@ -672,7 +678,8 @@ TEST_SUITE("try_fold_left") {
                 return acc + elem;
             });
 
-            CHECK_EQ(res, 42);
+            CHECK_EQ(res.in, no_ints.end());
+            CHECK_EQ(res.value, 42);
         }
 
         SUBCASE("control_flow") {
@@ -680,8 +687,9 @@ TEST_SUITE("try_fold_left") {
                 return dtl::cfcontinue{acc + elem};
             });
 
-            REQUIRE(res.is_continue());
-            CHECK_EQ(res.get_continue(), 42);
+            CHECK_EQ(res.in, no_ints.end());
+            REQUIRE(res.value.is_continue());
+            CHECK_EQ(res.value.get_continue(), 42);
         }
 
 #if __cpp_lib_expected >= 202202L
@@ -690,8 +698,9 @@ TEST_SUITE("try_fold_left") {
                 return acc + elem;
             });
 
-            REQUIRE(res.has_value());
-            CHECK_EQ(*res, 42);
+            CHECK_EQ(res.in, no_ints.end());
+            REQUIRE(res.value.has_value());
+            CHECK_EQ(*res.value, 42);
         }
 #endif // __cpp_lib_expected >= 202202L
     }
@@ -703,7 +712,17 @@ TEST_SUITE("try_fold_left") {
             return acc + elem;
         });
 
-        CHECK_EQ(res, 15);
+        CHECK_EQ(res.in, ints.end());
+        CHECK_EQ(res.value, 15);
+    }
+
+    TEST_CASE("rvalue range yields a dangling iterator") {
+        auto res = dtl::try_fold_left(std::vector{1, 2, 3, 4, 5}, 0, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
+        CHECK_EQ(res.value, 15);
     }
 
     TEST_CASE("pred is not invoked after a break") {
@@ -719,7 +738,8 @@ TEST_SUITE("try_fold_left") {
             return acc + elem;
         });
 
-        CHECK_EQ(res, std::nullopt);
+        CHECK_EQ(res.in, ints.begin() + 2);
+        CHECK_EQ(res.value, std::nullopt);
         CHECK_EQ(calls, 3);
     }
 
@@ -731,7 +751,8 @@ TEST_SUITE("try_fold_left") {
                 return acc + std::to_string(elem);
             });
 
-            CHECK_EQ(res, "12345");
+            CHECK_EQ(res.in, ints.end());
+            CHECK_EQ(res.value, "12345");
         }
 
         SUBCASE("break") {
@@ -743,7 +764,8 @@ TEST_SUITE("try_fold_left") {
                 return acc + std::to_string(elem);
             });
 
-            CHECK_EQ(res, std::nullopt);
+            CHECK_EQ(res.in, ints.begin() + 3);
+            CHECK_EQ(res.value, std::nullopt);
         }
     }
 
@@ -755,7 +777,8 @@ TEST_SUITE("try_fold_left") {
             return acc + elem;
         });
 
-        CHECK_EQ(res, 12);
+        CHECK_EQ(res.in, ints.end());
+        CHECK_EQ(res.value, 12);
         CHECK_EQ(ints, std::array{2, 4, 6});
     }
 
@@ -768,8 +791,9 @@ TEST_SUITE("try_fold_left") {
                 return std::move(acc);
             });
 
-            REQUIRE(res.has_value());
-            CHECK_EQ(**res, 15);
+            CHECK_EQ(res.in, ints.end());
+            REQUIRE(res.value.has_value());
+            CHECK_EQ(**res.value, 15);
         }
 
         SUBCASE("break") {
@@ -782,7 +806,8 @@ TEST_SUITE("try_fold_left") {
                 return std::move(acc);
             });
 
-            CHECK_EQ(res, std::nullopt);
+            CHECK_EQ(res.in, ints.begin() + 3);
+            CHECK_EQ(res.value, std::nullopt);
         }
     }
 
@@ -797,8 +822,9 @@ TEST_SUITE("try_fold_left") {
             return dtl::cfcontinue{acc + elem};
         });
 
-        REQUIRE(res.is_break());
-        CHECK_EQ(res.get_break(), "hit 4");
+        CHECK_EQ(res.in, ints.begin() + 3);
+        REQUIRE(res.value.is_break());
+        CHECK_EQ(res.value.get_break(), "hit 4");
     }
 
     TEST_CASE("input only range") {
@@ -809,7 +835,8 @@ TEST_SUITE("try_fold_left") {
             return acc + elem;
         });
 
-        CHECK_EQ(res, 15);
+        CHECK(res.in == std::default_sentinel);
+        CHECK_EQ(res.value, 15);
     }
 }
 
@@ -826,7 +853,8 @@ TEST_SUITE("try_for_each") {
                     return std::monostate{};
                 });
 
-                CHECK_NE(res, std::nullopt);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_NE(res.value, std::nullopt);
                 CHECK_EQ(seen, std::vector{1, 2, 3, 4, 5});
             }
 
@@ -842,7 +870,8 @@ TEST_SUITE("try_for_each") {
                     return std::monostate{};
                 });
 
-                CHECK_EQ(res, std::nullopt);
+                CHECK_EQ(res.in, ints.begin() + 2);
+                CHECK_EQ(res.value, std::nullopt);
                 CHECK_EQ(seen, std::vector{1, 2});
             }
         }
@@ -853,7 +882,8 @@ TEST_SUITE("try_for_each") {
                     return dtl::cfcontinue{std::monostate{}};
                 });
 
-                CHECK(res.is_continue());
+                CHECK_EQ(res.in, ints.end());
+                CHECK(res.value.is_continue());
             }
 
             SUBCASE("break") {
@@ -865,8 +895,9 @@ TEST_SUITE("try_for_each") {
                     return dtl::cfcontinue{std::monostate{}};
                 });
 
-                REQUIRE(res.is_break());
-                CHECK_EQ(res.get_break(), "hit 4");
+                CHECK_EQ(res.in, ints.begin() + 3);
+                REQUIRE(res.value.is_break());
+                CHECK_EQ(res.value.get_break(), "hit 4");
             }
         }
 
@@ -880,7 +911,8 @@ TEST_SUITE("try_for_each") {
                     return std::monostate{};
                 });
 
-                CHECK(res.has_value());
+                CHECK_EQ(res.in, ints.end());
+                CHECK(res.value.has_value());
                 CHECK_EQ(sum, 15);
             }
 
@@ -893,8 +925,9 @@ TEST_SUITE("try_for_each") {
                     return std::monostate{};
                 });
 
-                REQUIRE_FALSE(res.has_value());
-                CHECK_EQ(res.error(), "hit 3");
+                CHECK_EQ(res.in, ints.begin() + 2);
+                REQUIRE_FALSE(res.value.has_value());
+                CHECK_EQ(res.value.error(), "hit 3");
             }
         }
 #endif // __cpp_lib_expected >= 202202L
@@ -909,7 +942,8 @@ TEST_SUITE("try_for_each") {
                 return std::nullopt;
             });
 
-            CHECK_NE(res, std::nullopt);
+            CHECK_EQ(res.in, no_ints.end());
+            CHECK_NE(res.value, std::nullopt);
         }
 
         SUBCASE("control_flow") {
@@ -918,7 +952,8 @@ TEST_SUITE("try_for_each") {
                 return dtl::cfbreak{std::string{}};
             });
 
-            CHECK(res.is_continue());
+            CHECK_EQ(res.in, no_ints.end());
+            CHECK(res.value.is_continue());
         }
     }
 
@@ -931,7 +966,39 @@ TEST_SUITE("try_for_each") {
             return std::monostate{};
         });
 
-        CHECK_NE(res, std::nullopt);
+        CHECK_EQ(res.in, ints.end());
+        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(sum, 15);
+    }
+
+    TEST_CASE("pred is returned") {
+        struct summer {
+            int sum = 0;
+
+            std::optional<std::monostate> operator()(int elem) {
+                sum += elem;
+                return std::monostate{};
+            }
+        };
+
+        std::array ints{1, 2, 3, 4, 5};
+
+        auto res = dtl::try_for_each(ints, summer{});
+
+        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.fun.sum, 15);
+    }
+
+    TEST_CASE("rvalue range yields a dangling iterator") {
+        int sum = 0;
+
+        auto res = dtl::try_for_each(std::vector{1, 2, 3, 4, 5}, [&sum](int elem) -> std::optional<std::monostate> {
+            sum += elem;
+            return std::monostate{};
+        });
+
+        static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
+        CHECK_NE(res.value, std::nullopt);
         CHECK_EQ(sum, 15);
     }
 
@@ -943,7 +1010,8 @@ TEST_SUITE("try_for_each") {
             return std::monostate{};
         });
 
-        CHECK_NE(res, std::nullopt);
+        CHECK_EQ(res.in, ints.end());
+        CHECK_NE(res.value, std::nullopt);
         CHECK_EQ(ints, std::array{2, 4, 6});
     }
 
@@ -959,7 +1027,8 @@ TEST_SUITE("try_for_each") {
             return std::monostate{};
         });
 
-        CHECK_NE(res, std::nullopt);
+        CHECK_EQ(res.in, ptrs.end());
+        CHECK_NE(res.value, std::nullopt);
         CHECK_EQ(sum, 6);
     }
 
@@ -973,7 +1042,8 @@ TEST_SUITE("try_for_each") {
             return std::monostate{};
         });
 
-        CHECK_NE(res, std::nullopt);
+        CHECK(res.in == std::default_sentinel);
+        CHECK_NE(res.value, std::nullopt);
         CHECK_EQ(sum, 15);
     }
 }
@@ -989,8 +1059,9 @@ TEST_SUITE("try_fold_left_first") {
                     return acc + elem;
                 });
 
-                static_assert(std::is_same_v<decltype(res), std::optional<std::optional<int>>>);
-                CHECK_EQ(res, std::optional<int>{15});
+                static_assert(std::is_same_v<decltype(res.value), std::optional<std::optional<int>>>);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value, std::optional<int>{15});
             }
 
             SUBCASE("break") {
@@ -1002,7 +1073,8 @@ TEST_SUITE("try_fold_left_first") {
                     return acc + elem;
                 });
 
-                CHECK_EQ(res, std::nullopt);
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value, std::nullopt);
             }
 
             SUBCASE("empty range") {
@@ -1010,8 +1082,9 @@ TEST_SUITE("try_fold_left_first") {
                     return acc + elem;
                 });
 
-                CHECK_NE(res, std::nullopt);
-                CHECK_EQ(*res, std::nullopt);
+                CHECK_EQ(res.in, no_ints.end());
+                CHECK_NE(res.value, std::nullopt);
+                CHECK_EQ(*res.value, std::nullopt);
             }
 
             SUBCASE("single element is never passed to pred") {
@@ -1021,7 +1094,8 @@ TEST_SUITE("try_fold_left_first") {
                     return std::nullopt;
                 });
 
-                CHECK_EQ(res, std::optional<int>{42});
+                CHECK_EQ(res.in, single.end());
+                CHECK_EQ(res.value, std::optional<int>{42});
             }
         }
 
@@ -1031,8 +1105,9 @@ TEST_SUITE("try_fold_left_first") {
                     return dtl::cfcontinue{acc + elem};
                 });
 
-                static_assert(std::is_same_v<decltype(res), dtl::control_flow<int, std::optional<int>>>);
-                CHECK_EQ(res.get_continue(), std::optional<int>{15});
+                static_assert(std::is_same_v<decltype(res.value), dtl::control_flow<int, std::optional<int>>>);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value.get_continue(), std::optional<int>{15});
             }
 
             SUBCASE("break") {
@@ -1044,7 +1119,8 @@ TEST_SUITE("try_fold_left_first") {
                     return dtl::cfcontinue{acc + elem};
                 });
 
-                CHECK_EQ(res.get_break(), 6);
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value.get_break(), 6);
             }
 
             SUBCASE("empty range") {
@@ -1052,7 +1128,8 @@ TEST_SUITE("try_fold_left_first") {
                     return dtl::cfcontinue{acc + elem};
                 });
 
-                CHECK_EQ(res.get_continue(), std::nullopt);
+                CHECK_EQ(res.in, no_ints.end());
+                CHECK_EQ(res.value.get_continue(), std::nullopt);
             }
         }
 
@@ -1063,9 +1140,10 @@ TEST_SUITE("try_fold_left_first") {
                     return acc + elem;
                 });
 
-                static_assert(std::is_same_v<decltype(res), std::expected<std::optional<int>, std::string>>);
-                REQUIRE(res.has_value());
-                CHECK_EQ(*res, std::optional<int>{15});
+                static_assert(std::is_same_v<decltype(res.value), std::expected<std::optional<int>, std::string>>);
+                CHECK_EQ(res.in, ints.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, std::optional<int>{15});
             }
 
             SUBCASE("break") {
@@ -1077,8 +1155,9 @@ TEST_SUITE("try_fold_left_first") {
                     return acc + elem;
                 });
 
-                REQUIRE_FALSE(res.has_value());
-                CHECK_EQ(res.error(), "too large");
+                CHECK_EQ(res.in, ints.begin() + 3);
+                REQUIRE_FALSE(res.value.has_value());
+                CHECK_EQ(res.value.error(), "too large");
             }
 
             SUBCASE("empty range") {
@@ -1086,10 +1165,32 @@ TEST_SUITE("try_fold_left_first") {
                     return acc + elem;
                 });
 
-                REQUIRE(res.has_value());
-                CHECK_EQ(*res, std::nullopt);
+                CHECK_EQ(res.in, no_ints.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, std::nullopt);
             }
         }
 #endif // __cpp_lib_expected >= 202202L
+    }
+
+    TEST_CASE("input only range") {
+        std::istringstream ints{"1 2 3 4 5"};
+        auto view = std::views::istream<int>(ints);
+
+        auto res = dtl::try_fold_left_first(view, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        CHECK(res.in == std::default_sentinel);
+        CHECK_EQ(res.value, std::optional<int>{15});
+    }
+
+    TEST_CASE("rvalue range yields a dangling iterator") {
+        auto res = dtl::try_fold_left_first(std::vector{1, 2, 3, 4, 5}, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
+        CHECK_EQ(res.value, std::optional<int>{15});
     }
 }
