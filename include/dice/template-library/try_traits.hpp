@@ -141,4 +141,33 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
+/**
+ * Like rust's ? operator.
+ * If the expression is an error/break, returns the error from the current function.
+ * If the expression is not an error/break resolves to the ok/continue value.
+ *
+ * @param expr
+ *
+ * @par Example
+ * @code
+ *
+ * std::expected<int, int> fallible_function()
+ *
+ * auto x = DICE_TRY(
+ *
+ *
+ * @endcode
+ */
+#define DICE_TRY(expr) \
+    ({ \
+        using traits = ::dice::template_library::try_traits<decltype(expr)>; \
+        auto res = traits::branch(std::move(expr)); \
+        if (res.is_break()) {\
+            return std::move(res).get_break(); \
+        } \
+                                       \
+        std::move(res).get_continue(); \
+    })
+
+
 #endif // DICE_TEMPLATELIBRARY_TRYTRAITS_HPP
