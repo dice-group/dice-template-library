@@ -2,24 +2,24 @@
 #include <dice/template-library/try_traits.hpp>
 
 #include <array>
-#include <expected>
 #include <iostream>
 #include <optional>
 #include <string>
 
 namespace dtl = dice::template_library;
 
-std::expected<int, std::string> parse_int(std::string const &s) {
+// Should be using std::expected but that does not work on clang-18 yet
+std::optional<int> parse_int(std::string const &s) {
     try {
         return std::stoi(s);
     } catch (std::exception const &) {
-        return std::unexpected{"not a number: " + s};
+        return std::nullopt;
     }
 }
 
 // DICE_TRY unwraps the value or returns the error from the enclosing function.
 // Note that the error is propagated even though the output type changes from int to double.
-std::expected<double, std::string> parse_and_halve(std::string const &s) {
+std::optional<double> parse_and_halve(std::string const &s) {
     int const value = DICE_TRY(parse_int(s));
     return static_cast<double>(value) / 2.0;
 }
@@ -48,7 +48,7 @@ dtl::control_flow<std::string, std::string> doubled_as_string(int x) {
 
 int main() {
     std::cout << "parse_and_halve(\"42\")     = " << parse_and_halve("42").value_or(-1) << "\n";
-    std::cout << "parse_and_halve(\"abc\")    = " << parse_and_halve("abc").error() << "\n";
+    std::cout << "parse_and_halve(\"abc\")    = " << !parse_and_halve("abc").has_value() << "\n";
 
     std::cout << "describe_first_char(\"hi\") = " << describe_first_char("hi").value_or("<nothing>") << "\n";
     std::cout << "describe_first_char(\"\")   = " << describe_first_char("").value_or("<nothing>") << "\n";
@@ -59,15 +59,15 @@ int main() {
     // The same try_results drive the fallible range algorithms.
     // try_fold_left stops at the first residual and propagates it.
     std::array<std::string, 3> const numbers{"1", "2", "3"};
-    auto const sum = dtl::try_fold_left(numbers, 0, [](int acc, std::string const &s) -> std::expected<int, std::string> {
+    auto const sum = dtl::try_fold_left(numbers, 0, [](int acc, std::string const &s) -> std::optional<int> {
         return acc + DICE_TRY(parse_int(s));
     });
     std::cout << "try_fold_left(sum)        = " << sum.value.value_or(-1) << "\n";
 
     std::array<std::string, 3> const broken{"1", "nope", "3"};
-    auto const failed = dtl::try_fold_left(broken, 0, [](int acc, std::string const &s) -> std::expected<int, std::string> {
+    auto const failed = dtl::try_fold_left(broken, 0, [](int acc, std::string const &s) -> std::optional<int> {
         return acc + DICE_TRY(parse_int(s));
     });
-    std::cout << "try_fold_left(broken)     = " << failed.value.error() << "\n";
+    std::cout << "try_fold_left(broken)     = " << !failed.value.has_value() << "\n";
     std::cout << "  stopped at              = " << *failed.in << "\n";
 }
