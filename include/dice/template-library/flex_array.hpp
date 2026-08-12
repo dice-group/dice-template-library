@@ -239,15 +239,23 @@ namespace dice::template_library {
 	} // namespace detail_flex_array
 
 	/**
-	 * A combination of std::array and std::span.
-	 * If extent_ is set to some integer value (!= dynamic_extent), flex_array behaves like std::array, i.e. has a fixed, statically known size, max_size/capacity.
-	 * If extent_ is set to dynamic_extent, max_extent_ must be set to some integer value (!= dynamic_extent). In this case
-	 * flex_array behaves similar to static_vector, i.e. it is a collection with a fixed, statically known max_size/capacity while the
-	 * actual size is a runtime value.
+	 * A combination of std::array, std::span and a small buffer optimized vector.
+	 * The extent_ and max_extent_ template parameters select one of four modes:
+	 *
+	 * - extent_ == max_extent_ == some integer value: behaves like std::array.
+	 *   The size is fixed and statically known, storage is inline.
+	 * - extent_ == dynamic_extent, max_extent_ == some integer value: behaves like static_vector.
+	 *   The size is a runtime value up to max_extent_, storage is inline.
+	 *   Constructors and resize throw when max_extent_ is exceeded.
+	 * - extent_ == some integer value, max_extent_ == dynamic_extent: behaves like a
+	 *   small buffer optimized vector (ankerl::svector, requires <ankerl/svector.h>).
+	 *   Up to extent_ elements are stored inline, larger sizes allocate on the heap.
+	 *   There is no size limit: constructors and resize grow instead of throwing.
+	 * - extent_ == max_extent_ == dynamic_extent: behaves like std::vector.
 	 *
 	 * @tparam T value type
 	 * @tparam extent_ extent of the flex array
-	 * @tparam max_extent_ max extent of the flex array
+	 * @tparam max_extent_ max extent of the flex array, defaults to extent_
 	 */
 	template<typename T, size_t extent_, size_t max_extent_ = extent_>
 	struct flex_array {
@@ -379,10 +387,21 @@ namespace dice::template_library {
 			return inner_;
 		}
 
+		/**
+		 * The maximum size. Note: this is dynamic_extent, i.e. not a real limit,
+		 * for the growable modes (max_extent_ == dynamic_extent).
+		 */
 		[[nodiscard]] static constexpr size_type max_size() noexcept { return max_extent; }
 		[[nodiscard]] constexpr size_type size() const noexcept { return inner_.size(); }
 		[[nodiscard]] constexpr bool empty() const noexcept { return size() == 0; }
 
+		/**
+		 * Sets the size to new_size.
+		 * With max_extent_ == dynamic_extent the array grows as needed,
+		 * beyond the inline buffer if necessary.
+		 *
+		 * @throws std::invalid_argument if max_extent_ != dynamic_extent and new_size > max_extent_
+		 */
 		void resize(size_type new_size) requires (has_dynamic_extent) {
 			if constexpr (has_max_extent) {
 				if (new_size > max_extent) [[unlikely]] {
