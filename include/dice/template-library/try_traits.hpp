@@ -3,9 +3,12 @@
 
 #include <dice/template-library/control_flow.hpp>
 #include <dice/template-library/overloaded.hpp>
+#include <dice/template-library/type_traits.hpp>
 
 #include <concepts>
 #include <optional>
+#include <type_traits>
+#include <utility>
 
 #if __has_include(<expected>)
 #include <expected>
@@ -63,7 +66,13 @@ namespace dice::template_library {
     };
 
 
-    template<typename B, typename C>
+    /**
+     * @note constrained to control_flows that have both arms, because a control_flow that cannot continue has
+     *      no output_type and a control_flow that cannot break has no (representable) residual_type.
+     *      Without the constraint, instantiating try_traits for those would be a hard error instead of
+     *      making them simply not satisfy try_result.
+     */
+    template<typename B, typename C> requires (!std::is_void_v<B> && !std::is_void_v<C>)
     struct try_traits<control_flow<B, C>> {
         using self_type = control_flow<B, C>;
         using output_type = C;
@@ -72,11 +81,11 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = control_flow<B, Out>;
 
-        static constexpr self_type from_output(output_type &&out) {
+        static constexpr self_type from_output(output_type out) {
             return cfcontinue{std::move(out)};
         }
 
-        static constexpr control_flow<residual_type, output_type> branch(self_type &&self) {
+        static constexpr control_flow<residual_type, output_type> branch(self_type self) {
             return match(std::move(self),
                 [](cfcontinue<C> &&cont) -> control_flow<residual_type, output_type> {
                     return std::move(cont);
@@ -99,11 +108,11 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::optional<Out>;
 
-        static constexpr self_type from_output(output_type &&out) {
+        static constexpr self_type from_output(output_type out) {
             return self_type{std::move(out)};
         }
 
-        static constexpr control_flow<residual_type, output_type> branch(self_type &&self) {
+        static constexpr control_flow<residual_type, output_type> branch(self_type self) {
             if (self.has_value()) {
                 return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
             }
@@ -124,11 +133,11 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::expected<Out, E>;
 
-        static constexpr self_type from_output(output_type &&out) {
+        static constexpr self_type from_output(output_type out) {
             return self_type{std::in_place, std::move(out)};
         }
 
-        static constexpr control_flow<residual_type, output_type> branch(self_type &&self) {
+        static constexpr control_flow<residual_type, output_type> branch(self_type self) {
             if (self.has_value()) {
                 return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
             }
@@ -141,6 +150,8 @@ namespace dice::template_library {
 
 } // namespace dice::template_library
 
+#if defined(__GNUC__) || defined(__clang__)
+
 /**
  * Like rust's ? operator.
  * If the expression is an error/break, returns the error from the current function.
@@ -150,24 +161,33 @@ namespace dice::template_library {
  *
  * @par Example
  * @code
+ * std::expected<int, int> fallible_function();
  *
- * std::expected<int, int> fallible_function()
- *
- * auto x = DICE_TRY(
- *
- *
+ * std::expected<int, int> func() {
+ *     int x = DICE_TRY(fallible_function());
+ *     return x + 1;
+ * }
  * @endcode
+ *
+ * Requires compiler extensions to work. But good news, they have been in the compilers
+ * since basically the beginning.
  */
-#define DICE_TRY(expr) \
-    ({ \
-        using traits = ::dice::template_library::try_traits<decltype(expr)>; \
-        auto res = traits::branch(std::move(expr)); \
-        if (res.is_break()) {\
-            return std::move(res).get_break(); \
-        } \
-                                       \
-        std::move(res).get_continue(); \
+#define DICE_TRY(...)                                                                                 \
+    ({                                                                                                \
+        decltype(auto) _dice_try_expr = (__VA_ARGS__);                                                \
+        using _dice_try_expr_type = std::remove_cvref_t<decltype(_dice_try_expr)>;                    \
+        static_assert(::dice::template_library::try_result<_dice_try_expr_type>,                      \
+                      "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)"); \
+        using _dice_try_traits = ::dice::template_library::try_traits<_dice_try_expr_type>;           \
+                                                                                                      \
+        auto _dice_try_res = _dice_try_traits::branch(DICE_MOVE_IF_VALUE(_dice_try_expr));            \
+        if (_dice_try_res.is_break()) {                                                               \
+            return std::move(_dice_try_res).get_break();                                              \
+        }                                                                                             \
+                                                                                                      \
+        std::move(_dice_try_res).get_continue();                                                      \
     })
 
+#endif // defined(__GNUC__) || defined(__clang__)
 
 #endif // DICE_TEMPLATELIBRARY_TRYTRAITS_HPP
