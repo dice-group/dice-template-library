@@ -432,17 +432,7 @@ TEST_SUITE("bitset") {
 			CHECK(bit2);
 		}
 
-		SUBCASE("segment-mode increment advances by a whole segment") {
-			// the traversal policy is now baked into the iterator's own type - request a
-			// segment_iterator up front instead of calling a separate advance_segment() helper.
-			dyn8 b{0xAA, 0xBB};
-			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
-			CHECK_EQ(it.get(), 0xAA);
-			++it;
-			CHECK_EQ(it.get(), 0xBB);
-		}
-
-		SUBCASE("operator+= / operator+ skip ahead by bits or by segments") {
+		SUBCASE("operator+= / operator+ skip ahead by bits") {
 			dyn8 b{0b00000000, 0b00000010};
 
 			auto it = b.begin();
@@ -451,10 +441,6 @@ TEST_SUITE("bitset") {
 
 			auto const it2 = b.begin() + 9;
 			CHECK(*it2);
-
-			auto it3 = b.begin<dyn8::bitset_mode::SegmentMode>();
-			it3 += 1;
-			CHECK_EQ(it3.get(), 0b00000010);
 		}
 
 		SUBCASE("operator-- / operator--(int) walk backwards, wrapping across segments") {
@@ -474,7 +460,7 @@ TEST_SUITE("bitset") {
 			CHECK(it2 == b.begin() + 2);
 		}
 
-		SUBCASE("operator-= / operator- walk backwards by bits or by segments") {
+		SUBCASE("operator-= / operator- walk backwards by bits") {
 			dyn8 b{0b00000000, 0b00000010};
 
 			auto it = b.begin() + 9;
@@ -484,13 +470,6 @@ TEST_SUITE("bitset") {
 
 			auto const it2 = (b.begin() + 9) - 9;
 			CHECK(it2 == b.begin());
-
-			dyn8 b2{0xAA, 0xBB};
-			auto it3 = b2.begin<dyn8::bitset_mode::SegmentMode>();
-			++it3;
-			CHECK_EQ(it3.get(), 0xBB);
-			--it3;
-			CHECK_EQ(it3.get(), 0xAA);
 		}
 
 		SUBCASE("const bitset yields a const_iterator with read access") {
@@ -515,8 +494,6 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("explicit iterator construction with an offset validates the offset") {
-			// dyn8::iterator is now a template alias (parameterized by bitset_mode) - bit_iterator
-			// is the public non-template convenience alias for the BitMode instantiation.
 			dyn8 b{0x00};
 			CHECK_NOTHROW((dyn8::bit_iterator{b, 7}));
 			CHECK_THROWS_AS((dyn8::bit_iterator{b, 8}), std::out_of_range); // dyn8's segment width is 8 bits
@@ -559,137 +536,9 @@ TEST_SUITE("bitset") {
 		}
 	}
 
-	TEST_CASE("segment-mode dereferencing: T& reference vs plain T value semantics") {
-		// segment_iterator's reference has operator std::conditional_t<is_const, T const&, T&>()
-		// (SegmentMode-only) - this exercises both sides: binding the dereference to a T&
-		// (an actual alias into storage) vs binding it to a plain T (an independent copy).
-		// bitset itself keeps its segment/storage type private - these tests spell it out as
-		// plain uint8_t (the T dyn8 was defined with below), never referring to any bitset-side
-		// alias for it.
-
-		SUBCASE("value_type for a segment_iterator reports the underlying storage type, not bool") {
-			// bit_iterator's value_type is bool (one bit), matching bitset::value_type itself;
-			// segment_iterator's value_type is the underlying storage word type (uint8_t for
-			// dyn8) - the two modes really do carry different logical types.
-			static_assert(std::is_same_v<dyn8::segment_iterator::value_type, uint8_t>);
-			static_assert(std::is_same_v<dyn8::bit_iterator::value_type, dyn8::value_type>);
-			static_assert(std::is_same_v<dyn8::bit_iterator::value_type, bool>);
-			CHECK(true);
-		}
-
-		SUBCASE("dereferencing as T& yields a real reference - mutating it writes through to storage") {
-			dyn8 b{0xAA, 0x00}; // 2nd segment left at 0 so b.count() cleanly reflects only segment 0
-			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
-
-			uint8_t &seg_ref = *it; // binds the proxy's conversion to an actual T&
-			CHECK_EQ(seg_ref, 0xAA);
-
-			seg_ref = 0xFF; // mutate through the reference, not through the iterator/bitset API
-			CHECK_EQ(it.get(), 0xFF);      // storage itself changed
-			CHECK_EQ(b.count(), 8);        // and is visible through completely separate accessors
-		}
-
-		SUBCASE("dereferencing as a plain T yields an independent copy - mutating it leaves storage untouched") {
-			dyn8 b{0xAA, 0xBB};
-			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
-
-			uint8_t seg_val = *it; // binds to a plain T, not a reference: a copy
-			CHECK_EQ(seg_val, 0xAA);
-
-			seg_val = 0xFF; // only the local copy changes
-			CHECK_EQ(it.get(), 0xAA);      // storage is untouched
-			CHECK_EQ(seg_val, 0xFF);       // the copy did change, proving it's genuinely independent
-		}
-
-		SUBCASE("two iterators over the same segment alias each other through T&, proving real reference semantics") {
-			// the clearest way to tell a reference from a value: write through one iterator's
-			// T& and read it back through a second, independently-obtained iterator/reference.
-			dyn8 b{0x00, 0x00};
-			auto writer = b.begin<dyn8::bitset_mode::SegmentMode>();
-			auto reader = b.begin<dyn8::bitset_mode::SegmentMode>();
-
-			uint8_t &write_ref = *writer;
-			uint8_t &read_ref = *reader;
-
-			CHECK_EQ(read_ref, 0x00);
-			write_ref = 0x42;
-			CHECK_EQ(read_ref, 0x42); // read_ref observes the mutation - genuinely the same storage
-		}
-
-		SUBCASE("const_segment_iterator dereferences to T const& - reads live storage, cannot write") {
-			dyn8 b{0xAA, 0xBB};
-			dyn8 const &cb = b;
-
-			auto non_const_it = b.begin<dyn8::bitset_mode::SegmentMode>();
-			auto const_it = cb.begin<dyn8::bitset_mode::SegmentMode>();
-
-			uint8_t const &const_ref = *const_it;
-			CHECK_EQ(const_ref, 0xAA);
-
-			// mutate through the *non-const* iterator over the same underlying bitset...
-			uint8_t &mutable_ref = *non_const_it;
-			mutable_ref = 0x77;
-
-			// ...and the const reference, still bound to the same storage, observes it.
-			CHECK_EQ(const_ref, 0x77);
-
-			static_assert(std::is_same_v<decltype(const_ref), uint8_t const&>);
-		}
-
-		SUBCASE("advancing a segment_iterator and rebinding to T& tracks the new segment, not the old one") {
-			dyn8 b{0xAA, 0xBB, 0xCC};
-			auto it = b.begin<dyn8::bitset_mode::SegmentMode>();
-
-			uint8_t &first = *it;
-			CHECK_EQ(first, 0xAA);
-
-			++it;
-			uint8_t &second = *it; // a fresh reference for the new position
-			CHECK_EQ(second, 0xBB);
-			CHECK_EQ(first, 0xAA); // the earlier reference is untouched - it aliases segment 0, not segment 1
-
-			second = 0x11;
-			CHECK_EQ(it.get(), 0x11);
-			CHECK_EQ(first, 0xAA); // still segment 0 - confirms `first` and `second` alias different segments
-		}
-
-		SUBCASE("rbegin/rend segment-mode traversal dereferences to T& and supports write-through") {
-			dyn8 b{0x11, 0x22, 0x33};
-
-			std::array<uint8_t, 3> visited{};
-			size_t i = 0;
-			for (auto it = b.rbegin<dyn8::bitset_mode::SegmentMode>(); it != b.rend<dyn8::bitset_mode::SegmentMode>(); ++it) {
-				uint8_t &seg_ref = *it;
-				REQUIRE_LT(i, visited.size());
-				visited[i++] = seg_ref;
-			}
-			CHECK_EQ(i, 3);
-			CHECK_EQ(visited[0], 0x33); // last segment first
-			CHECK_EQ(visited[1], 0x22);
-			CHECK_EQ(visited[2], 0x11); // first segment last
-
-			// write through the reverse-order reference and confirm it lands on the right segment
-			for (auto it = b.rbegin<dyn8::bitset_mode::SegmentMode>(); it != b.rend<dyn8::bitset_mode::SegmentMode>(); ++it) {
-				uint8_t &seg_ref = *it;
-				if (seg_ref == 0x22) {
-					seg_ref = 0x99;
-				}
-			}
-			auto check_it = b.begin<dyn8::bitset_mode::SegmentMode>();
-			CHECK_EQ(check_it.get(), 0x11);
-			++check_it;
-			CHECK_EQ(check_it.get(), 0x99); // middle segment was the one mutated
-			++check_it;
-			CHECK_EQ(check_it.get(), 0x33);
-		}
-	}
-
 	TEST_CASE("bitset_iterator satisfies std::random_access_iterator") {
-		// compile-time only: if these ever regress, this is where it should surface, rather than
-		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>. Traversal
-		// policy is now a template parameter baked into the iterator's type (bit_iterator /
-		// segment_iterator, plus their const_ counterparts) rather than a per-call argument, so
-		// both instantiations need to be checked independently.
+		// compile-time only: if this ever regresses, this is where it should surface, rather than
+		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>.
 		static_assert(std::default_initializable<dyn64::bit_iterator>);
 		static_assert(std::default_initializable<dyn64::const_bit_iterator>);
 		static_assert(std::totally_ordered<dyn64::bit_iterator>);
@@ -697,14 +546,6 @@ TEST_SUITE("bitset") {
 		static_assert(std::sized_sentinel_for<dyn64::bit_iterator, dyn64::bit_iterator>);
 		static_assert(std::random_access_iterator<dyn64::bit_iterator>);
 		static_assert(std::random_access_iterator<dyn64::const_bit_iterator>);
-
-		static_assert(std::default_initializable<dyn64::segment_iterator>);
-		static_assert(std::default_initializable<dyn64::const_segment_iterator>);
-		static_assert(std::totally_ordered<dyn64::segment_iterator>);
-		static_assert(std::totally_ordered<dyn64::const_segment_iterator>);
-		static_assert(std::sized_sentinel_for<dyn64::segment_iterator, dyn64::segment_iterator>);
-		static_assert(std::random_access_iterator<dyn64::segment_iterator>);
-		static_assert(std::random_access_iterator<dyn64::const_segment_iterator>);
 		CHECK(true);
 	}
 
@@ -1840,13 +1681,10 @@ TEST_SUITE("bitset") {
 			CHECK_EQ(visited, 10);
 		}
 
-		SUBCASE("segment-mode iteration still visits every physically-allocated segment") {
+		SUBCASE("physical capacity grows by a whole (hidden) segment, not just up to the requested bit") {
 			dyn8 b{};
-			b.set(9); // 2 physical segments, but logical size only reaches partway into the 2nd
-			size_t visited = 0;
-			for (auto it = b.begin<dyn8::bitset_mode::SegmentMode>(); it != b.end(); ++it) ++visited;
-			CHECK_EQ(visited, b.capacity_in_bits() / 8); // capacity_in_bits() / segment width == physical segment count
-			CHECK_EQ(visited, 2);
+			b.set(9); // 2 physical segments (segment width is an implementation detail), logical size only reaches partway into the 2nd
+			CHECK_EQ(b.capacity_in_bits(), 16);
 		}
 
 		SUBCASE("count()/all_set()/any_set()/none_set() only consider bits within logical size") {
