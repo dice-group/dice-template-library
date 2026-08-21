@@ -432,20 +432,6 @@ TEST_SUITE("bitset") {
 			CHECK(bit2);
 		}
 
-		SUBCASE("writing through the iterator itself (not *it) sets the underlying bit") {
-			dyn8 b{0x00};
-			auto it = b.begin();
-			it = true;
-			CHECK(b.test(0));
-
-			++it;
-			it = true;
-			CHECK(b.test(1));
-
-			it = false;
-			CHECK_FALSE(b.test(1));
-		}
-
 		SUBCASE("segment-mode increment advances by a whole segment") {
 			// the traversal policy is now baked into the iterator's own type - request a
 			// segment_iterator up front instead of calling a separate advance_segment() helper.

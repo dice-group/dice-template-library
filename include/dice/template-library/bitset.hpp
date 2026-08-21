@@ -170,11 +170,6 @@ namespace dice::template_library {
                 cur_segment_ = s;
             }
 
-            void operator=(bool const b) const noexcept requires (!is_const)
-            {
-                backing_bitset_->set(calc_global_idx(cur_segment_, cur_offset_), b);
-            }
-
             reference operator*() const noexcept {
                 return reference{backing_bitset_, cur_segment_, cur_offset_};
             }
