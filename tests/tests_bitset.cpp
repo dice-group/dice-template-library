@@ -1090,39 +1090,44 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("shrink_to_fit") {
-		SUBCASE("drops a trailing not-fully-set segment") {
-			dyn8 b{0xFF, 0xFF, 0x0F};
+		SUBCASE("drops a trailing all-zero segment, keeping the last live one") {
+			dyn8 b{0xFF, 0x0F, 0x00};
 			b.shrink_to_fit();
-			REQUIRE_EQ(b.capacity_in_bits(), 2 * 8);
-			for (size_t i = 0; i < b.capacity_in_bits(); ++i) {
-				CHECK(b.test(i));
-			}
+			REQUIRE_EQ(b.capacity_in_bits(), 2 * 8); // segment 2 (0x00) dropped, segment 1 (0x0F) is the boundary and is kept
+			for (size_t i = 0; i < 8; ++i) CHECK(b.test(i));
+			for (size_t i = 8; i < 12; ++i) CHECK(b.test(i));
+			for (size_t i = 12; i < 16; ++i) CHECK_FALSE(b.test(i));
 		}
 
-		SUBCASE("skips over fully-set trailing segments to find the first non-full one") {
-			// scanning from the end: segments 3 and 2 are fully set (0xFF) and get skipped over;
-			// segment 1 (0x0F) is the first not-fully-set segment found, so storage is truncated
-			// to exclude it and everything after it, keeping only segment 0.
-			dyn8 b{0xFF, 0x0F, 0xFF, 0xFF};
+		SUBCASE("skips over multiple trailing all-zero segments to find the last non-zero one") {
+			// scanning from the end: segments 3, 2, and 1 are all zero and get skipped over;
+			// segment 0 (0xAA) is the first non-zero segment found, so storage is truncated
+			// right after it, dropping everything past it.
+			dyn8 b{0xAA, 0x00, 0x00, 0x00};
 			b.shrink_to_fit();
 			REQUIRE_EQ(b.capacity_in_bits(), 1 * 8);
-			for (size_t i = 0; i < b.capacity_in_bits(); ++i) {
-				CHECK(b.test(i));
-			}
+			CHECK_EQ(b.count(), 4);
 		}
 
-		SUBCASE("no shrink happens when every segment is fully set") {
-			dyn8 b{0xFF, 0xFF, 0xFF};
+		SUBCASE("no shrink happens when the last segment is non-zero") {
+			dyn8 b{0xFF, 0xFF, 0x01};
 			b.shrink_to_fit();
 			CHECK_EQ(b.capacity_in_bits(), 3 * 8);
-			CHECK_EQ(b.count(), 24);
+			CHECK_EQ(b.count(), 17);
+		}
+
+		SUBCASE("every segment is zero - shrinks capacity away entirely") {
+			dyn8 b(3); // 3 zero-initialized segments
+			b.shrink_to_fit();
+			CHECK_EQ(b.capacity_in_bits(), 0);
+			CHECK_EQ(b.size_in_bits(), 0);
 		}
 
 		SUBCASE("bounded (max-extent) capacity uses resize instead of storage reconstruction") {
-			bounded64 b{~0ull, 0x0Full};
+			bounded64 b{~0ull, 0x0Full, 0ull, 0ull};
 			b.shrink_to_fit();
-			REQUIRE_EQ(b.capacity_in_bits(), bounded64_segment_bits);
-			CHECK_EQ(b.count(), 64);
+			REQUIRE_EQ(b.capacity_in_bits(), 2 * bounded64_segment_bits);
+			CHECK_EQ(b.count(), 68);
 		}
 	}
 
@@ -1583,14 +1588,14 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("shrink_to_fit keeps logical size and capacity in lockstep") {
-		SUBCASE("dropping a trailing not-fully-set segment shrinks logical size to the new exact capacity") {
-			dyn8 b{0xFF, 0x0F}; // segment 1 (0x0F) is not fully set
+		SUBCASE("dropping a trailing all-zero segment shrinks logical size to the new exact capacity") {
+			dyn8 b{0xFF, 0x0F, 0x00}; // segment 2 (0x00) is the only all-zero trailing segment
 			b.shrink_to_fit();
-			CHECK_EQ(b.size_in_bits(), 8);
-			CHECK_EQ(b.capacity_in_bits(), 8);
+			CHECK_EQ(b.size_in_bits(), 16);
+			CHECK_EQ(b.capacity_in_bits(), 16);
 		}
 
-		SUBCASE("no shrink happens when every segment is fully set - logical size is unchanged") {
+		SUBCASE("no shrink happens when the last segment is non-zero - logical size is unchanged") {
 			dyn8 b{0xFF, 0xFF};
 			auto const size_before = b.size_in_bits();
 			b.shrink_to_fit();

@@ -831,8 +831,8 @@ namespace dice::template_library {
 
             while (it != end) {
                 T &segment = *it;
-                if (static_cast<T>(~segment) != 0x00) {
-                    auto ptr_dist = std::distance(inner_.data(), &segment);
+                if (segment != 0x00) {
+                    auto ptr_dist = std::distance(inner_.data(), &segment) + 1; // this segment should also be included !
                     if constexpr (!has_max_extent) {
                         inner_ = storage(inner_.data(), inner_.data() + ptr_dist);
                     } else {
@@ -843,6 +843,13 @@ namespace dice::template_library {
                 }
                 ++it;
             }
+            // zero segments - shrink to zero
+            if constexpr (!has_max_extent) {
+                inner_ = storage(inner_.data(), inner_.data());
+            } else {
+                inner_.resize(0);
+            }
+            bits_ = 0;
         }
 
         /**
