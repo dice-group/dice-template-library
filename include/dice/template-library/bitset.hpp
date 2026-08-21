@@ -669,12 +669,6 @@ namespace dice::template_library {
             return logical_size() == other.logical_size();
         }
 
-        template<typename F, typename Range>
-        requires std::ranges::input_range<Range>
-        void positions_cntl(Range &&positions, F &&pos_f) {
-            std::ranges::for_each(std::forward<Range>(positions), std::forward<F>(pos_f));
-        }
-
         [[nodiscard]] std::pair<const_sub_range_type, std::optional<segment_type>> full_segments_or() const noexcept {
             if (is_aligned()) {
                 return std::make_pair(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), begin<bitset_mode::SegmentMode>() + size()), std::nullopt);
@@ -1063,7 +1057,7 @@ namespace dice::template_library {
         template<typename Range>
         requires std::ranges::input_range<Range>
         void set_positions(Range &&positions) {
-            positions_cntl(std::forward<Range>(positions), [this](auto pos) {
+            std::ranges::for_each(std::forward<Range>(positions), [this](auto pos) {
                 this->set(pos);
             });
         }
@@ -1076,7 +1070,7 @@ namespace dice::template_library {
         template<typename Range>
         requires std::ranges::input_range<Range>
         void reset_positions(Range &&positions) {
-            positions_cntl(std::forward<Range>(positions), [this](auto pos) {
+            std::ranges::for_each(std::forward<Range>(positions), [this](auto pos) {
                 this->reset(pos);
             });
         }
