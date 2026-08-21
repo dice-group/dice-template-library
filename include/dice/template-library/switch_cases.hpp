@@ -5,7 +5,8 @@
 #include <cassert>
 #include <concepts>
 #include <cstdint>
-#include <functional>
+#include <type_traits>
+#include <utility>
 
 namespace dice::template_library {
 
@@ -19,7 +20,7 @@ namespace dice::template_library {
 			}
 
 			static_assert(i < max);
-			return std::invoke(std::forward<F>(cases_function), std::integral_constant<decltype(i), i>{});
+			return std::forward<F>(cases_function)(std::integral_constant<decltype(i), i>{});
 		}
 
 		/**
@@ -31,7 +32,7 @@ namespace dice::template_library {
 		 * @return Nothing.
 		 */
 		template<typename F, auto NUM>
-		std::invoke_result_t<F, std::integral_constant<decltype(NUM), NUM>> unreachable() noexcept {
+		decltype(std::declval<F &&>()(std::integral_constant<decltype(NUM), NUM>{})) unreachable() noexcept {
 			assert(false);
 			__builtin_unreachable();
 		}
@@ -64,7 +65,7 @@ namespace dice::template_library {
 			}
 		}
 
-		return std::invoke(std::forward<D>(default_function));
+		return std::forward<D>(default_function)();
 	}
 
 	/**
@@ -134,10 +135,10 @@ namespace dice::template_library {
 	template<typename F>
 	constexpr decltype(auto) switch_bool(bool condition, F &&cases_function) {
 		if (condition) {
-			return std::invoke(std::forward<F>(cases_function), std::bool_constant<true>{});
+			return std::forward<F>(cases_function)(std::bool_constant<true>{});
 		}
 
-		return std::invoke(std::forward<F>(cases_function), std::bool_constant<false>{});
+		return std::forward<F>(cases_function)(std::bool_constant<false>{});
 	}
 }// namespace dice::template_library
 
