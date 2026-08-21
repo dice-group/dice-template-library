@@ -437,9 +437,9 @@ namespace dice::template_library {
         using const_sub_range_type = std::ranges::subrange<bitset_iterator<true, bitset_mode::SegmentMode>>;
 
         storage inner_;
-        mutable size_t bits_{};
+        size_t bits_{};
 
-        [[nodiscard]] constexpr size_t require_segments(global_ix const ix) const requires (has_dynamic_extent)
+        [[nodiscard]] constexpr size_t require_segments(global_ix const ix) requires (has_dynamic_extent)
         {
             auto const bit_pos = logical_size();
             if (bit_pos > ix) {
@@ -612,7 +612,7 @@ namespace dice::template_library {
 
         ///> true iff pred(handler(segment)) holds for every segment, early-exit on the first failure
         template<typename F, typename Pr, typename Range>
-        bool segments_all_of(F &&handler, Pr &&pred, Range const &sub_range) const {
+        static bool segments_all_of(F &&handler, Pr &&pred, Range const &sub_range) {
             for (auto const &segment : sub_range) {
                 if (auto const val = std::invoke(std::forward<F>(handler), segment); !std::invoke(std::forward<Pr>(pred), val)) {
                     return false;
@@ -623,7 +623,7 @@ namespace dice::template_library {
 
         ///> folds handler(segment) across every segment, stopping early once pred(val) fails
         template<typename F, typename Pr, typename M, typename Tp, typename Range>
-        Tp segments_reduce_while(F &&handler, Pr &&pred, M &&merge, Tp initial, Range const &sub_range) const {
+        static Tp segments_reduce_while(F &&handler, Pr &&pred, M &&merge, Tp initial, Range const &sub_range) {
             Tp merge_val{initial};
 
             for (auto const &segment : sub_range) {
@@ -638,7 +638,7 @@ namespace dice::template_library {
 
         ///> same as segments_reduce_while, but iterates segments in reverse order
         template<typename F, typename Pr, typename M, typename Tp, typename Range>
-        Tp segments_reduce_while_reverse(F &&handler, Pr &&pred, M &&merge, Tp initial, Range const &sub_range) const {
+        static Tp segments_reduce_while_reverse(F &&handler, Pr &&pred, M &&merge, Tp initial, Range const &sub_range) {
             auto reversed_sub_range = sub_range | std::views::reverse;
 
             Tp merge_val{initial};
