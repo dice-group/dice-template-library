@@ -653,15 +653,15 @@ namespace dice::template_library {
             return merge_val;
         }
 
-        [[nodiscard]] bool segment_all_set(segment_const_reference segment) const noexcept {
+        [[nodiscard]] static bool segment_all_set(segment_const_reference segment) noexcept {
             return std::popcount(segment) == segment_size_in_bits;
         }
 
-        [[nodiscard]] bool segment_any_set(segment_const_reference segment) const noexcept {
+        [[nodiscard]] static bool segment_any_set(segment_const_reference segment) noexcept {
             return std::popcount(segment) != 0x00;
         }
 
-        [[nodiscard]] bool segment_none_set(segment_const_reference segment) const noexcept {
+        [[nodiscard]] static bool segment_none_set(segment_const_reference segment) noexcept {
             return std::popcount(segment) == 0x00;
         }
 
@@ -1010,7 +1010,7 @@ namespace dice::template_library {
             auto full_segments = full_segments_or();
 
             auto const all_set_high = std::ranges::all_of(full_segments.first, [this](segment_const_reference segment) {
-                return DICE_MEMFN(segment_all_set)(segment);
+                return segment_all_set(segment);
             });
 
             if (!all_set_high) {
@@ -1031,7 +1031,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool any_set() const {
             return std::ranges::any_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
-                return DICE_MEMFN(segment_any_set)(segment);
+                return segment_any_set(segment);
             });
         }
 
@@ -1042,7 +1042,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool none_set() const {
             return std::ranges::none_of(std::ranges::subrange(begin<bitset_mode::SegmentMode>(), end()), [this](segment_const_reference segment) {
-                return !DICE_MEMFN(segment_none_set)(segment); // flip since none_of evaluates on false
+                return !segment_none_set(segment); // flip since none_of evaluates on false
             });
         }
 
