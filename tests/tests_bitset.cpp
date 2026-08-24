@@ -190,7 +190,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("fully static capacity (extent == segments)") {
-		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
+		using fixed64 = bitset<4 * 64, 4 * 64>; // fixed: pass the same bit count twice
 		constexpr size_t fixed64_capacity_bits = 4 * 64;
 
 		SUBCASE("initializer list must match extent exactly") {
@@ -918,7 +918,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("fixed and bounded capacity - equality, bitwise ops and shifts") {
-		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
+		using fixed64 = bitset<4 * 64, 4 * 64>; // fixed: pass the same bit count twice
 
 		SUBCASE("fully static capacity supports equality and bitwise combination") {
 			fixed64 a{0b1100, 0, 0, 0};
@@ -1156,7 +1156,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("set_all / reset_all on a fully static, segment-aligned capacity") {
-		using fixed64 = bitset<4, 4 * 64>; // extent stays in segments; 2nd param is now a bit count
+		using fixed64 = bitset<4 * 64, 4 * 64>; // fixed: pass the same bit count twice
 		constexpr size_t fixed64_capacity_bits = 4 * 64;
 
 		SUBCASE("set_all sets every bit") {
@@ -1235,7 +1235,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("fully static capacity, permanently non-aligned logical size") {
 			// extent (2 segments = 128 bits of storage) is fixed regardless of max_bits (100) -
 			// logical size is always exactly 100 for this type, never a whole number of segments.
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 
 			fixed_odd b{0, 0};
 			REQUIRE_EQ(b.size_in_bits(), 100);
@@ -1604,7 +1604,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("fully static capacity: uint64_t segments") {
 			// extent must equal the segment count derived from bits (4) for the fully-static flex_array
 			// specialization to apply; using 200 (not 256) here is what actually exercises the bound.
-			using fixed_odd = bitset<4, 200>;
+			using fixed_odd = bitset<200, 200>;
 			constexpr size_t expected_capacity_bits = 4 * 64;
 
 			fixed_odd b{0, 0, 0, 0};
@@ -1754,7 +1754,7 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("a fully static bitset's logical size never changes") {
-		using fixed64 = bitset<4, 4 * 64>;
+		using fixed64 = bitset<4 * 64, 4 * 64>;
 
 		fixed64 b{0, 0, 0, 0};
 		REQUIRE_EQ(b.size_in_bits(), 4 * 64); // fixed from construction - has no dynamic tracking at all
@@ -1972,7 +1972,7 @@ TEST_SUITE("bitset") {
 		SUBCASE("misaligned, fully-static (fixed) capacity") {
 			// extent (2 segments = 128 bits of storage) is fixed regardless of max_bits (100) -
 			// logical size is always exactly 100, permanently non-segment-aligned.
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 			fixed_odd b{0, 1ull << 26}; // offset 26 within the 36-bit leftover (global bit 90)
 			REQUIRE_EQ(b.size_in_bits(), 100);
 			CHECK_EQ(b.countr_zero(), seg64 + 26);
@@ -2040,7 +2040,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("misaligned, fully-static (fixed) capacity, falls back into an earlier full segment") {
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 			fixed_odd b{1ull << 10, 0}; // leftover (segment 1) all zero; segment 0 decides the answer
 			REQUIRE_EQ(b.size_in_bits(), 100);
 			CHECK_EQ(b.countl_zero(), 36 + (seg64 - 1 - 10)); // 36 leftover zeros + segment 0's leading zeros
@@ -2112,7 +2112,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("misaligned, fully-static (fixed) capacity") {
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 			fixed_odd b{~0ull, ((1ull << 36) - 1) & ~(1ull << 26)}; // offset 26 within the 36-bit leftover reset
 			REQUIRE_EQ(b.size_in_bits(), 100);
 			CHECK_EQ(b.countr_one(), seg64 + 26);
@@ -2188,7 +2188,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("misaligned, fully-static (fixed) capacity, falls back into an earlier full segment") {
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 			fixed_odd b{~(1ull << 10), (1ull << 36) - 1}; // leftover (segment 1) all-one; segment 0 decides the answer
 			REQUIRE_EQ(b.size_in_bits(), 100);
 			CHECK_EQ(b.countl_one(), 36 + (seg64 - 1 - 10)); // 36 leftover ones + segment 0's own leading ones
@@ -2252,7 +2252,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("misaligned, fully-static (fixed) capacity") {
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 			// leftover is 36 valid bits (global 64..99); mask sets exactly those, nothing above.
 			constexpr uint64_t leftover_mask = (uint64_t{1} << 36) - 1;
 
@@ -2311,7 +2311,7 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("misaligned, fully-static (fixed) capacity") {
-			using fixed_odd = bitset<2, 100>;
+			using fixed_odd = bitset<100, 100>;
 			fixed_odd b{0, 1ull << 10}; // one bit set, deep inside the 36-bit leftover
 			auto const notb = ~b;
 			CHECK_EQ(notb.count(), 99); // 100 logical bits, 1 was set

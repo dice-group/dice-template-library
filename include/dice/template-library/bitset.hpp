@@ -51,7 +51,7 @@ namespace dice::template_library {
         static constexpr size_t segment_size = sizeof(T);
         static constexpr size_t segment_size_in_bits = segment_size * 8;
 
-        static constexpr size_t segments = bits;  // just forward this value
+        static constexpr size_t segments = bits != dynamic_extent ? (bits + segment_size_in_bits - 1) / segment_size_in_bits : dynamic_extent;
         static constexpr size_t max_segments = max_bits != dynamic_extent ? (max_bits + segment_size_in_bits - 1) / segment_size_in_bits : dynamic_extent;
 
         using storage = flex_array<T, segments, max_segments>;
