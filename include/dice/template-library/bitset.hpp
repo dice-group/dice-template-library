@@ -715,7 +715,7 @@ namespace dice::template_library {
         /**
          * Empty bitset
          */
-        constexpr bitset() = default;
+        explicit constexpr bitset() = default;
 
         /**
          * Initializes the bitset using an initializer list
