@@ -98,7 +98,10 @@ namespace dice::template_library {
 
                 reference(reference const &) = default;
                 reference const &operator=(reference const &other) const noexcept {
-                    return *this = static_cast<bool>(other);
+                    if constexpr (using_bit_mode) {
+                        return *this = static_cast<bool>(other);
+                    }
+                    return *this = static_cast<T>(other);
                 }
 
                 reference(bitset_pointer backing_bitset, segment const seg, offset const off) noexcept
@@ -117,8 +120,15 @@ namespace dice::template_library {
                     return *(backing_bitset_->inner_.data() + seg);
                 }
 
-                reference const &operator=(bool const b) const noexcept {
+                reference const &operator=(bool const b) const noexcept requires (using_bit_mode)
+                {
                     backing_bitset_->set(calc_global_idx(seg, off), b);
+                    return *this;
+                }
+
+                reference const &operator=(T const value) const noexcept requires (!using_bit_mode && !is_const)
+                {
+                    *(backing_bitset_->inner_.data() + seg) = value;
                     return *this;
                 }
 
@@ -296,7 +306,11 @@ namespace dice::template_library {
             }
 
             difference_type operator-(bitset_iterator const &other) const noexcept {
-                return (**this).ix() - (*other).ix();
+                if constexpr (mode == bitset_mode::BitMode) {
+                    return static_cast<difference_type>((**this).ix()) - static_cast<difference_type>((*other).ix());
+                } else {
+                    return static_cast<difference_type>(cur_segment_) - static_cast<difference_type>(other.cur_segment_);
+                }
             }
 
             [[nodiscard]] T const &get() const noexcept {
@@ -664,20 +678,22 @@ namespace dice::template_library {
             return logical_size() == other.logical_size();
         }
 
-        [[nodiscard]] std::pair<const_sub_range_type, std::optional<segment_type>> full_segments_or() const noexcept {
+        [[nodiscard]] std::pair<const_sub_range_type, std::optional<std::reference_wrapper<T const>>> full_segments_or() const noexcept {
             if (is_aligned()) {
                 return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + size()), std::nullopt);
             }
             auto full_segments = size() - 1;
-            return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + full_segments), std::make_optional<segment_type>((segments_begin() + full_segments).get()));
+            return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + full_segments),
+                                   std::optional<std::reference_wrapper<T const>>{std::cref((segments_begin() + full_segments).get())});
         }
 
-        [[nodiscard]] std::pair<sub_range_type, std::optional<segment_type>> full_segments_or() noexcept {
+        [[nodiscard]] std::pair<sub_range_type, std::optional<std::reference_wrapper<T>>> full_segments_or() noexcept {
             if (is_aligned()) {
-                return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin()), std::nullopt);
+                return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + size()), std::nullopt);
             }
             auto full_segments = size() - 1;
-            return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + full_segments), std::make_optional<segment_type>((segments_begin() + full_segments).get()));
+            return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + full_segments),
+                                   std::optional<std::reference_wrapper<T>>{std::ref((segments_begin() + full_segments).get())});
         }
 
         [[nodiscard]] const_sub_range_type full_segment() const noexcept {
@@ -769,12 +785,12 @@ namespace dice::template_library {
         }
 
         void set_all() {
-            if (is_aligned()) {
-                std::fill(inner_.begin(), inner_.end(), static_cast<T>(~T{}));
-                return;
+            auto full_segments = full_segments_or();
+            std::ranges::fill(full_segments.first, static_cast<T>(~T{}));
+
+            if (full_segments.second.has_value()) {
+                full_segments.second.value().get() = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - leftover_bits()));
             }
-            std::fill(inner_.begin(), inner_.end() - 1, static_cast<T>(~T{}));
-            *(inner_.end() - 1) = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - leftover_bits()));
         }
 
         /**
@@ -912,7 +928,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] size_t countr_zero() const {
             auto const full_segments = full_segments_or();
-            auto const full_bits = full_segments.first.size();
+            auto const full_bits = full_segments.first.size() * segment_size_in_bits;
 
             auto const full_count = segments_reduce_while([](segment_const_reference segment) {
                     return std::countr_zero(segment);
@@ -929,7 +945,7 @@ namespace dice::template_library {
             }
 
             auto const leftover = leftover_bits();
-            T const &last = full_segments.second.value();
+            T const &last = full_segments.second.value().get();
             auto const padding_mask = static_cast<T>(~T{} << leftover);
             return full_bits + static_cast<size_t>(std::countr_zero(static_cast<T>(last | padding_mask)));
         }
@@ -945,7 +961,7 @@ namespace dice::template_library {
 
             if (full_segments.second.has_value()) {
                 auto const fill_bits = segment_size_in_bits - leftover;
-                T const &last = full_segments.second.value();
+                T const &last = full_segments.second.value().get();
                 auto const padding_mask = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - fill_bits));
                 auto const zero_bits = static_cast<size_t>(std::countl_zero(static_cast<T>(static_cast<T>(last << fill_bits) | padding_mask)));
 
@@ -1016,7 +1032,7 @@ namespace dice::template_library {
                 return true;
             }
 
-            return (std::popcount(full_segments.second.value()) == leftover_bits());
+            return (std::popcount(full_segments.second.value().get()) == leftover_bits());
         }
 
         /**
