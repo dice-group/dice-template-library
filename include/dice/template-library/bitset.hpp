@@ -1213,15 +1213,58 @@ namespace dice::template_library {
                                             alt_storage);
         }
 
-        bitset &operator<<=(size_t shift) {
-            auto dest_it = std::move_backward(begin(), begin() + logical_size() - shift, begin() + logical_size());
-            std::fill(begin(), dest_it, false);
+        bitset &operator<<=(size_t const shift) {
+            auto const n = size();
+            if (shift == 0 || n == 0) {
+                return *this;
+            }
+
+            auto const segment_shift = shift / segment_size_in_bits;
+            auto const bit_shift = shift % segment_size_in_bits;
+
+            auto const first = segments_begin();
+
+            for (auto d = n; d-- > 0;) {
+                T value = (d >= segment_shift) ? (first + (d - segment_shift)).get() : T{};
+                if (bit_shift != 0) {
+                    value = static_cast<T>(value << bit_shift);
+                    if (d > segment_shift) {
+                        value |= static_cast<T>((first + (d - segment_shift - 1)).get() >> (segment_size_in_bits - bit_shift));
+                    }
+                }
+                (first + d).get() = value;
+            }
+
+            // clear [logical_size, size] iff not aligned
+            if (!is_aligned()) {
+                auto last = first + (n - 1);
+                last.get() = mask_lsb_from_segment(last.get(), leftover_bits());
+            }
             return *this;
         }
 
-        bitset &operator>>=(size_t shift) {
-            auto dest_it = std::move(begin() + shift, begin() + logical_size(), begin());
-            std::fill(dest_it, begin() + logical_size(), false);
+        bitset &operator>>=(size_t const shift) {
+            auto const n = size();
+            if (shift == 0 || n == 0) {
+                return *this;
+            }
+
+            auto const segment_shift = shift / segment_size_in_bits;
+            auto const bit_shift = shift % segment_size_in_bits;
+
+            auto const first = segments_begin();
+
+            for (auto d{0uz}; d < n; ++d) {
+                auto const src_lo = d + segment_shift;
+                T value = (src_lo < n) ? (first + src_lo).get() : T{};
+                if (bit_shift != 0) {
+                    value = static_cast<T>(value >> bit_shift);
+                    if (auto const src_hi = src_lo + 1; src_hi < n) {
+                        value |= static_cast<T>((first + src_hi).get() << (segment_size_in_bits - bit_shift));
+                    }
+                }
+                (first + d).get() = value;
+            }
             return *this;
         }
 
