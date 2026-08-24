@@ -831,11 +831,10 @@ namespace dice::template_library {
          * @param high which bit state
          */
         void set(global_ix const ix, bool const high) {
-            if (high) {
-                set(ix);
-                return;
+            set(ix);
+            if (!high) {
+                reset(ix);
             }
-            reset(ix);
         }
 
         void set_all() {
@@ -853,6 +852,10 @@ namespace dice::template_library {
          * @param ix offset to use
          */
         void flip(global_ix const ix) {
+            // if the ix is not in the bits consumed range, return
+            if (ix >= logical_size()) {
+                return;
+            }
             bitset_mod_cntl(DICE_MEMFN(segment_flip), ix);
         }
 
@@ -862,6 +865,10 @@ namespace dice::template_library {
          * @param ix offset to use
          */
         void reset(global_ix const ix) {
+            // if the ix is not in the bits consumed range, return
+            if (ix >= logical_size()) {
+                return;
+            }
             bitset_mod_cntl(DICE_MEMFN(segment_unset), ix);
         }
 
