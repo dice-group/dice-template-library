@@ -1173,14 +1173,14 @@ namespace dice::template_library {
         }
 
         bitset &operator<<=(size_t shift) {
-            auto dest_it = std::move(begin() + shift, begin() + logical_size(), begin());
-            std::fill(dest_it, begin() + logical_size(), false);
+            auto dest_it = std::move_backward(begin(), begin() + logical_size() - shift, begin() + logical_size());
+            std::fill(begin(), dest_it, false);
             return *this;
         }
 
         bitset &operator>>=(size_t shift) {
-            auto dest_it = std::move_backward(begin(), begin() + logical_size() - shift, begin() + logical_size());
-            std::fill(begin(), dest_it, false);
+            auto dest_it = std::move(begin() + shift, begin() + logical_size(), begin());
+            std::fill(dest_it, begin() + logical_size(), false);
             return *this;
         }
 
