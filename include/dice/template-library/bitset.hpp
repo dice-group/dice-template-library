@@ -74,9 +74,6 @@ namespace dice::template_library {
         static constexpr bool has_max_extent = storage::has_max_extent;
         static constexpr bool has_dynamic_extent = storage::has_dynamic_extent;
 
-        static constexpr size_t storage_size = !has_max_extent ? dynamic_extent : segment_size * max_segments;
-        static constexpr size_t storage_size_in_bits = !has_max_extent ? dynamic_extent : storage_size * 8;
-
         template<bool is_const, bitset_mode mode = bitset_mode::BitMode>
         struct bitset_iterator {
         private:
