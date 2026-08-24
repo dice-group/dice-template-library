@@ -4,6 +4,7 @@
 #include <dice/template-library/bitset.hpp>
 
 #include <array>
+#include <bitset>
 #include <cstdint>
 #include <iterator>
 #include <ranges>
@@ -388,6 +389,35 @@ TEST_SUITE("bitset") {
 			a |= b;
 			CHECK(a == c);
 		}
+
+		SUBCASE("operator^= / operator^") {
+			dyn8 a{0b11001100};
+			dyn8 b{0b10101010};
+			auto const c = a ^ b; // -> 0b01100110
+
+			CHECK_EQ(c.count(), 4);
+			CHECK_FALSE(c.test(0));
+			CHECK(c.test(1));
+			CHECK(c.test(2));
+			CHECK_FALSE(c.test(3));
+			CHECK_FALSE(c.test(4));
+			CHECK(c.test(5));
+			CHECK(c.test(6));
+			CHECK_FALSE(c.test(7));
+			a ^= b;
+			CHECK(a == c);
+		}
+	}
+
+	TEST_CASE("operator== / operator!=") {
+		dyn8 a{0b11001100};
+		dyn8 b{0b11001100};
+		dyn8 c{0b10101010};
+
+		CHECK(a == b);
+		CHECK_FALSE(a != b);
+		CHECK(a != c);
+		CHECK_FALSE(a == c);
 	}
 
 	TEST_CASE("iteration") {
@@ -536,6 +566,55 @@ TEST_SUITE("bitset") {
 		}
 	}
 
+	TEST_CASE("rbegin()/rend() report the correct global index, not just the correct values") {
+		// std::reverse_iterator's contract: *rbegin() aliases *(base_end - 1), i.e. the LAST valid
+		// element; rend()'s base() is begin() itself. Checked here via reference::ix(), independent
+		// of the bit *values*, since a value-only check can't distinguish "correct index" from
+		// "coincidentally correct bit pattern read from the wrong index".
+		SUBCASE("rbegin() dereferences to index size_in_bits()-1; rend() sits at begin()") {
+			dyn8 b{0b00000001, 0b10000000}; // logical size 16
+			CHECK_EQ((*b.rbegin()).ix(), 15);
+			CHECK_EQ(b.rbegin().base(), b.begin() + b.size_in_bits());
+			CHECK_EQ(b.rend().base(), b.begin());
+		}
+
+		SUBCASE("walking rbegin()..rend() visits indices in strictly descending order") {
+			dyn8 b{0xAA, 0x55, 0x0F}; // logical size 24
+			size_t expected_ix = b.size_in_bits() - 1;
+			size_t visited = 0;
+			for (auto it = b.rbegin(); it != b.rend(); ++it) {
+				CHECK_EQ((*it).ix(), expected_ix);
+				++visited;
+				if (expected_ix > 0) --expected_ix;
+			}
+			CHECK_EQ(visited, b.size_in_bits());
+		}
+
+		SUBCASE("rbegin() + n dereferences to index size_in_bits()-1-n (random-access arithmetic)") {
+			dyn8 b{0xAA, 0x55}; // logical size 16
+			auto const n_bits = static_cast<std::ptrdiff_t>(b.size_in_bits());
+			for (std::ptrdiff_t n = 0; n < n_bits; ++n) {
+				CHECK_EQ((*(b.rbegin() + n)).ix(), static_cast<size_t>(n_bits - 1 - n));
+			}
+		}
+
+		SUBCASE("const bitset: same index contract as the non-const overload") {
+			dyn8 const b{0b00000001, 0b10000000};
+			CHECK_EQ((*b.rbegin()).ix(), 15);
+			CHECK_EQ(b.rbegin().base(), b.begin() + b.size_in_bits());
+			CHECK_EQ(b.rend().base(), b.begin());
+		}
+
+		SUBCASE("non-segment-aligned logical size: rbegin() still starts at size_in_bits()-1, not capacity-1") {
+			dyn8 b{};
+			b.set(11);
+			b.reset(11); // logical size 12 (not a multiple of the 8-bit segment width)
+			REQUIRE_EQ(b.size_in_bits(), 12);
+			CHECK_EQ((*b.rbegin()).ix(), 11);
+			CHECK_EQ(b.rbegin().base(), b.begin() + 12);
+		}
+	}
+
 	TEST_CASE("bitset_iterator satisfies std::random_access_iterator") {
 		// compile-time only: if this ever regresses, this is where it should surface, rather than
 		// as a cryptic constraint-not-satisfied error deep inside <ranges>/<algorithm>.
@@ -675,19 +754,44 @@ TEST_SUITE("bitset") {
 	}
 
 	TEST_CASE("shifts") {
-		SUBCASE("operator<<= moves bits toward lower indices and clears vacated bits") {
+		SUBCASE("operator<<= moves a single bit toward higher indices, like x <<= n on an integer") {
+			// pins down direction unambiguously with one moving bit: index 0 is the LSB (see the
+			// formatter/iterator ordering notes elsewhere), so "left shift" must move it toward
+			// higher indices, exactly like multiplying a plain integer by 2^n would.
+			dyn8 b{0b00000001}; // bit 0 set
+			b <<= 3;
+			CHECK_FALSE(b.test(0));
+			CHECK_FALSE(b.test(1));
+			CHECK_FALSE(b.test(2));
+			CHECK(b.test(3)); // moved from index 0 to index 3
+			CHECK_EQ(b.count(), 1);
+		}
+
+		SUBCASE("operator>>= moves a single bit toward lower indices, like x >>= n on an integer") {
+			dyn8 b{0b00001000}; // bit 3 set
+			b >>= 3;
+			CHECK(b.test(0)); // moved from index 3 to index 0
+			CHECK_FALSE(b.test(1));
+			CHECK_FALSE(b.test(2));
+			CHECK_FALSE(b.test(3));
+			CHECK_EQ(b.count(), 1);
+		}
+
+		SUBCASE("operator<<= moves bits toward higher indices and clears vacated bits") {
+			// matches plain-integer semantics (x <<= n multiplies by 2^n): bit i moves to i+shift,
+			// the low `shift` bits are zero-filled, and bits shifted past the top are dropped.
 			dyn8 b{0b10110011}; // bit(i): 1,1,0,0,1,1,0,1 for i = 0..7
 			b <<= 2;
-			bool const expected[8] = {false, false, true, true, false, true, false, false};
+			bool const expected[8] = {false, false, true, true, false, false, true, true};
 			for (size_t i = 0; i < 8; ++i) {
 				CHECK_EQ(b.test(i), expected[i]);
 			}
 		}
 
-		SUBCASE("operator>>= moves bits toward higher indices and clears vacated bits") {
+		SUBCASE("operator>>= moves bits toward lower indices and clears vacated bits") {
 			dyn8 b{0b10110011};
 			b >>= 2;
-			bool const expected[8] = {false, false, true, true, false, false, true, true};
+			bool const expected[8] = {false, false, true, true, false, true, false, false};
 			for (size_t i = 0; i < 8; ++i) {
 				CHECK_EQ(b.test(i), expected[i]);
 			}
@@ -698,8 +802,8 @@ TEST_SUITE("bitset") {
 			auto const left = b << 2;
 			auto const right = b >> 2;
 
-			bool const expected_left[8] = {false, false, true, true, false, true, false, false};
-			bool const expected_right[8] = {false, false, true, true, false, false, true, true};
+			bool const expected_left[8] = {false, false, true, true, false, false, true, true};
+			bool const expected_right[8] = {false, false, true, true, false, true, false, false};
 			for (size_t i = 0; i < 8; ++i) {
 				CHECK_EQ(left.test(i), expected_left[i]);
 				CHECK_EQ(right.test(i), expected_right[i]);
@@ -755,19 +859,19 @@ TEST_SUITE("bitset") {
 		}
 
 		SUBCASE("shift crossing multiple segment boundaries") {
-			dyn8 left{0x00, 0x00, 0xFF}; // bits 16..23 set (top segment)
-			left <<= 10;                 // pulls the high segment's bits down across a boundary
-			CHECK_FALSE(left.test(5));
-			CHECK(left.test(6));
-			CHECK(left.test(13));
-			CHECK_FALSE(left.test(14));
+			dyn8 left{0xFF, 0x00, 0x00}; // bits 0..7 set (bottom segment)
+			left <<= 10;                 // pushes the low segment's bits up across a boundary
+			CHECK_FALSE(left.test(9));
+			CHECK(left.test(10));
+			CHECK(left.test(17));
+			CHECK_FALSE(left.test(18));
 
-			dyn8 right{0xFF, 0x00, 0x00}; // bits 0..7 set (bottom segment)
-			right >>= 10;                 // pushes the low segment's bits up across a boundary
-			CHECK_FALSE(right.test(9));
-			CHECK(right.test(10));
-			CHECK(right.test(17));
-			CHECK_FALSE(right.test(18));
+			dyn8 right{0x00, 0x00, 0xFF}; // bits 16..23 set (top segment)
+			right >>= 10;                 // pulls the high segment's bits down across a boundary
+			CHECK_FALSE(right.test(5));
+			CHECK(right.test(6));
+			CHECK(right.test(13));
+			CHECK_FALSE(right.test(14));
 		}
 	}
 
@@ -796,6 +900,21 @@ TEST_SUITE("bitset") {
 			CHECK_THROWS_AS(a |= b, std::logic_error);
 			CHECK_EQ(a.count(), 0);
 		}
+
+		SUBCASE("operator^= with a differently-sized operand") {
+			dyn8 a{0x0F, 0x0F};
+			dyn8 b{0xFF};
+			CHECK_THROWS_AS(a ^= b, std::logic_error);
+			CHECK_EQ(a.count(), 8); // untouched
+		}
+
+		SUBCASE("operator&/operator|/operator^ (non-mutating) also throw on size mismatch") {
+			dyn8 a{0xFF, 0xFF};
+			dyn8 b{0xFF};
+			CHECK_THROWS_AS((void) (a & b), std::logic_error);
+			CHECK_THROWS_AS((void) (a | b), std::logic_error);
+			CHECK_THROWS_AS((void) (a ^ b), std::logic_error);
+		}
 	}
 
 	TEST_CASE("fixed and bounded capacity - equality, bitwise ops and shifts") {
@@ -817,7 +936,7 @@ TEST_SUITE("bitset") {
 
 		SUBCASE("fully static capacity supports shifting") {
 			fixed64 a{0b1100, 0, 0, 0};
-			a <<= 1;
+			a >>= 1;
 			CHECK_FALSE(a.test(0));
 			CHECK(a.test(1));
 			CHECK(a.test(2));
@@ -952,6 +1071,50 @@ TEST_SUITE("bitset") {
 		}
 	}
 
+	TEST_CASE("formatter binary output matches std::bitset<segment_width> per segment") {
+		// independent cross-check of the formatter's binary mode against the standard library's
+		// own (well-known-correct) bit-to-string conversion, rather than only hand-written literal
+		// strings: std::bitset<N>::to_string() is MSB-first, exactly matching what bitset<>'s own
+		// binary formatter documents (see "formatter output content" above), so segment-by-segment
+		// comparison is a direct, meaningful check rather than a coincidence of two independent
+		// hard-coded expectations.
+		SUBCASE("single 8-bit segment, several bit patterns") {
+			for (uint8_t const pattern : {uint8_t{0x00}, uint8_t{0xFF}, uint8_t{0b10110011},
+			                               uint8_t{0b00000001}, uint8_t{0b10000000}, uint8_t{0b01010101}}) {
+				dyn8 b{pattern};
+				std::string const expected = "[\n[" + std::bitset<8>(pattern).to_string() + "]\n]\n";
+				CAPTURE(static_cast<unsigned>(pattern));
+				CHECK_EQ(std::format("{:b}", b), expected);
+			}
+		}
+
+		SUBCASE("multiple 8-bit segments - each reversed independently, in storage order") {
+			dyn8 b{0b10110011, 0b00001111, 0b11100001};
+			std::string const expected = "[\n["
+			                            + std::bitset<8>(0b10110011).to_string() + "]\n["
+			                            + std::bitset<8>(0b00001111).to_string() + "]\n["
+			                            + std::bitset<8>(0b11100001).to_string() + "]\n]\n";
+			CHECK_EQ(std::format("{:b}", b), expected);
+		}
+
+		SUBCASE("64-bit segment patterns") {
+			for (uint64_t const pattern : {uint64_t{0}, ~uint64_t{0}, uint64_t{0x0123456789ABCDEFull},
+			                                uint64_t{1}, uint64_t{1} << 63}) {
+				dyn64 b{pattern};
+				std::string const expected = "[\n[" + std::bitset<64>(pattern).to_string() + "]\n]\n";
+				CAPTURE(pattern);
+				CHECK_EQ(std::format("{:b}", b), expected);
+			}
+		}
+
+		SUBCASE("random-ish multi-segment 64-bit pattern") {
+			dyn64 b{0xDEADBEEFCAFEBABEull, 0x0123456789ABCDEFull};
+			std::string const expected = "[\n["
+			                            + std::bitset<64>(0xDEADBEEFCAFEBABEull).to_string() + "]\n["
+			                            + std::bitset<64>(0x0123456789ABCDEFull).to_string() + "]\n]\n";
+			CHECK_EQ(std::format("{:b}", b), expected);
+		}
+	}
 
 	TEST_CASE("integral segment width coverage") {
 		// verifies storage_word selection (and the derived set/test/count/countr_zero paths)
@@ -1128,6 +1291,25 @@ TEST_SUITE("bitset") {
 			b.shrink_to_fit();
 			REQUIRE_EQ(b.capacity_in_bits(), 2 * bounded64_segment_bits);
 			CHECK_EQ(b.count(), 68);
+		}
+
+		SUBCASE("bounded capacity: shrinking never grows logical size past max_bits") {
+			// regression: shrink_to_fit's new logical size is rounded UP to a whole segment
+			// (ptr_dist * segment_size_in_bits) - when the live (kept) segment is the last
+			// physical one and max_bits isn't segment-aligned, that rounding used to overshoot
+			// max_bits entirely (size_in_bits() silently reporting more than max_bits allows,
+			// and test() then throwing for indices size_in_bits() itself claimed were in range).
+			using bounded_odd = bitset<dynamic_extent, 100>; // needs 2 segments (128 bits); leftover = 36
+			bounded_odd b{};
+			b.set(99); // last valid logical bit, lives in the boundary (last physical) segment
+			REQUIRE_EQ(b.size_in_bits(), 100);
+			REQUIRE_EQ(b.capacity_in_bits(), 128);
+
+			b.shrink_to_fit();
+			CHECK_EQ(b.size_in_bits(), 100);      // must stay capped at max_bits, not round up to 128
+			CHECK_EQ(b.capacity_in_bits(), 128);  // the live (boundary) segment is still kept
+			CHECK(b.test(99));
+			CHECK_THROWS_AS((void) b.test(100), std::out_of_range); // still correctly out of range
 		}
 	}
 
@@ -1522,18 +1704,18 @@ TEST_SUITE("bitset") {
 			CHECK_FALSE(b.test(10));
 		}
 
-		SUBCASE("reset(ix) beyond current logical size grows logical size, bit stays low") {
+		SUBCASE("reset(ix) beyond current logical size is a no-op - unlike set(), it never grows") {
 			dyn8 b{};
 			b.reset(10);
-			CHECK_EQ(b.size_in_bits(), 11);
+			CHECK_EQ(b.size_in_bits(), 0);
 			CHECK_FALSE(b.test(10));
 		}
 
-		SUBCASE("flip(ix) beyond current logical size grows logical size and flips the implicit 0 to 1") {
+		SUBCASE("flip(ix) beyond current logical size is a no-op - unlike set(), it never grows") {
 			dyn8 b{};
 			b.flip(10);
-			CHECK_EQ(b.size_in_bits(), 11);
-			CHECK(b.test(10));
+			CHECK_EQ(b.size_in_bits(), 0);
+			CHECK_FALSE(b.test(10));
 		}
 
 		SUBCASE("set_first_free() grows logical size by exactly 1 when every existing bit is full") {
@@ -1563,10 +1745,10 @@ TEST_SUITE("bitset") {
 			CHECK(b.test(3));
 		}
 
-		SUBCASE("reset_positions() also grows logical size for out-of-range positions") {
+		SUBCASE("reset_positions() never grows logical size - out-of-range positions are no-ops") {
 			dyn64 b(1);
 			b.reset_positions(std::array{5uz, 70uz});
-			CHECK_EQ(b.size_in_bits(), 71);
+			CHECK_EQ(b.size_in_bits(), 64);
 			CHECK_FALSE(b.test(70));
 		}
 	}
@@ -1862,6 +2044,154 @@ TEST_SUITE("bitset") {
 			fixed_odd b{1ull << 10, 0}; // leftover (segment 1) all zero; segment 0 decides the answer
 			REQUIRE_EQ(b.size_in_bits(), 100);
 			CHECK_EQ(b.countl_zero(), 36 + (seg64 - 1 - 10)); // 36 leftover zeros + segment 0's leading zeros
+		}
+	}
+
+	TEST_CASE("countr_one honors an exact (non-segment-aligned) logical size") {
+		// mirrors "countr_zero honors an exact (non-segment-aligned) logical size" with polarity
+		// flipped: every case starts from all-ones (via set_all(), which respects logical size) and
+		// resets a single bit to stand in for the "boundary" that stops the run.
+		constexpr size_t seg64 = 64;
+
+		SUBCASE("aligned: the reset bit sits in an early segment (non-edge - the leftover segment does not exist)") {
+			dyn64 b{~(1ull << 5), ~0ull}; // 2 full segments (128 bits, aligned); bit 5 is the first 0
+			CHECK_EQ(b.countr_one(), 5);
+		}
+
+		SUBCASE("aligned: an entirely-one bitset returns exactly the (segment-aligned) logical size") {
+			dyn64 b{~0ull, ~0ull};
+			CHECK_EQ(b.countr_one(), 2 * seg64);
+		}
+
+		SUBCASE("misaligned: the reset bit sits in a full segment before the leftover one (non-edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70 (1 full segment + 6 leftover bits)
+			b.set_all();
+			b.reset(3); // the only 0 bit is in segment 0, well before the leftover segment
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_one(), 3);
+		}
+
+		SUBCASE("misaligned: the reset bit sits inside the leftover region itself (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, leftover = 6 valid bits (global 64..69)
+			b.set_all();
+			b.reset(67); // offset 3 within the leftover segment
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_one(), seg64 + 3);
+		}
+
+		SUBCASE("misaligned: everything is one, including the leftover - capped at the logical size, not the segment width (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69);
+			b.set_all();
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_one(), 70); // not 128 (2 * seg64)
+		}
+
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			dyn8 b{};
+			b.set(11);
+			b.reset(11); // logical size 12 (1 full 8-bit segment + 4 leftover bits)
+			b.set_all();
+			REQUIRE_EQ(b.size_in_bits(), 12);
+			CHECK_EQ(b.countr_one(), 12);
+		}
+
+		SUBCASE("misaligned, bounded (capped-dynamic) capacity") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+			bounded_odd b{};
+			b.set(69);
+			b.reset(69);
+			b.set_all();
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countr_one(), 70);
+		}
+
+		SUBCASE("misaligned, fully-static (fixed) capacity") {
+			using fixed_odd = bitset<2, 100>;
+			fixed_odd b{~0ull, ((1ull << 36) - 1) & ~(1ull << 26)}; // offset 26 within the 36-bit leftover reset
+			REQUIRE_EQ(b.size_in_bits(), 100);
+			CHECK_EQ(b.countr_one(), seg64 + 26);
+		}
+	}
+
+	TEST_CASE("countl_one honors an exact (non-segment-aligned) logical size") {
+		// mirrors "countl_zero honors an exact (non-segment-aligned) logical size" with polarity
+		// flipped. This is exactly the coverage gap that let countl_one() silently return 0 for
+		// every non-aligned bitset: it used to fold in the wrong (unmasked) segment range and, even
+		// after that was fixed, still used the LSB-scan shape (reduce full segments first, boundary
+		// last) instead of the MSB-scan shape countl_zero() already used (boundary first, short-
+		// circuiting before ever looking at the full segments).
+		constexpr size_t seg64 = 64;
+
+		SUBCASE("aligned: the reset bit sits in the last segment (non-edge - resolved without any fallback)") {
+			dyn64 b{~0ull, ~(1ull << 58)}; // 2 full segments (128 bits, aligned)
+			CHECK_EQ(b.countl_one(), 5); // 63 - 58
+		}
+
+		SUBCASE("aligned: an entirely-one bitset returns exactly the (segment-aligned) logical size") {
+			dyn64 b{~0ull, ~0ull};
+			CHECK_EQ(b.countl_one(), 2 * seg64);
+		}
+
+		SUBCASE("misaligned: resolved within the leftover region, not at its very top (edge, no fallback)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70, leftover = 6 valid bits (global 64..69)
+			for (size_t i = 64; i < 70; ++i) b.set(i); // leftover entirely one
+			b.reset(67); // offset 3 of 0..5 - two leading ones (offsets 5, 4) above it
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_one(), 2);
+		}
+
+		SUBCASE("misaligned: the leftover is entirely one, so it falls back to an earlier full segment (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69); // logical size 70
+			b.set_all(); // leftover entirely one, plus segment 0 entirely one for now
+			b.reset(5);  // segment 0 (a full, non-last segment) decides the answer
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_one(), 6 + (seg64 - 1 - 5)); // 6 leftover ones + segment 0's own leading ones
+		}
+
+		SUBCASE("misaligned: everything is one - capped at the logical size, not the segment width (edge)") {
+			dyn64 b{};
+			b.set(69);
+			b.reset(69);
+			b.set_all();
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_one(), 70); // not 128
+		}
+
+		SUBCASE("misaligned, narrow (uint8_t) segments") {
+			dyn8 b{};
+			b.set(11);
+			b.reset(11); // logical size 12, leftover = 4 valid bits (global 8..11)
+			for (size_t i = 8; i < 12; ++i) b.set(i); // leftover entirely one
+			b.reset(9); // offset 1 of 0..3 - two leading ones (offsets 3, 2) above it
+			REQUIRE_EQ(b.size_in_bits(), 12);
+			CHECK_EQ(b.countl_one(), 2);
+		}
+
+		SUBCASE("misaligned, bounded (capped-dynamic) capacity") {
+			using bounded_odd = bitset<dynamic_extent, 100>;
+			bounded_odd b{};
+			b.set(69);
+			b.reset(69);
+			b.set_all();
+			REQUIRE_EQ(b.size_in_bits(), 70);
+			CHECK_EQ(b.countl_one(), 70);
+		}
+
+		SUBCASE("misaligned, fully-static (fixed) capacity, falls back into an earlier full segment") {
+			using fixed_odd = bitset<2, 100>;
+			fixed_odd b{~(1ull << 10), (1ull << 36) - 1}; // leftover (segment 1) all-one; segment 0 decides the answer
+			REQUIRE_EQ(b.size_in_bits(), 100);
+			CHECK_EQ(b.countl_one(), 36 + (seg64 - 1 - 10)); // 36 leftover ones + segment 0's own leading ones
 		}
 	}
 
