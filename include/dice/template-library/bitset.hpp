@@ -189,15 +189,9 @@ namespace dice::template_library {
             bitset_iterator &operator++() noexcept {
                 if constexpr (mode == bitset_mode::BitMode) {
                     ++cur_offset_;
-                    if (calc_global_idx(cur_segment_, cur_offset_) >= backing_bitset_->logical_size()) {
-                        cur_segment_ = backing_bitset_->size();
-                        cur_offset_ = 0;
-                        return *this;
-                    }
                     if (cur_offset_ >= segment_size_in_bits) {
                         ++cur_segment_;
                         cur_offset_ = 0;
-                        return *this;
                     }
                     return *this;
                 }
@@ -237,18 +231,11 @@ namespace dice::template_library {
                 }
 
                 assert(skip >= 0);
-
                 auto skip_handler = [this](size_t const skip_size) {
-                    auto global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
+                    auto const global_ix = calc_global_idx(cur_segment_, cur_offset_) + skip_size;
 
-                    if (global_ix >= backing_bitset_->logical_size()) {
-                        cur_segment_ = backing_bitset_->size();
-                        cur_offset_ = 0;
-                        return;
-                    }
-
-                    auto offset = calc_which_offset(global_ix);
-                    auto seg = calc_which_segment(global_ix);
+                    auto const offset = calc_which_offset(global_ix);
+                    auto const seg = calc_which_segment(global_ix);
 
                     cur_segment_ = seg;
                     cur_offset_ = offset;
@@ -915,7 +902,7 @@ namespace dice::template_library {
                     } else {
                         inner_.resize(ptr_dist);
                     }
-                    bits_ = ptr_dist * segment_size_in_bits;
+                    bits_ = std::min(ptr_dist * segment_size_in_bits, max_bits);
                     return;
                 }
                 ++it;
