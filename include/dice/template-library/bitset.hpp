@@ -543,7 +543,7 @@ namespace dice::template_library {
         [[nodiscard]] Tp segments_reduce(F &&handler, M &&merge, Tp initial, Range const &sub_range) const {
             Tp merge_val{initial};
             for (auto const &segment : sub_range) {
-                merge_val = std::invoke(std::forward<M>(merge), merge_val, std::invoke(std::forward<F>(handler), segment));
+                merge_val = std::invoke(merge, merge_val, std::invoke(handler, segment));
             }
 
             return merge_val;
@@ -596,7 +596,7 @@ namespace dice::template_library {
             auto end_sentinel = end();
 
             while (self_it != end_sentinel) {
-                if (!std::invoke(std::forward<F>(handler), self_it.get(), outer_it.get())) {
+                if (!std::invoke(handler, self_it.get(), outer_it.get())) {
                     return false;
                 }
                 ++self_it;
@@ -609,7 +609,7 @@ namespace dice::template_library {
         template<typename F, typename Pr, typename Range>
         static bool segments_all_of(F &&handler, Pr &&pred, Range const &sub_range) {
             for (auto const &segment : sub_range) {
-                if (auto const val = std::invoke(std::forward<F>(handler), segment); !std::invoke(std::forward<Pr>(pred), val)) {
+                if (auto const val = std::invoke(handler, segment); !std::invoke(pred, val)) {
                     return false;
                 }
             }
@@ -622,9 +622,9 @@ namespace dice::template_library {
             Tp merge_val{initial};
 
             for (auto const &segment : sub_range) {
-                Tp const val = std::invoke(std::forward<F>(handler), segment);
-                merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
-                if (!std::invoke(std::forward<Pr>(pred), val)) {
+                Tp const val = std::invoke(handler, segment);
+                merge_val = std::invoke(merge, merge_val, val);
+                if (!std::invoke(pred, val)) {
                     return merge_val;
                 }
             }
@@ -639,9 +639,9 @@ namespace dice::template_library {
             Tp merge_val{initial};
 
             for (auto const &segment : reversed_sub_range) {
-                Tp const val = std::invoke(std::forward<F>(handler), segment);
-                merge_val = std::invoke(std::forward<M>(merge), merge_val, val);
-                if (!std::invoke(std::forward<Pr>(pred), val)) {
+                Tp const val = std::invoke(handler, segment);
+                merge_val = std::invoke(merge, merge_val, val);
+                if (!std::invoke(pred, val)) {
                     return merge_val;
                 }
             }
@@ -1058,7 +1058,7 @@ namespace dice::template_library {
         template<typename Range>
         requires std::ranges::input_range<Range>
         void set_positions(Range &&positions) {
-            std::ranges::for_each(std::forward<Range>(positions), [this](auto pos) {
+            std::ranges::for_each(positions, [this](auto pos) {
                 this->set(pos);
             });
         }
@@ -1071,7 +1071,7 @@ namespace dice::template_library {
         template<typename Range>
         requires std::ranges::input_range<Range>
         void reset_positions(Range &&positions) {
-            std::ranges::for_each(std::forward<Range>(positions), [this](auto pos) {
+            std::ranges::for_each(positions, [this](auto pos) {
                 this->reset(pos);
             });
         }
