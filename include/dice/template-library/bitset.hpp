@@ -1,6 +1,7 @@
 #ifndef DICE_TEMPLATELIBRARY_BITSET_HPP
 #define DICE_TEMPLATELIBRARY_BITSET_HPP
 
+#include <algorithm>
 #include <bit>
 #include <compare>
 #include <dice/template-library/flex_array.hpp>
@@ -9,7 +10,6 @@
 #include <functional>
 #include <iterator>
 #include <ranges>
-#include <algorithm>
 
 namespace dice::template_library {
     /**
@@ -51,7 +51,7 @@ namespace dice::template_library {
         static constexpr size_t segment_size = sizeof(T);
         static constexpr size_t segment_size_in_bits = segment_size * 8;
 
-        static constexpr size_t segments = bits; // just forward this value
+        static constexpr size_t segments = bits;  // just forward this value
         static constexpr size_t max_segments = max_bits != dynamic_extent ? (max_bits + segment_size_in_bits - 1) / segment_size_in_bits : dynamic_extent;
 
         using storage = flex_array<T, segments, max_segments>;
@@ -62,6 +62,7 @@ namespace dice::template_library {
         using segment_type = storage::value_type;
         using segment_reference = storage::reference;
         using segment_const_reference = storage::const_reference;
+
     public:
         ///> mode to be used for the underlying iterator - make caller enforce policy
         enum struct bitset_mode : uint8_t {
@@ -457,7 +458,7 @@ namespace dice::template_library {
             bits_ = ix + 1;
 
             if (ix < capacity_in_bits()) {
-                return 0; // fits within current segment
+                return 0;  // fits within current segment
             }
 
             return calc_which_segment(ix) - size() + 1;
@@ -576,7 +577,7 @@ namespace dice::template_library {
 
         ///> in-place binary transform
         template<typename Ops>
-        void segments_transform_with(bitset const &other, size_t stop=0) {
+        void segments_transform_with(bitset const &other, size_t stop = 0) {
             auto self_it = segments_begin();
             auto outer_it = other.segments_begin();
             auto ops = Ops{};
@@ -674,8 +675,64 @@ namespace dice::template_library {
             return std::popcount(segment) == 0x00;
         }
 
-        [[nodiscard]] bool size_match(bitset const& other) const noexcept {
+        [[nodiscard]] bool size_match(bitset const &other) const noexcept {
             return logical_size() == other.logical_size();
+        }
+
+        [[nodiscard]] static T mask_lsb_from_segment(T const &segment, size_t const lsb_bits_remain) noexcept {
+            return static_cast<T>(segment & static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - lsb_bits_remain)));
+        }
+
+        template<typename F>
+        [[nodiscard]] size_t run_count_from_lsb(F &&per_segment_handler, bool const pad_boundary_with_ones) const {
+            auto const full_segments = full_segments_or();
+            auto const full_bits = full_segments.first.size() * segment_size_in_bits;
+
+            auto const full_count = segments_reduce_while(per_segment_handler, [](size_t const val) {
+                return val == segment_size_in_bits;
+            },
+                                                          std::plus<size_t>{},
+                                                          0uz,
+                                                          full_segments.first);
+
+            if (!full_segments.second.has_value() || full_count != full_bits) {
+                return full_count;
+            }
+
+            auto const leftover = leftover_bits();
+            T const &last = full_segments.second.value().get();
+            T const last_segment_masked = pad_boundary_with_ones
+                                              ? static_cast<T>(last | static_cast<T>(~T{} << leftover))
+                                              : mask_lsb_from_segment(last, leftover);
+
+            return full_bits + std::invoke(per_segment_handler, last_segment_masked);
+        }
+
+        template<typename F>
+        [[nodiscard]] size_t run_count_from_msb(F &&per_segment_handler, bool const pad_boundary_with_ones) const {
+            auto const leftover = leftover_bits();
+            auto const full_segments = full_segments_or();
+
+            if (full_segments.second.has_value()) {
+                auto const fill_bits = segment_size_in_bits - leftover;
+                T shifted = static_cast<T>(full_segments.second.value().get() << fill_bits);
+                if (pad_boundary_with_ones) {
+                    shifted = static_cast<T>(shifted | static_cast<T>(static_cast<T>(~T{}) >> leftover));
+                }
+
+                auto const boundary_count = static_cast<size_t>(std::invoke(per_segment_handler, shifted));
+                if (boundary_count != leftover) {
+                    return boundary_count;
+                }
+            }
+
+            return segments_reduce_while_reverse(per_segment_handler, [](size_t const val) {
+                       return val == segment_size_in_bits;
+                   },
+                                                 std::plus<size_t>{},
+                                                 0uz,
+                                                 full_segments.first)
+                   + leftover;
         }
 
         [[nodiscard]] std::pair<const_sub_range_type, std::optional<std::reference_wrapper<T const>>> full_segments_or() const noexcept {
@@ -684,7 +741,7 @@ namespace dice::template_library {
             }
             auto full_segments = size() - 1;
             return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + full_segments),
-                                   std::optional<std::reference_wrapper<T const>>{std::cref((segments_begin() + full_segments).get())});
+                                  std::optional<std::reference_wrapper<T const>>{std::cref((segments_begin() + full_segments).get())});
         }
 
         [[nodiscard]] std::pair<sub_range_type, std::optional<std::reference_wrapper<T>>> full_segments_or() noexcept {
@@ -693,7 +750,7 @@ namespace dice::template_library {
             }
             auto full_segments = size() - 1;
             return std::make_pair(std::ranges::subrange(segments_begin(), segments_begin() + full_segments),
-                                   std::optional<std::reference_wrapper<T>>{std::ref((segments_begin() + full_segments).get())});
+                                  std::optional<std::reference_wrapper<T>>{std::ref((segments_begin() + full_segments).get())});
         }
 
         [[nodiscard]] const_sub_range_type full_segment() const noexcept {
@@ -848,7 +905,7 @@ namespace dice::template_library {
             while (it != end) {
                 T &segment = *it;
                 if (segment != 0x00) {
-                    auto ptr_dist = std::distance(inner_.data(), &segment) + 1; // this segment should also be included !
+                    auto ptr_dist = std::distance(inner_.data(), &segment) + 1;  // this segment should also be included !
                     if constexpr (!has_max_extent) {
                         inner_ = storage(inner_.data(), inner_.data() + ptr_dist);
                     } else {
@@ -874,11 +931,19 @@ namespace dice::template_library {
          * @return total bits set
          */
         [[nodiscard]] size_t count() const {
-            return segments_reduce([](segment_const_reference segment) -> size_t {
+            auto const full_segments = full_segments_or();
+
+            auto const accumulated = segments_reduce([](segment_const_reference segment) -> size_t {
                 return std::popcount(segment);
             },
-                                   std::plus<size_t>{},
-                                   0uz, full_segment());
+                                                     std::plus<size_t>{},
+                                                     0uz,
+                                                     full_segments.first);
+            if (!full_segments.second.has_value()) {
+                return accumulated;
+            }
+
+            return accumulated + std::popcount(mask_lsb_from_segment(full_segments.second.value().get(), leftover_bits()));
         }
 
         /**
@@ -927,27 +992,10 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countr_zero() const {
-            auto const full_segments = full_segments_or();
-            auto const full_bits = full_segments.first.size() * segment_size_in_bits;
-
-            auto const full_count = segments_reduce_while([](segment_const_reference segment) {
-                    return std::countr_zero(segment);
-                }, [](size_t const val) {
-                    return val == segment_size_in_bits;
-                },
-                std::plus<size_t>{},
-                0uz,
-                full_segments.first);
-
-            // if aligned or not fully consumed (all zeros) we can stop
-            if (!full_segments.second.has_value() || full_count != full_bits) {
-                return full_count;
-            }
-
-            auto const leftover = leftover_bits();
-            T const &last = full_segments.second.value().get();
-            auto const padding_mask = static_cast<T>(~T{} << leftover);
-            return full_bits + static_cast<size_t>(std::countr_zero(static_cast<T>(last | padding_mask)));
+            return run_count_from_lsb([](segment_const_reference segment) {
+                return static_cast<size_t>(std::countr_zero(segment));
+            },
+                                      true);
         }
 
         /**
@@ -956,28 +1004,10 @@ namespace dice::template_library {
          * @return ix to non-zero entry
          */
         [[nodiscard]] size_t countl_zero() const {
-            auto const leftover = leftover_bits();
-            auto const full_segments = full_segments_or();
-
-            if (full_segments.second.has_value()) {
-                auto const fill_bits = segment_size_in_bits - leftover;
-                T const &last = full_segments.second.value().get();
-                auto const padding_mask = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - fill_bits));
-                auto const zero_bits = static_cast<size_t>(std::countl_zero(static_cast<T>(static_cast<T>(last << fill_bits) | padding_mask)));
-
-                if (zero_bits != leftover) {
-                    return zero_bits;
-                }
-            }
-
-            return segments_reduce_while_reverse([](segment_const_reference segment) {
-                    return std::countl_zero(segment);
-                },
-                                                 [](size_t const val) {
-                                                     return val == segment_size_in_bits;
-                                                 },
-                                                 std::plus<size_t>{},
-                                                 0uz, full_segments.first) + leftover;
+            return run_count_from_msb([](segment_const_reference segment) {
+                return static_cast<size_t>(std::countl_zero(segment));
+            },
+                                      true);
         }
 
         /**
@@ -986,14 +1016,10 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countr_one() const {
-            return segments_reduce_while([](segment_const_reference segment) {
-                return std::countr_one(segment);
+            return run_count_from_lsb([](segment_const_reference segment) {
+                return static_cast<size_t>(std::countr_one(segment));
             },
-                                   [](size_t const val) {
-                                       return val == segment_size_in_bits;
-                                   },
-                                   std::plus<size_t>{},
-                                   0uz, full_segment());
+                                      false);
         }
 
         /**
@@ -1002,14 +1028,10 @@ namespace dice::template_library {
          * @return ix to zero entry
          */
         [[nodiscard]] size_t countl_one() const {
-            return segments_reduce_while_reverse([](segment_const_reference segment) {
-                return std::countl_one(segment);
+            return run_count_from_msb([](segment_const_reference segment) {
+                return static_cast<size_t>(std::countl_one(segment));
             },
-                                             [](size_t const val) {
-                                                 return val == segment_size_in_bits;
-                                             },
-                                             std::plus<size_t>{},
-                                             0uz, full_segment());
+                                      false);
         }
 
         /**
@@ -1031,8 +1053,7 @@ namespace dice::template_library {
             if (!full_segments.second.has_value()) {
                 return true;
             }
-
-            return (std::popcount(full_segments.second.value().get()) == leftover_bits());
+            return (std::popcount(mask_lsb_from_segment(full_segments.second.value().get(), leftover_bits())) == leftover_bits());
         }
 
         /**
@@ -1053,7 +1074,7 @@ namespace dice::template_library {
          */
         [[nodiscard]] bool none_set() const {
             return std::ranges::none_of(std::ranges::subrange(segments_begin(), end()), [this](segment_const_reference segment) {
-                return !segment_none_set(segment); // flip since none_of evaluates on false
+                return !segment_none_set(segment);  // flip since none_of evaluates on false
             });
         }
 
@@ -1185,7 +1206,7 @@ namespace dice::template_library {
             return segments_pairwise_all_of([](segment_const_reference segment_first, segment_const_reference segment_second) {
                 return segment_first == segment_second;
             },
-                                   alt_storage);
+                                            alt_storage);
         }
 
         bitset &operator<<=(size_t shift) {
@@ -1314,12 +1335,12 @@ struct std::formatter<dice::template_library::bitset<extent_, max_extent_, T>> {
         while (it != end) {
             *out++ = '[';
             if (binary) {
-                auto const bits =  static_cast<ptrdiff_t>(sizeof(T) * 8);
+                auto const bits = static_cast<ptrdiff_t>(sizeof(T) * 8);
                 for (auto const seg_end = it + bits; bool const b : std::ranges::subrange(it, seg_end) | std::views::reverse) {
                     *out++ = b ? '1' : '0';
                 }
                 it += bits;
-            } else { // default to hex
+            } else {  // default to hex
                 auto const &segment = it.get();
                 out = std::format_to(out, "{:#0{}x}", segment, sizeof(segment) * 2);
                 it += static_cast<ptrdiff_t>(sizeof(T) * 8);
