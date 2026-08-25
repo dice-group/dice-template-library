@@ -27,10 +27,7 @@ namespace dice::template_library {
         struct rebind_probe {};
 
         template<typename From, typename To>
-        concept generalized_convertible_to = (std::is_void_v<From> && std::is_default_constructible_v<To>) || (!std::is_void_v<From> && std::is_convertible_v<From, To>);
-
-        static_assert(generalized_convertible_to<int, control_flow<int, double>>);
-        static_assert(generalized_convertible_to<void, control_flow<int, void>>);
+        concept generalized_convertible_to = (std::is_void_v<From> && std::default_initializable<To>) || (!std::is_void_v<From> && std::convertible_to<From, To>);
     } // detail_try_traits
 
     /**
@@ -60,9 +57,21 @@ namespace dice::template_library {
         requires detail_try_traits::generalized_convertible_to<typename try_traits<T>::output_type, T>;
 
         /**
-         * Used to decide if a value is produced (cfcontinue) or a value should be propagated to the caller (cfbreak).
+         * Check if the given value has a output (for optional this corresponds to .has_value())
          */
-        { try_traits<T>::branch(std::move(self)) } -> std::same_as<control_flow<typename try_traits<T>::residual_type, typename try_traits<T>::output_type>>;
+        { try_traits<T>::has_output(std::as_const(self)) } -> std::same_as<bool>;
+
+        /**
+         * Extract the output.
+         * @pre has_output returned true
+         */
+        { try_traits<T>::get_output(std::move(self)) } -> std::same_as<typename try_traits<T>::output_type>;
+
+        /**
+         * Extract the residual
+         * @pre has_output returned false
+         */
+        { try_traits<T>::get_residual(std::move(self)) } -> std::same_as<typename try_traits<T>::residual_type>;
 
         /**
          * rebinding the output must keep the residual channel intact, i.e. residuals of T must remain usable as residuals of the rebound type
@@ -87,15 +96,20 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = control_flow<B, Out>;
 
-        static constexpr control_flow<residual_type, output_type> branch(self_type self) {
-            return match(std::move(self),
-                [](cfcontinue<C> &&cont) -> control_flow<residual_type, output_type> {
-                    return std::move(cont);
-                },
-                [](cfbreak<B> &&brk) -> control_flow<residual_type, output_type> {
-                    return control_flow<residual_type, output_type>{in_place_break, std::move(brk)};
-                }
-            );
+        static constexpr bool has_output(self_type const &self) noexcept {
+            return self.is_continue();
+        }
+
+        static constexpr output_type get_output(self_type self) {
+            return std::move(self).get_continue();
+        }
+
+        static constexpr residual_type get_residual(self_type self) {
+            if constexpr (std::is_void_v<B>) {
+                return cfbreak<B>{};
+            } else {
+                return cfbreak<B>{std::move(self).get_break()};
+            }
         }
     };
     static_assert(try_result<control_flow<int, int>>);
@@ -109,12 +123,16 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::optional<Out>;
 
-        static constexpr control_flow<residual_type, output_type> branch(self_type self) {
-            if (self.has_value()) {
-                return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
-            }
+        static constexpr bool has_output(self_type const &self) noexcept {
+            return self.has_value();
+        }
 
-            return control_flow<residual_type, output_type>{in_place_break, std::nullopt};
+        static constexpr output_type get_output(self_type self) {
+            return *std::move(self);
+        }
+
+        static constexpr residual_type get_residual([[maybe_unused]] self_type const &self) noexcept {
+            return std::nullopt;
         }
     };
     static_assert(try_result<std::optional<int>>);
@@ -130,16 +148,20 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::expected<Out, E>;
 
-        static constexpr control_flow<residual_type, output_type> branch(self_type self) {
-            if (self.has_value()) {
-                if constexpr (std::is_void_v<T>) {
-                    return control_flow<residual_type, output_type>{in_place_continue};
-                } else {
-                    return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
-                }
-            }
+        static constexpr bool has_output(self_type const &self) noexcept {
+            return self.has_value();
+        }
 
-            return control_flow<residual_type, output_type>{in_place_break, std::unexpected{std::move(self.error())}};
+        static constexpr output_type get_output(self_type self) {
+            if constexpr (std::is_void_v<T>) {
+                return;
+            } else {
+                return *std::move(self);
+            }
+        }
+
+        static constexpr residual_type get_residual(self_type self) {
+            return std::unexpected<E>{std::move(self).error()};
         }
     };
     static_assert(try_result<std::expected<int, int>>);
@@ -177,12 +199,11 @@ namespace dice::template_library {
                       "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)"); \
         using _dice_try_traits = ::dice::template_library::try_traits<_dice_try_expr_type>;           \
                                                                                                       \
-        auto _dice_try_res = _dice_try_traits::branch(DICE_MOVE_IF_VALUE(_dice_try_expr));            \
-        if (_dice_try_res.is_break()) {                                                               \
-            return std::move(_dice_try_res).get_break();                                              \
+        if (!_dice_try_traits::has_output(_dice_try_expr)) {                                          \
+            return _dice_try_traits::get_residual(DICE_MOVE_IF_VALUE(_dice_try_expr));                \
         }                                                                                             \
                                                                                                       \
-        std::move(_dice_try_res).get_continue();                                                      \
+        _dice_try_traits::get_output(DICE_MOVE_IF_VALUE(_dice_try_expr));                             \
     })
 
 #endif // defined(__GNUC__) || defined(__clang__)

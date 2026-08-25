@@ -12,6 +12,9 @@
 namespace dtl = dice::template_library;
 
 TEST_SUITE("try_result concept") {
+    static_assert(dtl::detail_try_traits::generalized_convertible_to<int, dtl::control_flow<int, double>>);
+    static_assert(dtl::detail_try_traits::generalized_convertible_to<void, dtl::control_flow<int, void>>);
+
     static_assert(dtl::try_result<std::optional<int>>);
     static_assert(dtl::try_result<std::optional<std::string>>);
     static_assert(dtl::try_result<std::optional<std::unique_ptr<int>>>);
@@ -57,18 +60,18 @@ TEST_SUITE("try_traits") {
         using opt = std::optional<int>;
         using traits = dtl::try_traits<opt>;
 
-        SUBCASE("branch continue") {
-            auto res = traits::branch(std::optional<int>{42});
-            REQUIRE(res.is_continue());
-            CHECK_EQ(res.get_continue(), 42);
+        SUBCASE("get_output") {
+            opt const self{42};
+            REQUIRE(traits::has_output(self));
+            CHECK_EQ(traits::get_output(self), 42);
         }
 
-        SUBCASE("branch break") {
-            auto res = traits::branch(std::optional<int>{std::nullopt});
-            REQUIRE(res.is_break());
+        SUBCASE("get_residual") {
+            opt const self{std::nullopt};
+            REQUIRE_FALSE(traits::has_output(self));
 
             // the residual is usable for any rebound output type, not just for optional<int>
-            std::optional<std::string> const propagated = res.get_break();
+            std::optional<std::string> const propagated = traits::get_residual(self);
             CHECK_EQ(propagated, std::nullopt);
         }
 
@@ -82,16 +85,16 @@ TEST_SUITE("try_traits") {
         using cf = dtl::control_flow<std::string, int>;
         using traits = dtl::try_traits<cf>;
 
-        SUBCASE("branch continue") {
-            auto res = traits::branch(dtl::cfcontinue{42});
-            REQUIRE(res.is_continue());
-            CHECK_EQ(res.get_continue(), 42);
+        SUBCASE("get_output") {
+            cf const self = dtl::cfcontinue{42};
+            REQUIRE(traits::has_output(self));
+            CHECK_EQ(traits::get_output(self), 42);
         }
 
-        SUBCASE("branch break") {
-            auto res = traits::branch(dtl::cfbreak{std::string{"stop"}});
-            REQUIRE(res.is_break());
-            CHECK_EQ(res.get_break().value, "stop");
+        SUBCASE("get_residual") {
+            cf const self = dtl::cfbreak{std::string{"stop"}};
+            REQUIRE_FALSE(traits::has_output(self));
+            CHECK_EQ(traits::get_residual(self).value, "stop");
         }
 
         SUBCASE("from_output") {
@@ -106,16 +109,16 @@ TEST_SUITE("try_traits") {
         using exp = std::expected<int, std::string>;
         using traits = dtl::try_traits<exp>;
 
-        SUBCASE("branch continue") {
-            auto res = traits::branch(std::expected<int, std::string>{42});
-            REQUIRE(res.is_continue());
-            CHECK_EQ(res.get_continue(), 42);
+        SUBCASE("get_output") {
+            exp const self{42};
+            REQUIRE(traits::has_output(self));
+            CHECK_EQ(traits::get_output(self), 42);
         }
 
-        SUBCASE("branch break") {
-            auto res = traits::branch(std::expected<int, std::string>{std::unexpect, "boom"});
-            REQUIRE(res.is_break());
-            CHECK_EQ(res.get_break().error(), "boom");
+        SUBCASE("get_residual") {
+            exp const self{std::unexpect, "boom"};
+            REQUIRE_FALSE(traits::has_output(self));
+            CHECK_EQ(traits::get_residual(self).error(), "boom");
         }
 
         SUBCASE("from_output") {

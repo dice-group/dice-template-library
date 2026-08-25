@@ -710,12 +710,12 @@ namespace dice::template_library {
                 using traits = try_traits<ret_type>;
 
                 for (; first != last; ++first) {
-                    auto ret = traits::branch(std::invoke(pred, std::move(init), *first));
-                    if (ret.is_break()) {
-                        return {std::move(first), std::move(ret).get_break()};
+                    auto ret = std::invoke(pred, std::move(init), *first);
+                    if (!traits::has_output(ret)) {
+                        return {std::move(first), traits::get_residual(std::move(ret))};
                     }
 
-                    init = std::move(ret).get_continue();
+                    init = traits::get_output(std::move(ret));
                 }
 
                 return {std::move(first), std::move(init)};
@@ -792,9 +792,9 @@ namespace dice::template_library {
                 using traits = try_traits<ret_type>;
 
                 for (; first != last; ++first) {
-                    auto ret = traits::branch(std::invoke(pred, *first));
-                    if (ret.is_break()) {
-                        return {std::move(first), std::move(ret).get_break(), std::move(pred)};
+                    auto ret = std::invoke(pred, *first);
+                    if (!traits::has_output(ret)) {
+                        return {std::move(first), traits::get_residual(std::move(ret)), std::move(pred)};
                     }
                 }
 
@@ -877,12 +877,11 @@ namespace dice::template_library {
 
                 auto [new_first, result] = try_fold_left_fn{}(std::move(first), std::move(last), std::move(init), std::move(pred));
 
-                auto ret = traits::branch(std::move(result));
-                if (ret.is_break()) {
-                    return {std::move(new_first), std::move(ret).get_break()};
+                if (!traits::has_output(result)) {
+                    return {std::move(new_first), traits::get_residual(std::move(result))};
                 }
 
-                return {std::move(new_first), std::move(ret).get_continue()};
+                return {std::move(new_first), traits::get_output(std::move(result))};
             }
 
             template<std::ranges::input_range R, typename Pred>
