@@ -208,9 +208,62 @@ namespace dice::template_library {
 
 #else // defined(__GNUC__) || defined(__clang__)
 
+/**
+ * Outside of GCC and clang plain DICE_TRY is not supported. You can use DICE_TRY_ASSIGN(var, expr) or DICE_TRY_DISCARD(expr) as a workaround.
+ */
 #define DICE_TRY(...) \
-    static_assert(sizeof(#__VA_ARGS__) == 0, "DICE_TRY is not supported outside of GCC and clang"); // Note #__VA_ARGS__ expands to a string literal (it never has size 0)
+    static_assert(sizeof(#__VA_ARGS__) == 0, "DICE_TRY is not supported outside of GCC and clang");  // Note #__VA_ARGS__ expands to a string literal (it never has size 0)
 
 #endif
+
+/**
+ * Compatibility macro for cross-platform support where DICE_TRY is not available.
+ * See DICE_TRY for details.
+ *
+ * @code
+ * DICE_TRY_DISCARD(expr)
+ * @endcode
+ * is equivalent to
+ * @code
+ * (void) DICE_TRY(expr)
+ * @endcode
+ */
+#define DICE_TRY_DISCARD(...)                                                                         \
+    do {                                                                                              \
+        decltype(auto) _dice_try_expr = (__VA_ARGS__);                                                \
+        using _dice_try_expr_type = std::remove_cvref_t<decltype(_dice_try_expr)>;                    \
+        static_assert(::dice::template_library::try_result<_dice_try_expr_type>,                      \
+                      "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)"); \
+        using _dice_try_traits = ::dice::template_library::try_traits<_dice_try_expr_type>;           \
+                                                                                                      \
+        if (!_dice_try_traits::has_output(_dice_try_expr)) {                                          \
+            return _dice_try_traits::get_residual(DICE_MOVE_IF_VALUE(_dice_try_expr));                \
+        }                                                                                             \
+                                                                                                      \
+        (void) _dice_try_expr;                                                                        \
+    } while (false)
+
+/**
+ * Compatibility macro for cross-platform support where DICE_TRY is not available.
+ * See DICE_TRY for details.
+ *
+ * @code
+ * DICE_TRY_ASSIGN(var, expr)
+ * @endcode
+ * is equivalent to
+ * @code
+ * decltype(auto) var = DICE_TRY(expr)
+ * @endcode
+ */
+#define DICE_TRY_ASSIGN(var, ...)                                                                                             \
+    decltype(auto) _dice_try_expr_##var = (__VA_ARGS__);                                                                      \
+    static_assert(::dice::template_library::try_result<std::remove_cvref_t<decltype(_dice_try_expr_##var)>>,                  \
+                  "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)");                             \
+    using _dice_try_traits_##var = ::dice::template_library::try_traits<std::remove_cvref_t<decltype(_dice_try_expr_##var)>>; \
+                                                                                                                              \
+    if (!_dice_try_traits_##var::has_output(_dice_try_expr_##var)) {                                                          \
+        return _dice_try_traits_##var::get_residual(DICE_MOVE_IF_VALUE(_dice_try_expr_##var));                                \
+    }                                                                                                                         \
+    decltype(auto) var = _dice_try_traits_##var::get_output(DICE_MOVE_IF_VALUE(_dice_try_expr_##var))
 
 #endif // DICE_TEMPLATELIBRARY_TRYTRAITS_HPP

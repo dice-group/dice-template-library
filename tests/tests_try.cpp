@@ -563,3 +563,123 @@ TEST_SUITE("DICE_TRY") {
         }
     }
 }
+
+// note: DICE_TRY_ASSIGN and DICE_TRY_DISCARD dispatch through the same try_traits calls as
+// DICE_TRY, so the suites below only cover what is specific to them rather than repeating
+// the move/copy/evaluation-count matrix above.
+TEST_SUITE("DICE_TRY_ASSIGN") {
+    TEST_CASE("sanity check") {
+        auto const fail = [] -> std::optional<int> {
+            return std::nullopt;
+        };
+
+        auto const success = [] -> std::optional<int> {
+            return 42;
+        };
+
+        SUBCASE("break") {
+            auto const f = [&] -> std::optional<int> {
+                DICE_TRY_ASSIGN(x, fail());
+                return x + 1;
+            };
+
+            CHECK_EQ(f(), std::nullopt);
+        }
+
+        SUBCASE("continue") {
+            auto const f = [&] -> std::optional<int> {
+                DICE_TRY_ASSIGN(x, success());
+                return x + 1;
+            };
+
+            CHECK_EQ(f(), 43);
+        }
+    }
+
+    // the helpers the macro declares are suffixed with var, these would collide without that
+    TEST_CASE("several assignments in one scope") {
+        SUBCASE("different try_result types") {
+            auto const f = [] -> std::optional<std::size_t> {
+                DICE_TRY_ASSIGN(a, std::optional<int>{1});
+                DICE_TRY_ASSIGN(b, std::optional<std::string>{"xy"});
+                return static_cast<std::size_t>(a) + b.size();
+            };
+
+            CHECK_EQ(f(), 3);
+        }
+
+        SUBCASE("on the same line") {
+            auto const f = [] -> std::optional<int> {
+                // clang-format off
+                DICE_TRY_ASSIGN(a, std::optional<int>{1}); DICE_TRY_ASSIGN(b, std::optional<int>{2});
+                // clang-format on
+                return a + b;
+            };
+
+            CHECK_EQ(f(), 3);
+        }
+    }
+}
+
+TEST_SUITE("DICE_TRY_DISCARD") {
+    TEST_CASE("sanity check") {
+        auto const fail = [] -> std::optional<int> {
+            return std::nullopt;
+        };
+
+        auto const success = [] -> std::optional<int> {
+            return 42;
+        };
+
+        SUBCASE("break") {
+            auto const f = [&] -> std::optional<std::string> {
+                DICE_TRY_DISCARD(fail());
+                return "done";
+            };
+
+            CHECK_EQ(f(), std::nullopt);
+        }
+
+        SUBCASE("continue") {
+            auto const f = [&] -> std::optional<std::string> {
+                DICE_TRY_DISCARD(success());
+                return "done";
+            };
+
+            CHECK_EQ(f(), "done");
+        }
+    }
+
+    // a void output has nothing to assign, so this is the one shape only DICE_TRY_DISCARD can consume
+    TEST_CASE("void output") {
+        auto const fail = [] -> dtl::control_flow<std::string> {
+            return dtl::cfbreak{std::string{"stop"}};
+        };
+
+        auto const success = [] -> dtl::control_flow<std::string> {
+            return dtl::cfcontinue<>{};
+        };
+
+        SUBCASE("break") {
+            auto const f = [&] -> dtl::control_flow<std::string, int> {
+                DICE_TRY_DISCARD(fail());
+                return dtl::cfcontinue{1};
+            };
+
+            auto const res = f();
+            REQUIRE(res.is_break());
+            CHECK_EQ(res.get_break(), "stop");
+        }
+
+        SUBCASE("continue") {
+            auto const f = [&] -> dtl::control_flow<std::string, int> {
+                DICE_TRY_DISCARD(success());
+                return dtl::cfcontinue{1};
+            };
+
+            auto const res = f();
+            REQUIRE(res.is_continue());
+            CHECK_EQ(res.get_continue(), 1);
+        }
+    }
+}
