@@ -207,15 +207,7 @@ namespace dice::template_library {
  * DICE_MOVE_IF_VALUE(crref) // does not move
  * @endcode
  */
-#define DICE_MOVE_IF_VALUE(expr)                                                                                                              \
-    [&]<bool _dice_detail_no_move = std::is_lvalue_reference_v<decltype(expr)> || std::is_const_v<std::remove_reference_t<decltype(expr)>>>() \
-            -> std::conditional_t<_dice_detail_no_move, decltype(expr), std::add_rvalue_reference_t<std::remove_cvref_t<decltype(expr)>>> {   \
-        if constexpr (_dice_detail_no_move) {                                                                                                 \
-            return expr;                                                                                                                      \
-        } else {                                                                                                                              \
-            return std::move(expr);                                                                                                           \
-        }                                                                                                                                     \
-    }()
+#define DICE_MOVE_IF_VALUE(expr) (::std::forward<decltype(expr)>(expr))
 
 } // namespace dice::template_library
 
