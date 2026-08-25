@@ -206,6 +206,11 @@ namespace dice::template_library {
         _dice_try_traits::get_output(DICE_MOVE_IF_VALUE(_dice_try_expr));                             \
     })
 
-#endif // defined(__GNUC__) || defined(__clang__)
+#else // defined(__GNUC__) || defined(__clang__)
+
+#define DICE_TRY(...) \
+    static_assert(sizeof(#__VA_ARGS__) == 0, "DICE_TRY is not supported outside of GCC and clang"); // Note #__VA_ARGS__ expands to a string literal (it never has size 0)
+
+#endif
 
 #endif // DICE_TEMPLATELIBRARY_TRYTRAITS_HPP
