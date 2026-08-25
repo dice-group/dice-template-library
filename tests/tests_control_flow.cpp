@@ -11,20 +11,6 @@
 
 namespace dtl = dice::template_library;
 
-namespace {
-    template<typename T>
-    concept has_is_continue = requires(T cf) { cf.is_continue(); };
-
-    template<typename T>
-    concept has_get_continue = requires(T cf) { cf.get_continue(); };
-
-    template<typename T>
-    concept has_is_break = requires(T cf) { cf.is_break(); };
-
-    template<typename T>
-    concept has_get_break = requires(T cf) { cf.get_break(); };
-} // namespace
-
 TEST_SUITE("cfbreak and cfcontinue") {
     TEST_CASE("construction") {
         static_assert(std::same_as<decltype(dtl::cfbreak{42}), dtl::cfbreak<int>>);
