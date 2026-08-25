@@ -648,7 +648,7 @@ namespace dice::template_library {
         }
 
         [[nodiscard]] static bool segment_all_set(segment_const_reference segment) noexcept {
-            return std::popcount(segment) == segment_size_in_bits;
+            return static_cast<size_t>(std::popcount(segment)) == segment_size_in_bits;
         }
 
         [[nodiscard]] static bool segment_any_set(segment_const_reference segment) noexcept {
@@ -663,8 +663,12 @@ namespace dice::template_library {
             return logical_size() == other.logical_size();
         }
 
+        [[nodiscard]] static constexpr T low_bits_mask(size_t const keep_bits) noexcept {
+            return keep_bits == segment_size_in_bits ? static_cast<T>(~T{}) : static_cast<T>(static_cast<T>(T{1} << keep_bits) - T{1});
+        }
+
         [[nodiscard]] static T mask_lsb_from_segment(T const &segment, size_t const lsb_bits_remain) noexcept {
-            return static_cast<T>(segment & static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - lsb_bits_remain)));
+            return static_cast<T>(segment & low_bits_mask(lsb_bits_remain));
         }
 
         template<typename F>
@@ -699,7 +703,7 @@ namespace dice::template_library {
 
             if (full_segments.second.has_value()) {
                 auto const fill_bits = segment_size_in_bits - leftover;
-                T shifted = static_cast<T>(full_segments.second.value().get() << fill_bits);
+                T shifted = fill_bits == segment_size_in_bits ? T{0} : static_cast<T>(full_segments.second.value().get() << fill_bits);
                 if (pad_boundary_with_ones) {
                     shifted = static_cast<T>(shifted | static_cast<T>(static_cast<T>(~T{}) >> leftover));
                 }
@@ -829,7 +833,7 @@ namespace dice::template_library {
             std::ranges::fill(full_segments.first, static_cast<T>(~T{}));
 
             if (full_segments.second.has_value()) {
-                full_segments.second.value().get() = static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - leftover_bits()));
+                full_segments.second.value().get() = low_bits_mask(leftover_bits());
             }
         }
 
@@ -1033,7 +1037,7 @@ namespace dice::template_library {
         [[nodiscard]] bool all_set() const {
             auto full_segments = full_segments_or();
 
-            auto const all_set_high = std::ranges::all_of(full_segments.first, [this](segment_const_reference segment) {
+            auto const all_set_high = std::ranges::all_of(full_segments.first, [](segment_const_reference segment) {
                 return segment_all_set(segment);
             });
 
@@ -1044,7 +1048,7 @@ namespace dice::template_library {
             if (!full_segments.second.has_value()) {
                 return true;
             }
-            return (std::popcount(mask_lsb_from_segment(full_segments.second.value().get(), leftover_bits())) == leftover_bits());
+            return static_cast<size_t>(std::popcount(mask_lsb_from_segment(full_segments.second.value().get(), leftover_bits()))) == leftover_bits();
         }
 
         /**
@@ -1053,7 +1057,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool any_set() const {
-            return std::ranges::any_of(std::ranges::subrange(segments_begin(), end()), [this](segment_const_reference segment) {
+            return std::ranges::any_of(std::ranges::subrange(segments_begin(), end()), [](segment_const_reference segment) {
                 return segment_any_set(segment);
             });
         }
@@ -1064,7 +1068,7 @@ namespace dice::template_library {
          * @return queried state
          */
         [[nodiscard]] bool none_set() const {
-            return std::ranges::none_of(std::ranges::subrange(segments_begin(), end()), [this](segment_const_reference segment) {
+            return std::ranges::none_of(std::ranges::subrange(segments_begin(), end()), [](segment_const_reference segment) {
                 return !segment_none_set(segment);  // flip since none_of evaluates on false
             });
         }
@@ -1330,7 +1334,7 @@ namespace dice::template_library {
 
             if (!tmp.is_aligned()) {
                 auto &last = (tmp.segments_begin() + (tmp.size() - 1)).get();
-                last &= static_cast<T>(static_cast<T>(~T{}) >> (segment_size_in_bits - tmp.leftover_bits()));
+                last &= low_bits_mask(tmp.leftover_bits());
             }
 
             return tmp;
