@@ -17,13 +17,16 @@ namespace dice::template_library {
     };
 
     template<>
-    struct cfbreak<void>;
+    struct cfbreak<void> {
+        bool operator==(cfbreak const &other) const = default;
+        auto operator<=>(cfbreak const &other) const = default;
+    };
 
     /**
      * The continue arm of a control_flow: carry on with value.
-     * Defaults to std::monostate for computations that have nothing to carry (see try_for_each).
+     * Defaults to void for computations that have nothing to carry (see try_for_each).
      */
-    template<typename T = std::monostate>
+    template<typename T = void>
     struct cfcontinue {
         T value;
 
@@ -32,7 +35,10 @@ namespace dice::template_library {
     };
 
     template<>
-    struct cfcontinue<void>;
+    struct cfcontinue<void> {
+        bool operator==(cfcontinue const &other) const = default;
+        auto operator<=>(cfcontinue const &other) const = default;
+    };
 
 
     struct in_place_break_t {};
@@ -41,115 +47,97 @@ namespace dice::template_library {
     struct in_place_continue_t {};
     inline constexpr in_place_continue_t in_place_continue{};
 
-
-    namespace detail_control_flow {
-        template<typename B, typename C>
-        struct select_impl {
-            static constexpr size_t continue_index = 0;
-            static constexpr size_t break_index = 1;
-            using type = dice::template_library::variant<cfcontinue<C>, cfbreak<B>>;
-        };
-
-        template<typename B>
-        struct select_impl<B, void> {
-            static constexpr size_t break_index = 0;
-            using type = dice::template_library::variant<cfbreak<B>>;
-        };
-
-        template<typename C>
-        struct select_impl<void, C> {
-            static constexpr size_t continue_index = 0;
-            using type = dice::template_library::variant<cfcontinue<C>>;
-        };
-    } // namespace detail_control_flow
-
     /**
      * Rust like ControlFlow: holds either a cfbreak<B>, telling the caller to stop and propagate the break value,
      * or a cfcontinue<C>, telling it to carry on with the continue value. Used by the try_* range algorithms to
      * decide whether to keep iterating (see try_traits::branch).
      *
-     * Either arm may be void to express that it cannot occur, e.g. control_flow<E, void> can only ever break.
+     * Either arm may be void to express that there is no value. Similar to std::expected<void, E>.
      *
      * @tparam B break type, void if the computation cannot break
      * @tparam C continue type, void if the computation cannot continue
      */
-    template<typename B, typename C = std::monostate>
+    template<typename B, typename C = void>
     struct control_flow {
-        static constexpr bool has_break = !std::is_void_v<B>;
-        static constexpr bool has_continue = !std::is_void_v<C>;
-
     private:
         template<typename, typename>
         friend struct control_flow;
 
-        using select = detail_control_flow::select_impl<B, C>;
-        select::type data_;
+        static constexpr size_t continue_index = 0;
+        static constexpr size_t break_index = 1;
+
+        variant2<cfcontinue<C>, cfbreak<B>> data_;
 
     public:
-        control_flow() = delete;
+        constexpr control_flow() noexcept requires (std::is_void_v<C>) = default;
 
-        constexpr control_flow(cfcontinue<C> const &cont) requires (has_continue)
+        template<typename U = std::remove_cv_t<C>> requires (!std::is_void_v<C>)
+        explicit(!std::is_convertible_v<U, C>) constexpr control_flow(U &&cont)
+            : control_flow{in_place_continue, std::forward<U>(cont)} {
+        }
+
+        constexpr control_flow(cfcontinue<C> const &cont)
             : data_{cont} {
         }
-        constexpr control_flow(cfcontinue<C> &&cont) requires (has_continue)
+        constexpr control_flow(cfcontinue<C> &&cont)
             : data_{std::move(cont)} {
         }
 
-        constexpr control_flow(cfbreak<B> const &brk) requires (has_break)
+        constexpr control_flow(cfbreak<B> const &brk)
             : data_{brk} {
         }
-        constexpr control_flow(cfbreak<B> &&brk) requires (has_break)
+        constexpr control_flow(cfbreak<B> &&brk)
             : data_{std::move(brk)} {
         }
 
-        template<typename ...Args> requires (has_continue)
+        template<typename ...Args>
         explicit constexpr control_flow(in_place_continue_t, Args &&...args)
-            : data_{std::in_place_index<select::continue_index>, std::forward<Args>(args)...}
+            : data_{std::in_place_index<continue_index>, std::forward<Args>(args)...}
         {
         }
 
-        template<typename ...Args> requires (has_break)
+        template<typename ...Args>
         explicit constexpr control_flow(in_place_break_t, Args &&...args)
-            : data_{std::in_place_index<select::break_index>, std::forward<Args>(args)...}
+            : data_{std::in_place_index<break_index>, std::forward<Args>(args)...}
         {
         }
 
-        constexpr control_flow(control_flow<B, void> const &other) requires (has_break)
-            : control_flow{in_place_break, other.get_break()}
+        template<typename B2, typename C2> requires (std::is_convertible_v<B2, B> && std::is_convertible_v<C2, C>)
+        constexpr control_flow(control_flow<B2, C2> const &cf)
+            : data_{cf}
         {
         }
 
-        constexpr control_flow(control_flow<B, void> &&other) requires (has_break)
-            : control_flow{in_place_break, std::move(other).get_break()}
+        template<typename B2, typename C2> requires (std::is_convertible_v<B2, B> && std::is_convertible_v<C2, C>)
+        constexpr control_flow(control_flow<B2, C2> &&cf)
+            : data_{std::move(cf)}
         {
         }
 
-        constexpr control_flow(control_flow<void, C> const &other) requires (has_continue)
-            : control_flow{in_place_continue, other.get_continue()}
-        {
+        [[nodiscard]] constexpr bool is_continue() const noexcept {
+            return data_.index() == continue_index;
         }
 
-        constexpr control_flow(control_flow<void, C> &&other) requires (has_continue)
-            : control_flow{in_place_continue, std::move(other).get_continue()}
-        {
-        }
-
-        [[nodiscard]] constexpr bool is_continue() const noexcept requires (has_continue) {
-            return data_.index() == select::continue_index;
-        }
-
-        [[nodiscard]] constexpr bool is_break() const noexcept requires (has_break) {
-            return data_.index() == select::break_index;
+        [[nodiscard]] constexpr bool is_break() const noexcept {
+            return data_.index() == break_index;
         }
 
         template<typename Self>
-        [[nodiscard]] constexpr decltype(auto) get_continue(this Self &&self) requires (has_continue) {
-            return dice::template_library::forward_like<Self>(get<cfcontinue<C>>(self.data_).value);
+        [[nodiscard]] constexpr decltype(auto) get_continue(this Self &&self) {
+            if constexpr (std::is_void_v<C>) {
+                return;
+            } else {
+                return dice::template_library::forward_like<Self>(get<cfcontinue<C>>(self.data_).value);
+            }
         }
 
         template<typename Self>
-        [[nodiscard]] constexpr decltype(auto) get_break(this Self &&self) requires (has_break) {
-            return dice::template_library::forward_like<Self>(get<cfbreak<B>>(self.data_).value);
+        [[nodiscard]] constexpr decltype(auto) get_break(this Self &&self) {
+            if constexpr (std::is_void_v<B>) {
+                return;
+            } else {
+                return dice::template_library::forward_like<Self>(get<cfbreak<B>>(self.data_).value);
+            }
         }
 
         template<typename Self, typename F> requires (std::is_same_v<std::remove_cvref_t<Self>, control_flow>)

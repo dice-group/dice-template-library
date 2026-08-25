@@ -25,13 +25,19 @@ namespace dice::template_library {
          * any fixed type that could have been in the try_result before rebind
          */
         struct rebind_probe {};
+
+        template<typename From, typename To>
+        concept generalized_convertible_to = (std::is_void_v<From> && std::is_default_constructible_v<To>) || (!std::is_void_v<From> && std::is_convertible_v<From, To>);
+
+        static_assert(generalized_convertible_to<int, control_flow<int, double>>);
+        static_assert(generalized_convertible_to<void, control_flow<int, void>>);
     } // detail_try_traits
 
     /**
      * A type that can be used in try_* algorithms.
      */
     template<typename T>
-    concept try_result = requires (T self, typename try_traits<T>::output_type out) {
+    concept try_result = requires (T self) {
         /**
          * The non-error value produced by unwrapping an instance of self.
          * e.g. for optional<T> this is T
@@ -49,9 +55,9 @@ namespace dice::template_library {
         typename try_traits<T>::template rebind_output<detail_try_traits::rebind_probe>;
 
         /**
-         * Construct self from the output_type.
+         * output_type can be converted to self
          */
-        { try_traits<T>::from_output(std::move(out)) } -> std::same_as<T>;
+        requires detail_try_traits::generalized_convertible_to<typename try_traits<T>::output_type, T>;
 
         /**
          * Used to decide if a value is produced (cfcontinue) or a value should be propagated to the caller (cfbreak).
@@ -72,18 +78,14 @@ namespace dice::template_library {
      *      Without the constraint, instantiating try_traits for those would be a hard error instead of
      *      making them simply not satisfy try_result.
      */
-    template<typename B, typename C> requires (!std::is_void_v<B> && !std::is_void_v<C>)
+    template<typename B, typename C>
     struct try_traits<control_flow<B, C>> {
         using self_type = control_flow<B, C>;
         using output_type = C;
-        using residual_type = control_flow<B, void>;
+        using residual_type = cfbreak<B>;
 
         template<typename Out>
         using rebind_output = control_flow<B, Out>;
-
-        static constexpr self_type from_output(output_type out) {
-            return cfcontinue{std::move(out)};
-        }
 
         static constexpr control_flow<residual_type, output_type> branch(self_type self) {
             return match(std::move(self),
@@ -98,7 +100,6 @@ namespace dice::template_library {
     };
     static_assert(try_result<control_flow<int, int>>);
 
-
     template<typename T>
     struct try_traits<std::optional<T>> {
         using self_type = std::optional<T>;
@@ -107,10 +108,6 @@ namespace dice::template_library {
 
         template<typename Out>
         using rebind_output = std::optional<Out>;
-
-        static constexpr self_type from_output(output_type out) {
-            return self_type{std::move(out)};
-        }
 
         static constexpr control_flow<residual_type, output_type> branch(self_type self) {
             if (self.has_value()) {
@@ -133,13 +130,13 @@ namespace dice::template_library {
         template<typename Out>
         using rebind_output = std::expected<Out, E>;
 
-        static constexpr self_type from_output(output_type out) {
-            return self_type{std::in_place, std::move(out)};
-        }
-
         static constexpr control_flow<residual_type, output_type> branch(self_type self) {
             if (self.has_value()) {
-                return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
+                if constexpr (std::is_void_v<T>) {
+                    return control_flow<residual_type, output_type>{in_place_continue};
+                } else {
+                    return control_flow<residual_type, output_type>{in_place_continue, std::move(*self)};
+                }
             }
 
             return control_flow<residual_type, output_type>{in_place_break, std::unexpected{std::move(self.error())}};

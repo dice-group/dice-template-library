@@ -32,8 +32,8 @@ TEST_SUITE("try_result concept") {
 
     // a control_flow with a void arm has either no output_type or no representable residual_type,
     // so it cannot be a try_result (and must not be a hard error to ask)
-    static_assert(!dtl::try_result<dtl::control_flow<int, void>>);
-    static_assert(!dtl::try_result<dtl::control_flow<void, int>>);
+    static_assert(dtl::try_result<dtl::control_flow<int, void>>);
+    static_assert(dtl::try_result<dtl::control_flow<void, int>>);
 
     TEST_CASE("rebind_output") {
         static_assert(std::same_as<dtl::try_traits<std::optional<int>>::rebind_output<std::string>, std::optional<std::string>>);
@@ -54,7 +54,8 @@ TEST_SUITE("try_result concept") {
 
 TEST_SUITE("try_traits") {
     TEST_CASE("optional") {
-        using traits = dtl::try_traits<std::optional<int>>;
+        using opt = std::optional<int>;
+        using traits = dtl::try_traits<opt>;
 
         SUBCASE("branch continue") {
             auto res = traits::branch(std::optional<int>{42});
@@ -72,12 +73,14 @@ TEST_SUITE("try_traits") {
         }
 
         SUBCASE("from_output") {
-            CHECK_EQ(traits::from_output(42), std::optional<int>{42});
+            opt x = 42;
+            CHECK_EQ(x.value(), 42);
         }
     }
 
     TEST_CASE("control_flow") {
-        using traits = dtl::try_traits<dtl::control_flow<std::string, int>>;
+        using cf = dtl::control_flow<std::string, int>;
+        using traits = dtl::try_traits<cf>;
 
         SUBCASE("branch continue") {
             auto res = traits::branch(dtl::cfcontinue{42});
@@ -88,11 +91,11 @@ TEST_SUITE("try_traits") {
         SUBCASE("branch break") {
             auto res = traits::branch(dtl::cfbreak{std::string{"stop"}});
             REQUIRE(res.is_break());
-            CHECK_EQ(res.get_break().get_break(), "stop");
+            CHECK_EQ(res.get_break().value, "stop");
         }
 
         SUBCASE("from_output") {
-            auto cf = traits::from_output(42);
+            cf cf = 42;
             REQUIRE(cf.is_continue());
             CHECK_EQ(cf.get_continue(), 42);
         }
@@ -100,7 +103,8 @@ TEST_SUITE("try_traits") {
 
 #if __cpp_lib_expected >= 202202L
     TEST_CASE("expected") {
-        using traits = dtl::try_traits<std::expected<int, std::string>>;
+        using exp = std::expected<int, std::string>;
+        using traits = dtl::try_traits<exp>;
 
         SUBCASE("branch continue") {
             auto res = traits::branch(std::expected<int, std::string>{42});
@@ -115,7 +119,7 @@ TEST_SUITE("try_traits") {
         }
 
         SUBCASE("from_output") {
-            auto exp = traits::from_output(42);
+            exp exp = 42;
             REQUIRE(exp.has_value());
             CHECK_EQ(*exp, 42);
         }

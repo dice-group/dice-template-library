@@ -718,7 +718,7 @@ namespace dice::template_library {
                     init = std::move(ret).get_continue();
                 }
 
-                return {std::move(first), traits::from_output(std::move(init))};
+                return {std::move(first), std::move(init)};
             }
 
             template<std::ranges::input_range R, typename Acc, typename Pred>
@@ -783,13 +783,10 @@ namespace dice::template_library {
         template<typename Pred, typename I>
         using try_for_each_pred_result_t = std::invoke_result_t<Pred, std::iter_reference_t<I>>;
 
-        template<typename T>
-        concept try_for_each_output = is_zst_v<T> && std::is_default_constructible_v<T>;
-
         struct try_for_each_fn {
             template<std::input_iterator I, std::sentinel_for<I> S, typename Pred>
             requires (try_result<try_for_each_pred_result_t<Pred, I>>
-                      && try_for_each_output<typename try_traits<try_for_each_pred_result_t<Pred, I>>::output_type>)
+                      && std::is_void_v<typename try_traits<try_for_each_pred_result_t<Pred, I>>::output_type>)
             [[nodiscard]] constexpr try_for_each_result<I, try_for_each_pred_result_t<Pred, I>, Pred> operator()(I first, S last, Pred pred) const {
                 using ret_type = try_for_each_pred_result_t<Pred, I>;
                 using traits = try_traits<ret_type>;
@@ -801,12 +798,12 @@ namespace dice::template_library {
                     }
                 }
 
-                return {std::move(first), traits::from_output(typename traits::output_type{}), std::move(pred)};
+                return {std::move(first), {}, std::move(pred)};
             }
 
             template<std::ranges::input_range R, typename Pred>
             requires (try_result<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>
-                      && try_for_each_output<typename try_traits<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>::output_type>)
+                      && std::is_void_v<typename try_traits<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>::output_type>)
             [[nodiscard]] constexpr try_for_each_result<std::ranges::borrowed_iterator_t<R>, try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>, Pred> operator()(R &&range, Pred pred) const {
                 return try_for_each_fn{}(std::ranges::begin(range), std::ranges::end(range), std::move(pred));
             }
@@ -818,8 +815,8 @@ namespace dice::template_library {
      * (i.e. a nullopt, an unexpected or a cfbreak) and propagating it.
      * This can be thought of as the fallible form of std::ranges::for_each.
      *
-     * pred's try-type must have a unit-like (ZST) output type, e.g. std::optional<std::monostate> or
-     * control_flow<E>, as there is nothing meaningful to return for a fully iterated range.
+     * pred's try-type must have a void output type, e.g. control_flow<B> or std::expected<void, E>,
+     * as there is nothing meaningful to return for a fully iterated range.
      *
      * @param range or first+last range to iterate over
      * @param pred fallible unary function applied to each element
@@ -872,7 +869,7 @@ namespace dice::template_library {
                 using acc_type = traits::output_type;
 
                 if (first == last) {
-                    return {std::move(first), result_traits::from_output(std::nullopt)};
+                    return {std::move(first), typename result_traits::output_type{std::nullopt}};
                 }
 
                 acc_type init = *first;
@@ -885,7 +882,7 @@ namespace dice::template_library {
                     return {std::move(new_first), std::move(ret).get_break()};
                 }
 
-                return {std::move(new_first), result_traits::from_output(std::move(ret).get_continue())};
+                return {std::move(new_first), std::move(ret).get_continue()};
             }
 
             template<std::ranges::input_range R, typename Pred>

@@ -848,30 +848,30 @@ TEST_SUITE("try_for_each") {
             SUBCASE("continue") {
                 std::vector<int> seen;
 
-                auto res = dtl::try_for_each(ints, [&seen](int elem) -> std::optional<std::monostate> {
+                auto res = dtl::try_for_each(ints, [&seen](int elem) -> dtl::control_flow<void> {
                     seen.push_back(elem);
-                    return std::monostate{};
+                    return dtl::cfcontinue<>{};
                 });
 
                 CHECK_EQ(res.in, ints.end());
-                CHECK_NE(res.value, std::nullopt);
+                CHECK_EQ(res.value, dtl::cfcontinue<>{});
                 CHECK_EQ(seen, std::vector{1, 2, 3, 4, 5});
             }
 
             SUBCASE("break") {
                 std::vector<int> seen;
 
-                auto res = dtl::try_for_each(ints, [&seen](int elem) -> std::optional<std::monostate> {
+                auto res = dtl::try_for_each(ints, [&seen](int elem) -> dtl::control_flow<void> {
                     if (elem == 3) {
-                        return std::nullopt;
+                        return dtl::cfbreak<void>{};
                     }
 
                     seen.push_back(elem);
-                    return std::monostate{};
+                    return dtl::cfcontinue<>{};
                 });
 
                 CHECK_EQ(res.in, ints.begin() + 2);
-                CHECK_EQ(res.value, std::nullopt);
+                CHECK_EQ(res.value, dtl::cfbreak<void>{});
                 CHECK_EQ(seen, std::vector{1, 2});
             }
         }
@@ -879,7 +879,7 @@ TEST_SUITE("try_for_each") {
         SUBCASE("control_flow") {
             SUBCASE("continue") {
                 auto res = dtl::try_for_each(ints, [](int) -> dtl::control_flow<std::string> {
-                    return dtl::cfcontinue{std::monostate{}};
+                    return dtl::cfcontinue<>{};
                 });
 
                 CHECK_EQ(res.in, ints.end());
@@ -892,7 +892,7 @@ TEST_SUITE("try_for_each") {
                         return dtl::cfbreak{std::string{"hit 4"}};
                     }
 
-                    return dtl::cfcontinue{std::monostate{}};
+                    return dtl::cfcontinue<>{};
                 });
 
                 CHECK_EQ(res.in, ints.begin() + 3);
@@ -906,9 +906,9 @@ TEST_SUITE("try_for_each") {
             SUBCASE("continue") {
                 int sum = 0;
 
-                auto res = dtl::try_for_each(ints, [&sum](int elem) -> std::expected<std::monostate, std::string> {
+                auto res = dtl::try_for_each(ints, [&sum](int elem) -> std::expected<void, std::string> {
                     sum += elem;
-                    return std::monostate{};
+                    return {};
                 });
 
                 CHECK_EQ(res.in, ints.end());
@@ -917,12 +917,12 @@ TEST_SUITE("try_for_each") {
             }
 
             SUBCASE("break") {
-                auto res = dtl::try_for_each(ints, [](int elem) -> std::expected<std::monostate, std::string> {
+                auto res = dtl::try_for_each(ints, [](int elem) -> std::expected<void, std::string> {
                     if (elem == 3) {
                         return std::unexpected{"hit 3"};
                     }
 
-                    return std::monostate{};
+                    return {};
                 });
 
                 CHECK_EQ(res.in, ints.begin() + 2);
@@ -937,13 +937,13 @@ TEST_SUITE("try_for_each") {
         std::array<int, 0> no_ints{};
 
         SUBCASE("optional") {
-            auto res = dtl::try_for_each(no_ints, [](int) -> std::optional<std::monostate> {
+            auto res = dtl::try_for_each(no_ints, [](int) -> dtl::control_flow<void> {
                 FAIL("pred must not be called for an empty range");
-                return std::nullopt;
+                return dtl::cfbreak<void>{};
             });
 
             CHECK_EQ(res.in, no_ints.end());
-            CHECK_NE(res.value, std::nullopt);
+            CHECK_EQ(res.value, dtl::cfcontinue<>{});
         }
 
         SUBCASE("control_flow") {
@@ -961,13 +961,13 @@ TEST_SUITE("try_for_each") {
         std::list<int> ints{1, 2, 3, 4, 5};
         int sum = 0;
 
-        auto res = dtl::try_for_each(ints.begin(), ints.end(), [&sum](int elem) -> std::optional<std::monostate> {
+        auto res = dtl::try_for_each(ints.begin(), ints.end(), [&sum](int elem) -> dtl::control_flow<void> {
             sum += elem;
-            return std::monostate{};
+            return dtl::cfcontinue<>{};
         });
 
         CHECK_EQ(res.in, ints.end());
-        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
         CHECK_EQ(sum, 15);
     }
 
@@ -975,9 +975,9 @@ TEST_SUITE("try_for_each") {
         struct summer {
             int sum = 0;
 
-            std::optional<std::monostate> operator()(int elem) {
+            dtl::control_flow<void> operator()(int elem) {
                 sum += elem;
-                return std::monostate{};
+                return dtl::cfcontinue<>{};
             }
         };
 
@@ -985,33 +985,33 @@ TEST_SUITE("try_for_each") {
 
         auto res = dtl::try_for_each(ints, summer{});
 
-        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
         CHECK_EQ(res.fun.sum, 15);
     }
 
     TEST_CASE("rvalue range yields a dangling iterator") {
         int sum = 0;
 
-        auto res = dtl::try_for_each(std::vector{1, 2, 3, 4, 5}, [&sum](int elem) -> std::optional<std::monostate> {
+        auto res = dtl::try_for_each(std::vector{1, 2, 3, 4, 5}, [&sum](int elem) -> dtl::control_flow<void> {
             sum += elem;
-            return std::monostate{};
+            return dtl::cfcontinue<>{};
         });
 
         static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
-        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
         CHECK_EQ(sum, 15);
     }
 
     TEST_CASE("elements are passed by reference") {
         std::array ints{1, 2, 3};
 
-        auto res = dtl::try_for_each(ints, [](int &elem) -> std::optional<std::monostate> {
+        auto res = dtl::try_for_each(ints, [](int &elem) -> dtl::control_flow<void> {
             elem *= 2;
-            return std::monostate{};
+            return dtl::cfcontinue<>{};
         });
 
         CHECK_EQ(res.in, ints.end());
-        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
         CHECK_EQ(ints, std::array{2, 4, 6});
     }
 
@@ -1022,13 +1022,13 @@ TEST_SUITE("try_for_each") {
         ptrs.push_back(std::make_unique<int>(3));
 
         int sum = 0;
-        auto res = dtl::try_for_each(ptrs, [&sum](std::unique_ptr<int> const &ptr) -> std::optional<std::monostate> {
+        auto res = dtl::try_for_each(ptrs, [&sum](std::unique_ptr<int> const &ptr) -> dtl::control_flow<void> {
             sum += *ptr;
-            return std::monostate{};
+            return dtl::cfcontinue<>{};
         });
 
         CHECK_EQ(res.in, ptrs.end());
-        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
         CHECK_EQ(sum, 6);
     }
 
@@ -1037,13 +1037,13 @@ TEST_SUITE("try_for_each") {
         auto view = std::views::istream<int>(ints);
 
         int sum = 0;
-        auto res = dtl::try_for_each(view, [&sum](int elem) -> std::optional<std::monostate> {
+        auto res = dtl::try_for_each(view, [&sum](int elem) -> dtl::control_flow<void> {
             sum += elem;
-            return std::monostate{};
+            return dtl::cfcontinue<>{};
         });
 
         CHECK(res.in == std::default_sentinel);
-        CHECK_NE(res.value, std::nullopt);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
         CHECK_EQ(sum, 15);
     }
 }
@@ -1131,6 +1131,18 @@ TEST_SUITE("try_fold_left_first") {
                 CHECK_EQ(res.in, no_ints.end());
                 CHECK_EQ(res.value.get_continue(), std::nullopt);
             }
+
+            SUBCASE("single element is never passed to pred") {
+                std::array single{42};
+                auto res = dtl::try_fold_left_first(single, [](int, int) -> dtl::control_flow<int, int> {
+                    FAIL("pred must not be called for a single element range");
+                    return dtl::cfbreak{0};
+                });
+
+                CHECK_EQ(res.in, single.end());
+                REQUIRE(res.value.is_continue());
+                CHECK_EQ(res.value.get_continue(), std::optional<int>{42});
+            }
         }
 
 #if __cpp_lib_expected >= 202202L
@@ -1168,6 +1180,18 @@ TEST_SUITE("try_fold_left_first") {
                 CHECK_EQ(res.in, no_ints.end());
                 REQUIRE(res.value.has_value());
                 CHECK_EQ(*res.value, std::nullopt);
+            }
+
+            SUBCASE("single element is never passed to pred") {
+                std::array single{42};
+                auto res = dtl::try_fold_left_first(single.begin(), single.end(), [](int, int) -> std::expected<int, std::string> {
+                    FAIL("pred must not be called for a single element range");
+                    return std::unexpected{"unreachable"};
+                });
+
+                CHECK_EQ(res.in, single.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, std::optional<int>{42});
             }
         }
 #endif // __cpp_lib_expected >= 202202L

@@ -31,7 +31,7 @@ TEST_SUITE("cfbreak and cfcontinue") {
         static_assert(std::same_as<decltype(dtl::cfcontinue{42}), dtl::cfcontinue<int>>);
 
         // cfcontinue defaults to monostate for computations that have nothing to carry
-        static_assert(std::same_as<dtl::cfcontinue<>, dtl::cfcontinue<std::monostate>>);
+        static_assert(std::same_as<dtl::cfcontinue<>, dtl::cfcontinue<void>>);
 
         CHECK_EQ(dtl::cfbreak{42}.value, 42);
         CHECK_EQ(dtl::cfcontinue{42}.value, 42);
@@ -53,12 +53,10 @@ TEST_SUITE("cfbreak and cfcontinue") {
 TEST_SUITE("control_flow") {
     using cf_int = dtl::control_flow<std::string, int>;
 
-    static_assert(cf_int::has_break);
-    static_assert(cf_int::has_continue);
     static_assert(!std::is_default_constructible_v<cf_int>);
 
-    // control_flow defaults its continue type to monostate
-    static_assert(std::same_as<dtl::control_flow<int>, dtl::control_flow<int, std::monostate>>);
+    // control_flow defaults its continue type void
+    static_assert(std::same_as<dtl::control_flow<int>, dtl::control_flow<int, void>>);
 
     TEST_CASE("construction from an arm") {
         SUBCASE("continue") {
@@ -154,46 +152,14 @@ TEST_SUITE("control_flow") {
         CHECK_EQ(cf_int{dtl::cfbreak{std::string{"stop"}}}, cf_int{dtl::cfbreak{std::string{"stop"}}});
     }
 
-    TEST_CASE("void arms") {
-        using break_only = dtl::control_flow<std::string, void>;
-        using continue_only = dtl::control_flow<void, int>;
-
-        static_assert(break_only::has_break);
-        static_assert(!break_only::has_continue);
-        static_assert(!continue_only::has_break);
-        static_assert(continue_only::has_continue);
-
-        static_assert(!has_is_continue<break_only>);
-        static_assert(!has_get_continue<break_only>);
-        static_assert(has_is_break<break_only>);
-        static_assert(has_get_break<break_only>);
-
-        static_assert(!has_is_break<continue_only>);
-        static_assert(!has_get_break<continue_only>);
-        static_assert(has_is_continue<continue_only>);
-        static_assert(has_get_continue<continue_only>);
-
-        SUBCASE("break only") {
-            break_only const cf{dtl::cfbreak{std::string{"stop"}}};
-            REQUIRE(cf.is_break());
-            CHECK_EQ(cf.get_break(), "stop");
-        }
-
-        SUBCASE("continue only") {
-            continue_only const cf{dtl::cfcontinue{42}};
-            REQUIRE(cf.is_continue());
-            CHECK_EQ(cf.get_continue(), 42);
-        }
-    }
-
     TEST_CASE("conversion from a single armed control_flow") {
         SUBCASE("break only") {
-            dtl::control_flow<std::string, void> const residual{dtl::cfbreak{std::string{"stop"}}};
+            dtl::cfbreak<std::string> const residual{dtl::cfbreak{std::string{"stop"}}};
 
             cf_int const cf = residual;
             REQUIRE(cf.is_break());
             CHECK_EQ(cf.get_break(), "stop");
-            CHECK_EQ(residual.get_break(), "stop"); // copied, not moved
+            CHECK_EQ(residual.value, "stop"); // copied, not moved
 
             // the whole point of the conversion: a residual works for any continue type
             dtl::control_flow<std::string, double> const other = residual;
@@ -202,21 +168,13 @@ TEST_SUITE("control_flow") {
         }
 
         SUBCASE("break only, moved") {
-            dtl::control_flow<std::unique_ptr<int>, void> residual{dtl::cfbreak{std::make_unique<int>(42)}};
+            dtl::cfbreak<std::unique_ptr<int>> residual{dtl::cfbreak{std::make_unique<int>(42)}};
 
             dtl::control_flow<std::unique_ptr<int>, std::string> const cf = std::move(residual);
             REQUIRE(cf.is_break());
             REQUIRE_NE(cf.get_break(), nullptr);
             CHECK_EQ(*cf.get_break(), 42);
-            CHECK_EQ(residual.get_break(), nullptr); // moved from
-        }
-
-        SUBCASE("continue only") {
-            dtl::control_flow<void, int> const cont{dtl::cfcontinue{42}};
-
-            cf_int const cf = cont;
-            REQUIRE(cf.is_continue());
-            CHECK_EQ(cf.get_continue(), 42);
+            CHECK_EQ(residual.value, nullptr); // moved from
         }
     }
 }
