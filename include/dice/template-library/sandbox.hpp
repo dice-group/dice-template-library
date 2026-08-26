@@ -29,6 +29,8 @@ namespace dice::template_library {
         FloatingPointException = SIGFPE,
         SegmentationFault = SIGSEGV,
         Terminated = SIGTERM,
+        Quit = SIGQUIT,
+        Killed = SIGKILL,
     };
 
     namespace detail_sandbox {
