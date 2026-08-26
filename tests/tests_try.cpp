@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -176,6 +177,18 @@ namespace {
 
     std::optional<counter> make_counted(int value) {
         return counter{value};
+    }
+
+    // long enough to be heap allocated, so that the sanitizers notice a use after free
+    constexpr std::string_view long_string = "a string that is too long for the small string optimization";
+
+    /**
+     * the vector is a temporary, so make_optionals()[i] is a reference into it and dangles
+     * at the end of the full expression. The try macros must therefore not bind a reference
+     * to their argument, otherwise they inspect the try_result after it was destroyed.
+     */
+    std::vector<std::optional<std::string>> make_optionals() {
+        return {std::optional<std::string>{long_string}, std::nullopt};
     }
 
     // free function (not a lambda) to make sure DICE_TRY returns from plain functions as well
@@ -562,6 +575,26 @@ TEST_SUITE("DICE_TRY") {
             CHECK_EQ(counter::copies, 0);
         }
     }
+
+    TEST_CASE("an expression referring into a temporary does not dangle") {
+        SUBCASE("output") {
+            auto const f = [] -> std::optional<std::size_t> {
+                auto const s = DICE_TRY(make_optionals()[0]);
+                return s.size();
+            };
+
+            CHECK_EQ(f(), long_string.size());
+        }
+
+        SUBCASE("residual") {
+            auto const f = [] -> std::optional<std::size_t> {
+                auto const s = DICE_TRY(make_optionals()[1]);
+                return s.size();
+            };
+
+            CHECK_EQ(f(), std::nullopt);
+        }
+    }
 }
 
 // note: DICE_TRY_ASSIGN and DICE_TRY_DISCARD dispatch through the same try_traits calls as
@@ -617,6 +650,27 @@ TEST_SUITE("DICE_TRY_ASSIGN") {
             };
 
             CHECK_EQ(f(), 3);
+        }
+    }
+
+    // each macro stores the expression in its own local, so each of them needs its own check
+    TEST_CASE("an expression referring into a temporary does not dangle") {
+        SUBCASE("output") {
+            auto const f = [] -> std::optional<std::size_t> {
+                DICE_TRY_ASSIGN(s, make_optionals()[0]);
+                return s.size();
+            };
+
+            CHECK_EQ(f(), long_string.size());
+        }
+
+        SUBCASE("residual") {
+            auto const f = [] -> std::optional<std::size_t> {
+                DICE_TRY_ASSIGN(s, make_optionals()[1]);
+                return s.size();
+            };
+
+            CHECK_EQ(f(), std::nullopt);
         }
     }
 }
@@ -680,6 +734,26 @@ TEST_SUITE("DICE_TRY_DISCARD") {
             auto const res = f();
             REQUIRE(res.is_continue());
             CHECK_EQ(res.get_continue(), 1);
+        }
+    }
+
+    TEST_CASE("an expression referring into a temporary does not dangle") {
+        SUBCASE("output") {
+            auto const f = [] -> std::optional<std::string> {
+                DICE_TRY_DISCARD(make_optionals()[0]);
+                return "done";
+            };
+
+            CHECK_EQ(f(), "done");
+        }
+
+        SUBCASE("residual") {
+            auto const f = [] -> std::optional<std::string> {
+                DICE_TRY_DISCARD(make_optionals()[1]);
+                return "done";
+            };
+
+            CHECK_EQ(f(), std::nullopt);
         }
     }
 }

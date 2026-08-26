@@ -2,8 +2,6 @@
 #define DICE_TEMPLATELIBRARY_TRYTRAITS_HPP
 
 #include <dice/template-library/control_flow.hpp>
-#include <dice/template-library/overloaded.hpp>
-#include <dice/template-library/type_traits.hpp>
 
 #include <concepts>
 #include <optional>
@@ -161,7 +159,7 @@ namespace dice::template_library {
         }
 
         static constexpr residual_type get_residual(self_type self) {
-            return std::unexpected<E>{std::move(self).error()};
+            return residual_type{std::move(self).error()};
         }
     };
     static_assert(try_result<std::expected<int, int>>);
@@ -193,17 +191,17 @@ namespace dice::template_library {
  */
 #define DICE_TRY(...)                                                                                 \
     ({                                                                                                \
-        decltype(auto) _dice_try_expr = (__VA_ARGS__);                                                \
+        auto _dice_try_expr = (__VA_ARGS__);                                                          \
         using _dice_try_expr_type = std::remove_cvref_t<decltype(_dice_try_expr)>;                    \
         static_assert(::dice::template_library::try_result<_dice_try_expr_type>,                      \
                       "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)"); \
         using _dice_try_traits = ::dice::template_library::try_traits<_dice_try_expr_type>;           \
                                                                                                       \
         if (!_dice_try_traits::has_output(_dice_try_expr)) {                                          \
-            return _dice_try_traits::get_residual(DICE_MOVE_IF_VALUE(_dice_try_expr));                \
+            return _dice_try_traits::get_residual(std::move(_dice_try_expr));                         \
         }                                                                                             \
                                                                                                       \
-        _dice_try_traits::get_output(DICE_MOVE_IF_VALUE(_dice_try_expr));                             \
+        _dice_try_traits::get_output(std::move(_dice_try_expr));                                      \
     })
 
 #else // defined(__GNUC__) || defined(__clang__)
@@ -230,14 +228,14 @@ namespace dice::template_library {
  */
 #define DICE_TRY_DISCARD(...)                                                                         \
     do {                                                                                              \
-        decltype(auto) _dice_try_expr = (__VA_ARGS__);                                                \
+        auto _dice_try_expr = (__VA_ARGS__);                                                          \
         using _dice_try_expr_type = std::remove_cvref_t<decltype(_dice_try_expr)>;                    \
         static_assert(::dice::template_library::try_result<_dice_try_expr_type>,                      \
                       "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)"); \
         using _dice_try_traits = ::dice::template_library::try_traits<_dice_try_expr_type>;           \
                                                                                                       \
         if (!_dice_try_traits::has_output(_dice_try_expr)) {                                          \
-            return _dice_try_traits::get_residual(DICE_MOVE_IF_VALUE(_dice_try_expr));                \
+            return _dice_try_traits::get_residual(std::move(_dice_try_expr));                         \
         }                                                                                             \
                                                                                                       \
         (void) _dice_try_expr;                                                                        \
@@ -252,18 +250,18 @@ namespace dice::template_library {
  * @endcode
  * is equivalent to
  * @code
- * decltype(auto) var = DICE_TRY(expr)
+ * auto var = DICE_TRY(expr)
  * @endcode
  */
 #define DICE_TRY_ASSIGN(var, ...)                                                                                             \
-    decltype(auto) _dice_try_expr_##var = (__VA_ARGS__);                                                                      \
+    auto _dice_try_expr_##var = (__VA_ARGS__);                                                                                \
     static_assert(::dice::template_library::try_result<std::remove_cvref_t<decltype(_dice_try_expr_##var)>>,                  \
                   "The expression passed to DICE_TRY must be a try_result (e.g. std::optional)");                             \
     using _dice_try_traits_##var = ::dice::template_library::try_traits<std::remove_cvref_t<decltype(_dice_try_expr_##var)>>; \
                                                                                                                               \
     if (!_dice_try_traits_##var::has_output(_dice_try_expr_##var)) {                                                          \
-        return _dice_try_traits_##var::get_residual(DICE_MOVE_IF_VALUE(_dice_try_expr_##var));                                \
+        return _dice_try_traits_##var::get_residual(std::move(_dice_try_expr_##var));                                         \
     }                                                                                                                         \
-    decltype(auto) var = _dice_try_traits_##var::get_output(DICE_MOVE_IF_VALUE(_dice_try_expr_##var))
+    auto var = _dice_try_traits_##var::get_output(std::move(_dice_try_expr_##var))
 
 #endif // DICE_TEMPLATELIBRARY_TRYTRAITS_HPP
