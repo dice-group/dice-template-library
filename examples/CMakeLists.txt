@@ -218,3 +218,10 @@ target_link_libraries(example_ipow
         dice-template-library::dice-template-library
 )
 
+add_executable(example_try
+        example_try.cpp)
+target_link_libraries(example_try
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
