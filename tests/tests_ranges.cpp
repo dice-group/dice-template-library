@@ -8,9 +8,12 @@
 #include <cmath>
 #include <iterator>
 #include <list>
+#include <memory>
+#include <optional>
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace dtl = dice::template_library;
@@ -583,5 +586,635 @@ TEST_SUITE("lexicographical_compare_three_way") {
         CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), cmp), std::strong_ordering::greater);
         CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), cmp, proj1), std::strong_ordering::equal);
         CHECK_EQ(dtl::lexicographical_compare_three_way(s1.begin(), s1.end(), s2.begin(), s2.end(), cmp, proj1, proj2), std::strong_ordering::less);
+    }
+}
+
+TEST_SUITE("try_fold_left") {
+    TEST_CASE("sanity check") {
+        std::array ints{1, 2, 3, 4, 5};
+
+        SUBCASE("optional") {
+            SUBCASE("continue") {
+                auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> std::optional<int> {
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value, 15);
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> std::optional<int> {
+                    if (acc > 5) {
+                        return std::nullopt;
+                    }
+
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value, std::nullopt);
+            }
+        }
+
+        SUBCASE("control_flow") {
+            SUBCASE("continue") {
+                auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> dtl::control_flow<int, int> {
+                    return dtl::cfcontinue{acc + elem};
+                });
+
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value.get_continue(), 15);
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> dtl::control_flow<int, int> {
+                    if (acc > 5) {
+                        return dtl::cfbreak{acc};
+                    }
+
+                    return dtl::cfcontinue{acc + elem};
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value.get_break(), 6);
+            }
+        }
+
+#if __cpp_lib_expected >= 202202L
+        SUBCASE("expected") {
+            SUBCASE("continue") {
+                auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> std::expected<int, std::string> {
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, ints.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, 15);
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> std::expected<int, std::string> {
+                    if (acc > 5) {
+                        return std::unexpected{"acc too large"};
+                    }
+
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                REQUIRE_FALSE(res.value.has_value());
+                CHECK_EQ(res.value.error(), "acc too large");
+            }
+        }
+#endif // __cpp_lib_expected >= 202202L
+    }
+
+    TEST_CASE("empty range") {
+        std::array<int, 0> no_ints{};
+
+        SUBCASE("optional") {
+            auto res = dtl::try_fold_left(no_ints, 42, [](int acc, int elem) -> std::optional<int> {
+                return acc + elem;
+            });
+
+            CHECK_EQ(res.in, no_ints.end());
+            CHECK_EQ(res.value, 42);
+        }
+
+        SUBCASE("control_flow") {
+            auto res = dtl::try_fold_left(no_ints, 42, [](int acc, int elem) -> dtl::control_flow<int, int> {
+                return dtl::cfcontinue{acc + elem};
+            });
+
+            CHECK_EQ(res.in, no_ints.end());
+            REQUIRE(res.value.is_continue());
+            CHECK_EQ(res.value.get_continue(), 42);
+        }
+
+#if __cpp_lib_expected >= 202202L
+        SUBCASE("expected") {
+            auto res = dtl::try_fold_left(no_ints, 42, [](int acc, int elem) -> std::expected<int, std::string> {
+                return acc + elem;
+            });
+
+            CHECK_EQ(res.in, no_ints.end());
+            REQUIRE(res.value.has_value());
+            CHECK_EQ(*res.value, 42);
+        }
+#endif // __cpp_lib_expected >= 202202L
+    }
+
+    TEST_CASE("iterator and sentinel overload") {
+        std::list<int> ints{1, 2, 3, 4, 5};
+
+        auto res = dtl::try_fold_left(ints.begin(), ints.end(), 0, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        CHECK_EQ(res.in, ints.end());
+        CHECK_EQ(res.value, 15);
+    }
+
+    TEST_CASE("rvalue range yields a dangling iterator") {
+        auto res = dtl::try_fold_left(std::vector{1, 2, 3, 4, 5}, 0, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
+        CHECK_EQ(res.value, 15);
+    }
+
+    TEST_CASE("pred is not invoked after a break") {
+        std::array ints{1, 2, 3, 4, 5};
+        size_t calls = 0;
+
+        auto res = dtl::try_fold_left(ints, 0, [&calls](int acc, int elem) -> std::optional<int> {
+            ++calls;
+            if (elem == 3) {
+                return std::nullopt;
+            }
+
+            return acc + elem;
+        });
+
+        CHECK_EQ(res.in, ints.begin() + 2);
+        CHECK_EQ(res.value, std::nullopt);
+        CHECK_EQ(calls, 3);
+    }
+
+    TEST_CASE("accumulator type independent of element type") {
+        std::array ints{1, 2, 3, 4, 5};
+
+        SUBCASE("continue") {
+            auto res = dtl::try_fold_left(ints, std::string{}, [](std::string acc, int elem) -> std::optional<std::string> {
+                return acc + std::to_string(elem);
+            });
+
+            CHECK_EQ(res.in, ints.end());
+            CHECK_EQ(res.value, "12345");
+        }
+
+        SUBCASE("break") {
+            auto res = dtl::try_fold_left(ints, std::string{}, [](std::string acc, int elem) -> std::optional<std::string> {
+                if (acc.size() >= 3) {
+                    return std::nullopt;
+                }
+
+                return acc + std::to_string(elem);
+            });
+
+            CHECK_EQ(res.in, ints.begin() + 3);
+            CHECK_EQ(res.value, std::nullopt);
+        }
+    }
+
+    TEST_CASE("elements are passed by reference") {
+        std::array ints{1, 2, 3};
+
+        auto res = dtl::try_fold_left(ints, 0, [](int acc, int &elem) -> std::optional<int> {
+            elem *= 2;
+            return acc + elem;
+        });
+
+        CHECK_EQ(res.in, ints.end());
+        CHECK_EQ(res.value, 12);
+        CHECK_EQ(ints, std::array{2, 4, 6});
+    }
+
+    TEST_CASE("move only accumulator") {
+        std::array ints{1, 2, 3, 4, 5};
+
+        SUBCASE("continue") {
+            auto res = dtl::try_fold_left(ints, std::make_unique<int>(0), [](std::unique_ptr<int> acc, int elem) -> std::optional<std::unique_ptr<int>> {
+                *acc += elem;
+                return std::move(acc);
+            });
+
+            CHECK_EQ(res.in, ints.end());
+            REQUIRE(res.value.has_value());
+            CHECK_EQ(**res.value, 15);
+        }
+
+        SUBCASE("break") {
+            auto res = dtl::try_fold_left(ints, std::make_unique<int>(0), [](std::unique_ptr<int> acc, int elem) -> std::optional<std::unique_ptr<int>> {
+                if (*acc > 5) {
+                    return std::nullopt;
+                }
+
+                *acc += elem;
+                return std::move(acc);
+            });
+
+            CHECK_EQ(res.in, ints.begin() + 3);
+            CHECK_EQ(res.value, std::nullopt);
+        }
+    }
+
+    TEST_CASE("break and continue type may differ") {
+        std::array ints{1, 2, 3, 4, 5};
+
+        auto res = dtl::try_fold_left(ints, 0, [](int acc, int elem) -> dtl::control_flow<std::string, int> {
+            if (elem == 4) {
+                return dtl::cfbreak{std::string{"hit 4"}};
+            }
+
+            return dtl::cfcontinue{acc + elem};
+        });
+
+        CHECK_EQ(res.in, ints.begin() + 3);
+        REQUIRE(res.value.is_break());
+        CHECK_EQ(res.value.get_break(), "hit 4");
+    }
+
+    TEST_CASE("input only range") {
+        std::istringstream ints{"1 2 3 4 5"};
+        auto view = std::views::istream<int>(ints);
+
+        auto res = dtl::try_fold_left(view, 0, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        CHECK(res.in == std::default_sentinel);
+        CHECK_EQ(res.value, 15);
+    }
+}
+
+TEST_SUITE("try_for_each") {
+    TEST_CASE("sanity check") {
+        std::array ints{1, 2, 3, 4, 5};
+
+        SUBCASE("optional") {
+            SUBCASE("continue") {
+                std::vector<int> seen;
+
+                auto res = dtl::try_for_each(ints, [&seen](int elem) -> dtl::control_flow<void> {
+                    seen.push_back(elem);
+                    return dtl::cfcontinue<>{};
+                });
+
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value, dtl::cfcontinue<>{});
+                CHECK_EQ(seen, std::vector{1, 2, 3, 4, 5});
+            }
+
+            SUBCASE("break") {
+                std::vector<int> seen;
+
+                auto res = dtl::try_for_each(ints, [&seen](int elem) -> dtl::control_flow<void> {
+                    if (elem == 3) {
+                        return dtl::cfbreak<void>{};
+                    }
+
+                    seen.push_back(elem);
+                    return dtl::cfcontinue<>{};
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 2);
+                CHECK_EQ(res.value, dtl::cfbreak<void>{});
+                CHECK_EQ(seen, std::vector{1, 2});
+            }
+        }
+
+        SUBCASE("control_flow") {
+            SUBCASE("continue") {
+                auto res = dtl::try_for_each(ints, [](int) -> dtl::control_flow<std::string> {
+                    return dtl::cfcontinue<>{};
+                });
+
+                CHECK_EQ(res.in, ints.end());
+                CHECK(res.value.is_continue());
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_for_each(ints, [](int elem) -> dtl::control_flow<std::string> {
+                    if (elem == 4) {
+                        return dtl::cfbreak{std::string{"hit 4"}};
+                    }
+
+                    return dtl::cfcontinue<>{};
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                REQUIRE(res.value.is_break());
+                CHECK_EQ(res.value.get_break(), "hit 4");
+            }
+        }
+
+#if __cpp_lib_expected >= 202202L
+        SUBCASE("expected") {
+            SUBCASE("continue") {
+                int sum = 0;
+
+                auto res = dtl::try_for_each(ints, [&sum](int elem) -> std::expected<void, std::string> {
+                    sum += elem;
+                    return {};
+                });
+
+                CHECK_EQ(res.in, ints.end());
+                CHECK(res.value.has_value());
+                CHECK_EQ(sum, 15);
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_for_each(ints, [](int elem) -> std::expected<void, std::string> {
+                    if (elem == 3) {
+                        return std::unexpected{"hit 3"};
+                    }
+
+                    return {};
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 2);
+                REQUIRE_FALSE(res.value.has_value());
+                CHECK_EQ(res.value.error(), "hit 3");
+            }
+        }
+#endif // __cpp_lib_expected >= 202202L
+    }
+
+    TEST_CASE("empty range") {
+        std::array<int, 0> no_ints{};
+
+        SUBCASE("optional") {
+            auto res = dtl::try_for_each(no_ints, [](int) -> dtl::control_flow<void> {
+                FAIL("pred must not be called for an empty range");
+                return dtl::cfbreak<void>{};
+            });
+
+            CHECK_EQ(res.in, no_ints.end());
+            CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        }
+
+        SUBCASE("control_flow") {
+            auto res = dtl::try_for_each(no_ints, [](int) -> dtl::control_flow<std::string> {
+                FAIL("pred must not be called for an empty range");
+                return dtl::cfbreak{std::string{}};
+            });
+
+            CHECK_EQ(res.in, no_ints.end());
+            CHECK(res.value.is_continue());
+        }
+    }
+
+    TEST_CASE("iterator and sentinel overload") {
+        std::list<int> ints{1, 2, 3, 4, 5};
+        int sum = 0;
+
+        auto res = dtl::try_for_each(ints.begin(), ints.end(), [&sum](int elem) -> dtl::control_flow<void> {
+            sum += elem;
+            return dtl::cfcontinue<>{};
+        });
+
+        CHECK_EQ(res.in, ints.end());
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        CHECK_EQ(sum, 15);
+    }
+
+    TEST_CASE("pred is returned") {
+        struct summer {
+            int sum = 0;
+
+            dtl::control_flow<void> operator()(int elem) {
+                sum += elem;
+                return dtl::cfcontinue<>{};
+            }
+        };
+
+        std::array ints{1, 2, 3, 4, 5};
+
+        auto res = dtl::try_for_each(ints, summer{});
+
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        CHECK_EQ(res.fun.sum, 15);
+    }
+
+    TEST_CASE("rvalue range yields a dangling iterator") {
+        int sum = 0;
+
+        auto res = dtl::try_for_each(std::vector{1, 2, 3, 4, 5}, [&sum](int elem) -> dtl::control_flow<void> {
+            sum += elem;
+            return dtl::cfcontinue<>{};
+        });
+
+        static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        CHECK_EQ(sum, 15);
+    }
+
+    TEST_CASE("elements are passed by reference") {
+        std::array ints{1, 2, 3};
+
+        auto res = dtl::try_for_each(ints, [](int &elem) -> dtl::control_flow<void> {
+            elem *= 2;
+            return dtl::cfcontinue<>{};
+        });
+
+        CHECK_EQ(res.in, ints.end());
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        CHECK_EQ(ints, std::array{2, 4, 6});
+    }
+
+    TEST_CASE("move only elements") {
+        std::vector<std::unique_ptr<int>> ptrs;
+        ptrs.push_back(std::make_unique<int>(1));
+        ptrs.push_back(std::make_unique<int>(2));
+        ptrs.push_back(std::make_unique<int>(3));
+
+        int sum = 0;
+        auto res = dtl::try_for_each(ptrs, [&sum](std::unique_ptr<int> const &ptr) -> dtl::control_flow<void> {
+            sum += *ptr;
+            return dtl::cfcontinue<>{};
+        });
+
+        CHECK_EQ(res.in, ptrs.end());
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        CHECK_EQ(sum, 6);
+    }
+
+    TEST_CASE("input only range") {
+        std::istringstream ints{"1 2 3 4 5"};
+        auto view = std::views::istream<int>(ints);
+
+        int sum = 0;
+        auto res = dtl::try_for_each(view, [&sum](int elem) -> dtl::control_flow<void> {
+            sum += elem;
+            return dtl::cfcontinue<>{};
+        });
+
+        CHECK(res.in == std::default_sentinel);
+        CHECK_EQ(res.value, dtl::cfcontinue<>{});
+        CHECK_EQ(sum, 15);
+    }
+}
+
+TEST_SUITE("try_fold_left_first") {
+    TEST_CASE("sanity check") {
+        std::array ints{1, 2, 3, 4, 5};
+        std::array<int, 0> no_ints{};
+
+        SUBCASE("optional") {
+            SUBCASE("continue") {
+                auto res = dtl::try_fold_left_first(ints, [](int acc, int elem) -> std::optional<int> {
+                    return acc + elem;
+                });
+
+                static_assert(std::is_same_v<decltype(res.value), std::optional<std::optional<int>>>);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value, std::optional<int>{15});
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_fold_left_first(ints, [](int acc, int elem) -> std::optional<int> {
+                    if (acc > 5) {
+                        return std::nullopt;
+                    }
+
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value, std::nullopt);
+            }
+
+            SUBCASE("empty range") {
+                auto res = dtl::try_fold_left_first(no_ints, [](int acc, int elem) -> std::optional<int> {
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, no_ints.end());
+                CHECK_NE(res.value, std::nullopt);
+                CHECK_EQ(*res.value, std::nullopt);
+            }
+
+            SUBCASE("single element is never passed to pred") {
+                std::array single{42};
+                auto res = dtl::try_fold_left_first(single, [](int, int) -> std::optional<int> {
+                    FAIL("pred must not be called for a single element range");
+                    return std::nullopt;
+                });
+
+                CHECK_EQ(res.in, single.end());
+                CHECK_EQ(res.value, std::optional<int>{42});
+            }
+        }
+
+        SUBCASE("control_flow") {
+            SUBCASE("continue") {
+                auto res = dtl::try_fold_left_first(ints, [](int acc, int elem) -> dtl::control_flow<int, int> {
+                    return dtl::cfcontinue{acc + elem};
+                });
+
+                static_assert(std::is_same_v<decltype(res.value), dtl::control_flow<int, std::optional<int>>>);
+                CHECK_EQ(res.in, ints.end());
+                CHECK_EQ(res.value.get_continue(), std::optional<int>{15});
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_fold_left_first(ints, [](int acc, int elem) -> dtl::control_flow<int, int> {
+                    if (acc > 5) {
+                        return dtl::cfbreak{acc};
+                    }
+
+                    return dtl::cfcontinue{acc + elem};
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                CHECK_EQ(res.value.get_break(), 6);
+            }
+
+            SUBCASE("empty range") {
+                auto res = dtl::try_fold_left_first(no_ints, [](int acc, int elem) -> dtl::control_flow<int, int> {
+                    return dtl::cfcontinue{acc + elem};
+                });
+
+                CHECK_EQ(res.in, no_ints.end());
+                CHECK_EQ(res.value.get_continue(), std::nullopt);
+            }
+
+            SUBCASE("single element is never passed to pred") {
+                std::array single{42};
+                auto res = dtl::try_fold_left_first(single, [](int, int) -> dtl::control_flow<int, int> {
+                    FAIL("pred must not be called for a single element range");
+                    return dtl::cfbreak{0};
+                });
+
+                CHECK_EQ(res.in, single.end());
+                REQUIRE(res.value.is_continue());
+                CHECK_EQ(res.value.get_continue(), std::optional<int>{42});
+            }
+        }
+
+#if __cpp_lib_expected >= 202202L
+        SUBCASE("expected") {
+            SUBCASE("continue") {
+                auto res = dtl::try_fold_left_first(ints.begin(), ints.end(), [](int acc, int elem) -> std::expected<int, std::string> {
+                    return acc + elem;
+                });
+
+                static_assert(std::is_same_v<decltype(res.value), std::expected<std::optional<int>, std::string>>);
+                CHECK_EQ(res.in, ints.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, std::optional<int>{15});
+            }
+
+            SUBCASE("break") {
+                auto res = dtl::try_fold_left_first(ints.begin(), ints.end(), [](int acc, int elem) -> std::expected<int, std::string> {
+                    if (acc > 5) {
+                        return std::unexpected{"too large"};
+                    }
+
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, ints.begin() + 3);
+                REQUIRE_FALSE(res.value.has_value());
+                CHECK_EQ(res.value.error(), "too large");
+            }
+
+            SUBCASE("empty range") {
+                auto res = dtl::try_fold_left_first(no_ints.begin(), no_ints.end(), [](int acc, int elem) -> std::expected<int, std::string> {
+                    return acc + elem;
+                });
+
+                CHECK_EQ(res.in, no_ints.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, std::nullopt);
+            }
+
+            SUBCASE("single element is never passed to pred") {
+                std::array single{42};
+                auto res = dtl::try_fold_left_first(single.begin(), single.end(), [](int, int) -> std::expected<int, std::string> {
+                    FAIL("pred must not be called for a single element range");
+                    return std::unexpected{"unreachable"};
+                });
+
+                CHECK_EQ(res.in, single.end());
+                REQUIRE(res.value.has_value());
+                CHECK_EQ(*res.value, std::optional<int>{42});
+            }
+        }
+#endif // __cpp_lib_expected >= 202202L
+    }
+
+    TEST_CASE("input only range") {
+        std::istringstream ints{"1 2 3 4 5"};
+        auto view = std::views::istream<int>(ints);
+
+        auto res = dtl::try_fold_left_first(view, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        CHECK(res.in == std::default_sentinel);
+        CHECK_EQ(res.value, std::optional<int>{15});
+    }
+
+    TEST_CASE("rvalue range yields a dangling iterator") {
+        auto res = dtl::try_fold_left_first(std::vector{1, 2, 3, 4, 5}, [](int acc, int elem) -> std::optional<int> {
+            return acc + elem;
+        });
+
+        static_assert(std::is_same_v<decltype(res.in), std::ranges::dangling>);
+        CHECK_EQ(res.value, std::optional<int>{15});
     }
 }

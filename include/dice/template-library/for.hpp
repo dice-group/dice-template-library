@@ -25,7 +25,7 @@ namespace dice::template_library {
 	 */
 	template<auto ...xs, typename F>
 	constexpr void for_values(F &&f) noexcept((std::is_nothrow_invocable_v<F, std::integral_constant<decltype(xs), xs>> && ...)) {
-		(std::invoke(f, std::integral_constant<decltype(xs), xs>{}), ...);
+		(f(std::integral_constant<decltype(xs), xs>{}), ...);
 	}
 
 	/**

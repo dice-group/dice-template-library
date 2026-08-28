@@ -36,6 +36,9 @@ It contains:
 - `pointer_tag_pair`: A pointer and value pair that stores a small integer tag in the pointer alignment bits based on the API
   from [P3125 (constexpr pointer tagging)](https://wg21.link/P3125).
 - `ipow`: Integer exponentiation (power by squaring) with over-/underflow detection.
+- `control_flow`: Rust inspired `ControlFlow`, holding either a `cfbreak` or a `cfcontinue`.
+- `try_traits`/`DICE_TRY`: A common interface for fallible types (`std::optional`, `std::expected`, `control_flow`)
+  and a macro that propagates their errors like rust's `?` operator.
 
 ## Usage
 
@@ -181,6 +184,11 @@ It also supports allocators with "fancy" pointers.
 Additional range algorithms (e.g. `unique_view`) and adaptors (e.g., a pipeable `all_of`)
 that are missing from the standard library.
 
+It also contains fallible counterparts of some standard algorithms: `try_fold_left`, `try_fold_left_first` and
+`try_for_each` apply a function that returns a [try_result](#try_traitsdice_try) to each element and stop at the
+first residual (i.e. a `std::nullopt`, a `std::unexpected` or a `cfbreak`), propagating it to the caller
+together with the iterator they stopped at.
+
 ### `next_to_range`/`next_to_view`/`next_to_iter`
 Eliminate the boilerplate required to write C++ iterators and ranges.
 To get a fully functional range, the only thing that is required is
@@ -272,6 +280,52 @@ ipow(2, 100);   // throws std::overflow_error
 
 Note: not supported by MSVC because it relies on `__builtin_mul_overflow`.
 
+### `control_flow`
+A rust like `ControlFlow`: it holds either a `cfbreak<B>`, telling the caller to stop and propagate the break value,
+or a `cfcontinue<C>`, telling it to carry on with the continue value.
+
+```cpp
+control_flow<std::string, int> checked_double(int x) {
+    if (x > 100) {
+        return cfbreak{std::string{"too large"}};
+    }
+
+    return cfcontinue{x * 2};
+}
+```
+
+Either arm may be `void` to express that it cannot occur, e.g. a `control_flow<E, void>` can only ever break.
+The value is retrieved with `get_break()`/`get_continue()` (both propagate the value category of the
+`control_flow` they are called on) or by visiting it with `visit`/[`match`](#overloaded-and-match).
+
+### `try_traits`/`DICE_TRY`
+`try_traits` is the common interface of all fallible ("try") types. It is implemented for `std::optional`,
+`std::expected` and `control_flow`, and can be specialized for your own types.
+A type that implements it satisfies the `try_result` concept and can be used with `DICE_TRY` and the
+fallible range algorithms (see [`ranges`](#ranges)).
+
+`DICE_TRY` behaves like rust's `?` operator: it unwraps the output value of a `try_result`, or returns its residual
+(the `std::nullopt`, `std::unexpected` or `cfbreak`) from the enclosing function.
+
+```cpp
+std::expected<int, std::string> parse_int(std::string const &s);
+
+std::expected<double, std::string> parse_and_halve(std::string const &s) {
+    int const value = DICE_TRY(parse_int(s)); // returns the error from parse_and_halve if there is one
+    return static_cast<double>(value) / 2.0;
+}
+```
+
+As shown above, the residual is propagated even if the enclosing function has a different output type,
+because rebinding the output of a `try_result` keeps its residual channel intact.
+
+Notes:
+- `DICE_TRY` moves its argument if it is an rvalue and copies it otherwise, so passing a named variable leaves
+  it intact. Consequently, a move only `try_result` has to be passed as an rvalue.
+- `DICE_TRY` relies on statement expressions and is therefore only available on GCC and clang.
+
+Examples can be found [here](examples/example_try.cpp).
+
 ### Further Examples
 
 Compilable code examples can be found in [examples](./examples). The example build requires the cmake
@@ -284,7 +338,7 @@ A C++23 compatible compiler. Code was only tested on x86_64.
 ## Include it in your projects
 ### Conan
 You can use it with [conan](https://conan.io/).
-To do so, you need to add `dice-template-library/2.6.0` to the `[requires]` section of your conan file.
+To do so, you need to add `dice-template-library/2.9.0` to the `[requires]` section of your conan file.
 
 ## Build and Run Tests and Examples
 

@@ -2,6 +2,9 @@
 #define DICE_TEMPLATELIBRARY_HPP
 
 #include <dice/template-library/next_to_range.hpp>
+#include <dice/template-library/control_flow.hpp>
+#include <dice/template-library/try_traits.hpp>
+#include <dice/template-library/type_traits.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -690,6 +693,241 @@ namespace dice::template_library {
      * @return lexicographical three-way compare result of the two ranges
      */
     inline constexpr ranges_algo_detail::lexicographical_compare_three_way_fn lexicographical_compare_three_way;
+
+
+    template<typename I, typename T>
+    using try_fold_left_result = std::ranges::in_value_result<I, T>;
+
+    namespace ranges_algo_detail {
+        template<typename Pred, typename Acc, typename I>
+        using try_fold_left_pred_result_t = std::invoke_result_t<Pred, Acc, std::iter_reference_t<I>>;
+
+        struct try_fold_left_fn {
+            template<std::input_iterator I, std::sentinel_for<I> S, typename Acc, typename Pred>
+            requires (try_result<try_fold_left_pred_result_t<Pred, Acc, I>>)
+            [[nodiscard]] constexpr try_fold_left_result<I, try_fold_left_pred_result_t<Pred, Acc, I>> operator()(I first, S last, Acc init, Pred pred) const {
+                using ret_type = try_fold_left_pred_result_t<Pred, Acc, I>;
+                using traits = try_traits<ret_type>;
+
+                for (; first != last; ++first) {
+                    auto ret = std::invoke(pred, std::move(init), *first);
+                    if (!traits::has_output(ret)) {
+                        return {std::move(first), traits::get_residual(std::move(ret))};
+                    }
+
+                    init = traits::get_output(std::move(ret));
+                }
+
+                return {std::move(first), std::move(init)};
+            }
+
+            template<std::ranges::input_range R, typename Acc, typename Pred>
+            requires (try_result<try_fold_left_pred_result_t<Pred, Acc, std::ranges::iterator_t<R>>>)
+            [[nodiscard]] constexpr try_fold_left_result<std::ranges::borrowed_iterator_t<R>, try_fold_left_pred_result_t<Pred, Acc, std::ranges::iterator_t<R>>> operator()(R &&range, Acc init, Pred pred) const {
+                return try_fold_left_fn{}(std::ranges::begin(range), std::ranges::end(range), std::move(init), std::move(pred));
+            }
+        };
+    }  // namespace ranges_algo_detail
+
+    /**
+     * Folds every element of the given range into an accumulator by applying a fallible function, stopping at the
+     * first break/residual (i.e. a nullopt, an unexpected or a cfbreak) and propagating it.
+     * This can be thought of as the fallible form of std::ranges::fold_left_with_iter.
+     *
+     * @param range or first+last range to fold
+     * @param init initial value of the accumulator
+     * @param pred fallible binary function applied to the accumulator and each element, its output/continue value
+     *      becomes the accumulator for the next element
+     * @return an aggregate of
+     *      - `in`: the iterator to the element that caused the break, or the end iterator if pred never broke
+     *      - `value`: the residual of the first breaking invocation of pred, otherwise - including for an empty
+     *        range - pred's try-type constructed from the final accumulator
+     *
+     * @par Example:
+     * @code
+     * auto r = dtl::try_fold_left(dtl::range(1, 6), 0, [](int acc, int x) -> std::optional<int> {
+     *     if (acc > 5) {
+     *         return std::nullopt;
+     *     }
+     *
+     *     return acc + x;
+     * });
+     *
+     * assert(r.value == std::nullopt);
+     * @endcode
+     *
+     * @see try_for_each, try_fold_left_first
+     */
+    inline constexpr ranges_algo_detail::try_fold_left_fn try_fold_left;
+
+    template<typename I, typename T, typename F>
+    struct try_for_each_result {
+        [[no_unique_address]] I in;
+        T value;
+        [[no_unique_address]] F fun;
+
+        template<typename I2, typename T2, typename F2>
+        requires (std::convertible_to<I const &, I2> && std::convertible_to<T const &, T2> && std::convertible_to<F const &, F2>)
+        constexpr operator try_for_each_result<I2, T2, F2>() const & {
+            return {in, value, fun};
+        }
+
+        template<typename I2, typename T2, typename F2>
+        requires (std::convertible_to<I, I2> && std::convertible_to<T, T2> && std::convertible_to<F, F2>)
+        constexpr operator try_for_each_result<I2, T2, F2>() && {
+            return {std::move(in), std::move(value), std::move(fun)};
+        }
+    };
+
+    namespace ranges_algo_detail {
+        template<typename Pred, typename I>
+        using try_for_each_pred_result_t = std::invoke_result_t<Pred, std::iter_reference_t<I>>;
+
+        struct try_for_each_fn {
+            template<std::input_iterator I, std::sentinel_for<I> S, typename Pred>
+            requires (try_result<try_for_each_pred_result_t<Pred, I>>
+                      && std::is_void_v<typename try_traits<try_for_each_pred_result_t<Pred, I>>::output_type>)
+            [[nodiscard]] constexpr try_for_each_result<I, try_for_each_pred_result_t<Pred, I>, Pred> operator()(I first, S last, Pred pred) const {
+                using ret_type = try_for_each_pred_result_t<Pred, I>;
+                using traits = try_traits<ret_type>;
+
+                for (; first != last; ++first) {
+                    auto ret = std::invoke(pred, *first);
+                    if (!traits::has_output(ret)) {
+                        return {std::move(first), traits::get_residual(std::move(ret)), std::move(pred)};
+                    }
+                }
+
+                return {std::move(first), {}, std::move(pred)};
+            }
+
+            template<std::ranges::input_range R, typename Pred>
+            requires (try_result<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>
+                      && std::is_void_v<typename try_traits<try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>>::output_type>)
+            [[nodiscard]] constexpr try_for_each_result<std::ranges::borrowed_iterator_t<R>, try_for_each_pred_result_t<Pred, std::ranges::iterator_t<R>>, Pred> operator()(R &&range, Pred pred) const {
+                return try_for_each_fn{}(std::ranges::begin(range), std::ranges::end(range), std::move(pred));
+            }
+        };
+    }  // namespace ranges_algo_detail
+
+    /**
+     * Applies a fallible function to each element of the given range, stopping at the first break/residual
+     * (i.e. a nullopt, an unexpected or a cfbreak) and propagating it.
+     * This can be thought of as the fallible form of std::ranges::for_each.
+     *
+     * pred's try-type must have a void output type, e.g. control_flow<B> or std::expected<void, E>,
+     * as there is nothing meaningful to return for a fully iterated range.
+     *
+     * @param range or first+last range to iterate over
+     * @param pred fallible unary function applied to each element
+     * @return an aggregate of
+     *      - `in`: the iterator to the element that caused the break, or the end iterator if pred never broke
+     *      - `value`: the residual of the first breaking invocation of pred, otherwise - including for an empty
+     *        range - pred's try-type constructed from a default constructed output
+     *      - `fun`: pred, moved out of the algorithm
+     *
+     * @par Example:
+     * @code
+     * auto r = dtl::try_for_each(dtl::range(2, 100), [](auto const &x) -> dtl::control_flow<int> {
+     *     if (323 % x == 0) {
+     *         return dtl::cfbreak{x};
+     *     }
+     *
+     *     return dtl::cfcontinue<>{};
+     * });
+     *
+     * assert(r.value == dtl::cfbreak{17});
+     * @endcode
+     *
+     * @see try_fold_left, try_fold_left_first
+     */
+    inline constexpr ranges_algo_detail::try_for_each_fn try_for_each;
+
+
+    template<typename I, typename T>
+    using try_fold_left_first_result = std::ranges::in_value_result<I, T>;
+
+    namespace ranges_algo_detail {
+        template<typename Pred, typename I>
+        using try_fold_left_first_pred_result_t = std::invoke_result_t<Pred, std::iter_value_t<I>, std::iter_reference_t<I>>;
+
+        template<typename Pred, typename I>
+        struct try_fold_left_first_mapped_pred_result {
+            using pred_result_traits = try_traits<try_fold_left_first_pred_result_t<Pred, I>>;
+            using type = pred_result_traits::template rebind_output<std::optional<typename pred_result_traits::output_type>>;
+        };
+
+        template<typename Pred, typename T>
+        using try_fold_left_first_mapped_pred_result_t = try_fold_left_first_mapped_pred_result<Pred, T>::type;
+
+        struct try_fold_left_first_fn {
+            template<std::input_iterator I, std::sentinel_for<I> S, typename Pred>
+            requires (try_result<try_fold_left_first_pred_result_t<Pred, I>>)
+            [[nodiscard]] constexpr try_fold_left_first_result<I, try_fold_left_first_mapped_pred_result_t<Pred, I>> operator()(I first, S last, Pred pred) const {
+                using traits = try_traits<try_fold_left_first_pred_result_t<Pred, I>>;
+                using result_traits = try_traits<try_fold_left_first_mapped_pred_result_t<Pred, I>>;
+                using acc_type = traits::output_type;
+
+                if (first == last) {
+                    return {std::move(first), typename result_traits::output_type{std::nullopt}};
+                }
+
+                acc_type init = *first;
+                ++first;
+
+                auto [new_first, result] = try_fold_left_fn{}(std::move(first), std::move(last), std::move(init), std::move(pred));
+
+                if (!traits::has_output(result)) {
+                    return {std::move(new_first), traits::get_residual(std::move(result))};
+                }
+
+                return {std::move(new_first), traits::get_output(std::move(result))};
+            }
+
+            template<std::ranges::input_range R, typename Pred>
+            requires (try_result<try_fold_left_first_pred_result_t<Pred, std::ranges::iterator_t<R>>>)
+            [[nodiscard]] constexpr try_fold_left_first_result<std::ranges::borrowed_iterator_t<R>, try_fold_left_first_mapped_pred_result_t<Pred, std::ranges::iterator_t<R>>> operator()(R &&range, Pred pred) const {
+                return try_fold_left_first_fn{}(std::ranges::begin(range), std::ranges::end(range), std::move(pred));
+            }
+        };
+    } // ranges_algo_detail
+
+    /**
+     * Like try_fold_left, but uses the first element of the range as the initial accumulator value instead of an explicit init.
+     * This can be thought of as the fallible form of std::ranges::fold_left_first_with_iter.
+     *
+     * The output/continue type is wrapped in a std::optional to be able to express the empty range case,
+     * e.g. reducing with a pred returning std::expected<T, E> yields std::expected<std::optional<T>, E>.
+     *
+     * @param range or first+last range to reduce
+     * @param pred fallible binary function applied to the accumulator and each element but the first, its
+     *      output/continue value becomes the accumulator for the next element
+     * @return an aggregate of
+     *      - `in`: the iterator to the element that caused the break, or the end iterator if pred never broke
+     *      - `value`: the residual of the first breaking invocation of pred, otherwise pred's try-type constructed
+     *        from the final accumulator, or from nullopt if the range was empty
+     *
+     * @par Example:
+     * @code
+     * // note the optional output type
+     * using result_type = std::expected<std::optional<int>, std::string>;
+     *
+     * auto sum = dtl::try_fold_left_first(dtl::range(1, 6), [](int acc, int x) -> std::expected<int, std::string> {
+     *     return acc + x;
+     * });
+     *
+     * assert(sum.value == result_type{15});
+     *
+     * auto empty = dtl::try_fold_left_first(std::views::empty<int>, [](int acc, int x) -> std::expected<int, std::string> {
+     *     return acc + x;
+     * });
+     *
+     * assert(empty.value == result_type{std::nullopt});
+     * @endcode
+     *
+     * @see try_fold_left, try_for_each
+     */
+    inline constexpr ranges_algo_detail::try_fold_left_first_fn try_fold_left_first;
 
 }// namespace dice::template_library
 

@@ -129,3 +129,9 @@ custom_add_test(tests_exchange_channel)
 
 add_executable(tests_sandbox tests_sandbox.cpp)
 custom_add_test(tests_sandbox)
+
+add_executable(tests_control_flow tests_control_flow.cpp)
+custom_add_test(tests_control_flow)
+
+add_executable(tests_try tests_try.cpp)
+custom_add_test(tests_try)
