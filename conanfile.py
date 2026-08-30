@@ -31,7 +31,7 @@ class DiceTemplateLibrary(ConanFile):
             self.requires("svector/1.0.3", transitive_headers=True)
 
         if self.options.with_boost or self.options.with_test_deps:
-            self.requires("boost/1.84.0", transitive_headers=True)
+            self.requires("boost/1.91.0", transitive_headers=True)
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")
