@@ -41,6 +41,32 @@ namespace dice::template_library {
 		};
 	}
 
+    /**
+     * A functor that always returns the same value.
+     * An example is the always-true predicate `always{true}`.
+     */
+    template<typename T>
+    struct always {
+	    using value_type = T;
+	    value_type value;
+
+	    [[nodiscard]] constexpr value_type const &operator()() const & noexcept {
+	        return value;
+	    }
+
+	    [[nodiscard]] constexpr value_type &operator()() & noexcept {
+	        return value;
+	    }
+
+	    [[nodiscard]] constexpr value_type const &&operator()() const && noexcept {
+	        return std::move(value);
+	    }
+
+	    [[nodiscard]] constexpr value_type &&operator()() && noexcept {
+	        return std::move(value);
+	    }
+	};
+
 }// namespace dice::template_library
 
 #endif// DICE_TEMPLATELIBRARY_FUNCTIONAL_HPP
