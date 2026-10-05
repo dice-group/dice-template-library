@@ -39,6 +39,7 @@ It contains:
 - `control_flow`: Rust inspired `ControlFlow`, holding either a `cfbreak` or a `cfcontinue`.
 - `try_traits`/`DICE_TRY`: A common interface for fallible types (`std::optional`, `std::expected`, `control_flow`)
   and a macro that propagates their errors like rust's `?` operator.
+- `optional_ref`: A reference or nothing, `std::optional<T &>` from C++26 with a fallback for older standard libraries.
 
 ## Usage
 
@@ -325,6 +326,41 @@ Notes:
 - `DICE_TRY` relies on statement expressions and is therefore only available on GCC and clang.
 
 Examples can be found [here](examples/example_try.cpp).
+
+### `optional_ref`
+A reference to a `T` or nothing, for example the result of a lookup that may find nothing.
+`optional_ref<T>` is `std::optional<T &>` if the standard library provides it (`__cpp_lib_optional >= 202506L`, C++26).
+Otherwise, it is a class with the same interface for the common operations: `has_value`, `operator bool`,
+`operator*`, `operator->`, `value` (throws `std::bad_optional_access` if there is no value), `value_or`,
+`and_then`, `transform`, `or_else`, `emplace`, `reset`, `swap`, iteration over zero or one elements,
+and `==` with another `optional_ref` or with `std::nullopt`.
+
+Like `std::optional<T &>`, it never binds a temporary, copy assignment and `emplace` rebind the reference
+instead of assigning to the referenced object, and `optional_ref<T>` converts to `optional_ref<T const>`.
+It is a view and a borrowed range, and `std::format` does not format it as a range.
+The fallback class does not support construction from a `std::optional<U>` or with `std::in_place`,
+comparison with a plain value or with a `std::optional<U>`, and the ordering operators.
+Its `iterator` is `T *`, while the one of `std::optional<T &>` is implementation-defined.
+The language mode chooses the type: with a standard library that provides `std::optional<T &>` only in C++26 mode,
+code built in C++23 mode and code built in C++26 mode see two different types.
+
+```cpp
+std::map<std::string, int> scores{{"alice", 3}};
+
+optional_ref<int> find_score(std::string const &name) {
+    auto it = scores.find(name);
+    if (it == scores.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+*find_score("alice") += 10;           // scores["alice"] is now 13
+find_score("bob").value_or(0);        // 0
+optional_ref<int const> bad{42};      // does not compile: it would bind a temporary
+```
+
+Examples can be found [here](examples/example_optional_ref.cpp).
 
 ### Further Examples
 
