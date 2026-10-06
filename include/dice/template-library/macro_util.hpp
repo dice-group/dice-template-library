@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATELIBRARY_MACROUTIL_HPP
 #define DICE_TEMPLATELIBRARY_MACROUTIL_HPP
 
+#include <cstddef>
+
 #ifdef __has_builtin
 /**
  * Detect if the compiler has the given builtin.
@@ -53,6 +55,11 @@
 // forward declaration for __lsan_ignore_object from <sanitizer/lsan_interface.h> as a weak symbol.
 // If the sanitizer is linked this it set to the correct value by the linker, if not this is set to nullptr by the linker.
 extern "C" DICE_WEAK void __lsan_ignore_object(void const *ptr); // NOLINT(bugprone-reserved-identifier)
+
+// forward declaration for __asan_{un}poison_memory_region from <sanitizer/asan_interface.h>
+// same reason as above
+extern "C" DICE_WEAK void __asan_poison_memory_region(void const volatile *addr, size_t size); // NOLINT(bugprone-reserved-identifier)
+extern "C" DICE_WEAK void __asan_unpoison_memory_region(void const volatile *addr, size_t size); // NOLINT(bugprone-reserved-identifier)
 #endif
 
 namespace dice::template_library {
@@ -74,6 +81,43 @@ namespace dice::template_library {
         inline void deprecated_macro_use() {
         }
     }  // namespace detail_ignore_leak
+
+    /**
+     * Tell the address sanitizer that the given region is unaddressable.
+     * See https://github.com/google/sanitizers/wiki/AddressSanitizerManualPoisoning
+     *
+     * @param ptr start of region
+     * @param size region size
+     */
+    inline void poison_memory_region(void const volatile *ptr, size_t size) noexcept {
+#if DICE_HAS_WEAK
+        if (__asan_poison_memory_region) {
+            __asan_poison_memory_region(ptr, size);
+        }
+#endif
+
+        (void) ptr;
+        (void) size;
+    }
+
+    /**
+     * Tell the address sanitizer that the given region is addressable.
+     * See https://github.com/google/sanitizers/wiki/AddressSanitizerManualPoisoning
+     *
+     * @param ptr start of region
+     * @param size region size
+     */
+    inline void unpoison_memory_region(void const volatile *ptr, size_t size) noexcept {
+#if DICE_HAS_WEAK
+        if (__asan_unpoison_memory_region) {
+            __asan_unpoison_memory_region(ptr, size);
+        }
+#endif
+
+        (void) ptr;
+        (void) size;
+    }
+
 }  // namespace dice::template_library
 
 /**
