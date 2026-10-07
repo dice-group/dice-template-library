@@ -118,6 +118,28 @@ namespace dice::template_library {
         (void) size;
     }
 
+    /**
+     * Check whether the leak sanitizer runtime is linked into this program.
+     */
+    [[nodiscard]] inline bool lsan_active() noexcept {
+#if DICE_HAS_WEAK
+        return __lsan_ignore_object != nullptr;
+#else
+        return false;
+#endif
+    }
+
+    /**
+     * Check whether the address sanitizer runtime is linked into this program.
+     */
+    [[nodiscard]] inline bool asan_active() noexcept {
+#if DICE_HAS_WEAK
+        return __asan_poison_memory_region != nullptr;
+#else
+        return false;
+#endif
+    }
+
 }  // namespace dice::template_library
 
 /**
