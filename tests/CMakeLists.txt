@@ -130,6 +130,9 @@ custom_add_test(tests_exchange_channel)
 add_executable(tests_sandbox tests_sandbox.cpp)
 custom_add_test(tests_sandbox)
 
+add_executable(tests_bitset tests_bitset.cpp)
+custom_add_test(tests_bitset)
+
 add_executable(tests_control_flow tests_control_flow.cpp)
 custom_add_test(tests_control_flow)
 
