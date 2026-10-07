@@ -41,6 +41,21 @@ namespace dice::template_library {
 		};
 	}
 
+    /**
+     * A functor that always returns the same value.
+     * An example is the always-true predicate `always{true}`.
+     */
+    template<typename T>
+    struct always {
+	    using value_type = T;
+	    value_type value;
+
+	    template<typename Self, typename ...Args>
+	    [[nodiscard]] constexpr decltype(auto) operator()(this Self &&self, [[maybe_unused]] Args &&...args) {
+	        return dice::template_library::forward_like<Self>(self.value);
+	    }
+	};
+
 }// namespace dice::template_library
 
 #endif// DICE_TEMPLATELIBRARY_FUNCTIONAL_HPP

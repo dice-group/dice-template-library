@@ -71,3 +71,44 @@ TEST_CASE("bind_front") {
 		std::move(bound_func)(only_movable{});
 	}
 }
+
+TEST_CASE("always") {
+    using namespace dice::template_library;
+
+    SUBCASE("sanity check") {
+        always const f{true};
+        CHECK_EQ(f(), true);
+        CHECK_EQ(f(), true);
+    }
+
+    SUBCASE("forwarding") {
+        std::vector const expected{1, 2, 3};
+        always func{expected};
+
+        std::vector<int> target;
+
+        SUBCASE("const lref") {
+            static_assert(std::is_same_v<decltype(std::as_const(func)()), std::vector<int> const &>);
+            CHECK_EQ(target = std::as_const(func)(), expected);
+            CHECK_EQ(target = std::as_const(func)(), expected);
+        }
+
+        SUBCASE("lref") {
+            static_assert(std::is_same_v<decltype(func()), std::vector<int> &>);
+            CHECK_EQ(target = func(), expected);
+            CHECK_EQ(target = func(), expected);
+        }
+
+        SUBCASE("const rref") {
+            static_assert(std::is_same_v<decltype(std::move(std::as_const(func))()), std::vector<int> const &&>);
+            CHECK_EQ(target = std::move(std::as_const(func))(), expected);
+            CHECK_EQ(target = std::move(std::as_const(func))(), expected);
+        }
+
+        SUBCASE("rref") {
+            static_assert(std::is_same_v<decltype(std::move(func)()), std::vector<int> &&>);
+            CHECK_EQ(target = std::move(func)(), expected);
+            CHECK(std::move(func)().empty());
+        }
+    }
+}
