@@ -50,20 +50,9 @@ namespace dice::template_library {
 	    using value_type = T;
 	    value_type value;
 
-	    [[nodiscard]] constexpr value_type const &operator()() const & noexcept {
-	        return value;
-	    }
-
-	    [[nodiscard]] constexpr value_type &operator()() & noexcept {
-	        return value;
-	    }
-
-	    [[nodiscard]] constexpr value_type const &&operator()() const && noexcept {
-	        return std::move(value);
-	    }
-
-	    [[nodiscard]] constexpr value_type &&operator()() && noexcept {
-	        return std::move(value);
+	    template<typename Self, typename ...Args>
+	    [[nodiscard]] constexpr decltype(auto) operator()(this Self &&self, [[maybe_unused]] Args &&...args) {
+	        return dice::template_library::forward_like<Self>(self.value);
 	    }
 	};
 
