@@ -43,7 +43,10 @@
 #endif // __FILE_NAME__
 
 
-#if defined(__has_attribute) && __has_attribute(weak)
+// Needs to have the attribute and needs to not be darwin
+// On Darwin, a weak reference only relaxes the runtime requirement:
+// ld still needs a definition at link time unless each symbol is explicitly allowed to be undefined with -Wl,-U,_sym or the blanket -undefined dynamic_lookup
+#if defined(__has_attribute) && __has_attribute(weak) && !defined(__APPLE__)
 #define DICE_WEAK __attribute__((weak))
 #define DICE_HAS_WEAK 1
 #else
