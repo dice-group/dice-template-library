@@ -4,7 +4,10 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <compare>
 #include <concepts>
+#include <cstdlib>
+#include <iterator>
 #include <span>
 #include <stdexcept>
 #include <vector>
@@ -27,6 +30,69 @@ namespace dice::template_library {
 	};
 
 	namespace detail_flex_array {
+		/**
+		 * Three-way comparison of two elements in the way std::array compares its elements:
+		 * with operator<=> if the element type has it, else with operator<.
+		 */
+		struct synth_three_way {
+			template<typename U>
+			constexpr auto operator()(U const &lhs, U const &rhs) const
+				requires requires {
+					{ lhs < rhs } -> std::convertible_to<bool>;
+					{ rhs < lhs } -> std::convertible_to<bool>;
+				}
+			{
+				if constexpr (std::three_way_comparable<U>) {
+					return lhs <=> rhs;
+				} else {
+					if (lhs < rhs) {
+						return std::weak_ordering::less;
+					}
+					if (rhs < lhs) {
+						return std::weak_ordering::greater;
+					}
+					return std::weak_ordering::equivalent;
+				}
+			}
+		};
+
+		/**
+		 * The element storage of a direct mode with room for no element (extent 0 or max_extent 0).
+		 * It is empty.
+		 */
+		template<typename T>
+		struct no_elements {
+			[[nodiscard]] static constexpr T *data() noexcept {
+				return nullptr;
+			}
+
+			/**
+			 * There is no element, so no index is valid.
+			 */
+			T &operator[](size_t) const noexcept {
+				std::abort();
+			}
+
+			constexpr bool operator==(no_elements const &) const noexcept = default;
+		};
+
+		template<typename T, size_t n>
+		struct c_array {
+			using type = T[n];
+		};
+
+		template<typename T>
+		struct c_array<T, 0> {
+			using type = no_elements<T>;
+		};
+
+		/**
+		 * The element storage of the direct modes: the C array `T[n]`.
+		 * A C array of length 0 is not valid C++, so for `n == 0` it is `no_elements<T>`.
+		 */
+		template<typename T, size_t n>
+		using c_array_t = typename c_array<T, n>::type;
+
 		template<typename T, size_t extent, size_t max_extent>
 		struct flex_array_inner;
 
@@ -37,21 +103,33 @@ namespace dice::template_library {
 			static constexpr flex_array_mode mode = flex_array_mode::direct_static_size;
 
 			static constexpr size_t size_ = extent;
-			std::array<T, extent> data_;
+			c_array_t<T, extent> data_;
 
 			static constexpr size_t size() noexcept {
 				return size_;
 			}
 
+			[[nodiscard]] constexpr T *data() noexcept {
+				return std::data(data_);
+			}
+
+			[[nodiscard]] constexpr T const *data() const noexcept {
+				return std::data(data_);
+			}
+
 			operator std::span<T, extent>() noexcept {
-				return data_;
+				return std::span<T, extent>{data(), size_};
 			}
 
 			operator std::span<T const, extent>() const noexcept {
-				return data_;
+				return std::span<T const, extent>{data(), size_};
 			}
 
-			constexpr auto operator<=>(flex_array_inner const &) const noexcept = default;
+			constexpr bool operator==(flex_array_inner const &) const noexcept = default;
+
+			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T const &x) { synth_three_way{}(x, x); } {
+				return std::lexicographical_compare_three_way(data(), data() + size_, other.data(), other.data() + size_, synth_three_way{});
+			}
 		};
 
 		template<typename T, size_t max_extent>
@@ -60,7 +138,7 @@ namespace dice::template_library {
 			static constexpr flex_array_mode mode = flex_array_mode::direct_dynamic_limited_size;
 
 			size_t size_ = 0;
-			std::array<T, max_extent> data_;
+			c_array_t<T, max_extent> data_;
 
 			[[nodiscard]] constexpr size_t size() const noexcept {
 				return size_;
@@ -71,12 +149,20 @@ namespace dice::template_library {
 				size_ = size;
 			}
 
+			[[nodiscard]] constexpr T *data() noexcept {
+				return std::data(data_);
+			}
+
+			[[nodiscard]] constexpr T const *data() const noexcept {
+				return std::data(data_);
+			}
+
 			operator std::span<T>() noexcept {
-				return {data_.data(), size_};
+				return {data(), size_};
 			}
 
 			operator std::span<T const>() const noexcept {
-				return {data_.data(), size_};
+				return {data(), size_};
 			}
 
 			template<typename Cmp>
@@ -137,6 +223,14 @@ namespace dice::template_library {
 				return data_.size();
 			}
 
+			[[nodiscard]] constexpr T *data() noexcept {
+				return data_.data();
+			}
+
+			[[nodiscard]] constexpr T const *data() const noexcept {
+				return data_.data();
+			}
+
 			operator std::span<T>() noexcept {
 				return data_;
 			}
@@ -163,6 +257,14 @@ namespace dice::template_library {
 
 			[[nodiscard]] size_t size() const noexcept {
 				return data_.size();
+			}
+
+			[[nodiscard]] constexpr T *data() noexcept {
+				return data_.data();
+			}
+
+			[[nodiscard]] constexpr T const *data() const noexcept {
+				return data_.data();
 			}
 
 			operator std::span<T>() noexcept {
@@ -412,14 +514,14 @@ namespace dice::template_library {
 			inner_.set_size(new_size);
 		}
 
-		[[nodiscard]] constexpr pointer data() noexcept { return inner_.data_.data(); }
-		[[nodiscard]] constexpr const_pointer data() const noexcept { return inner_.data_.data(); }
+		[[nodiscard]] constexpr pointer data() noexcept { return inner_.data(); }
+		[[nodiscard]] constexpr const_pointer data() const noexcept { return inner_.data(); }
 
-		constexpr iterator begin() noexcept { return inner_.data_.data(); }
+		constexpr iterator begin() noexcept { return inner_.data(); }
 		constexpr iterator end() noexcept { return std::next(begin(), size()); }
-		constexpr const_iterator begin() const noexcept { return inner_.data_.data(); }
+		constexpr const_iterator begin() const noexcept { return inner_.data(); }
 		constexpr const_iterator end() const noexcept { return std::next(begin(), size()); }
-		constexpr const_iterator cbegin() const noexcept { return inner_.data_.data(); }
+		constexpr const_iterator cbegin() const noexcept { return inner_.data(); }
 		constexpr const_iterator cend() const noexcept { return std::next(cbegin(), size()); }
 		constexpr reverse_iterator rbegin() noexcept { return reverse_iterator{end()}; }
 		constexpr reverse_iterator rend() noexcept { return reverse_iterator{begin()}; }
