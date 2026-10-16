@@ -12,6 +12,10 @@
 #include <expected>
 #endif // __has_include(<expected>)
 
+#if __has_include(<nonstd/expected.hpp>)
+#include <nonstd/expected.hpp>
+#endif
+
 namespace dice::template_library {
 
     template<typename T>
@@ -164,6 +168,36 @@ namespace dice::template_library {
     };
     static_assert(try_result<std::expected<int, int>>);
 #endif // __cpp_lib_expected >= 202202L
+
+// expected-lite aliases nonstd::expected to std::expected where that exists, the specialization above then already covers it
+#if __has_include(<nonstd/expected.hpp>) && !nsel_USES_STD_EXPECTED
+    template<typename T, typename E>
+    struct try_traits<nonstd::expected<T, E>> {
+        using self_type = nonstd::expected<T, E>;
+        using output_type = T;
+        using residual_type = nonstd::unexpected<E>;
+
+        template<typename Out>
+        using rebind_output = nonstd::expected<Out, E>;
+
+        static constexpr bool has_output(self_type const &self) noexcept {
+            return self.has_value();
+        }
+
+        static constexpr output_type get_output(self_type self) {
+            if constexpr (std::is_void_v<T>) {
+                return;
+            } else {
+                return *std::move(self);
+            }
+        }
+
+        static constexpr residual_type get_residual(self_type self) {
+            return residual_type{std::move(self).error()};
+        }
+    };
+    static_assert(try_result<nonstd::expected<int, int>>);
+#endif // __has_include(<nonstd/expected.hpp>) && !nsel_USES_STD_EXPECTED
 
 } // namespace dice::template_library
 

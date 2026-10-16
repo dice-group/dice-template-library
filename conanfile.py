@@ -19,11 +19,13 @@ class DiceTemplateLibrary(ConanFile):
         "with_test_deps": [True, False],
         "with_svector": [True, False],
         "with_boost": [True, False],
+        "with_expected_lite": [True, False],
     }
     default_options = {
         "with_test_deps": False,
         "with_svector": False,
         "with_boost": False,
+        "with_expected_lite": False,
     }
 
     def requirements(self):
@@ -32,6 +34,9 @@ class DiceTemplateLibrary(ConanFile):
 
         if self.options.with_boost or self.options.with_test_deps:
             self.requires("boost/1.84.0", transitive_headers=True)
+
+        if self.options.with_expected_lite:
+            self.requires("expected-lite/0.9.0", transitive_headers=True)
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")
@@ -57,7 +62,7 @@ class DiceTemplateLibrary(ConanFile):
     def _configure_cmake(self):
         if self._cmake is None:
             self._cmake = CMake(self)
-            self._cmake.configure(variables={"WITH_SVECTOR": self.options.with_svector, "WITH_BOOST": self.options.with_boost})
+            self._cmake.configure(variables={"WITH_SVECTOR": self.options.with_svector, "WITH_BOOST": self.options.with_boost, "WITH_EXPECTED_LITE": self.options.with_expected_lite})
 
         return self._cmake
 
@@ -88,4 +93,7 @@ class DiceTemplateLibrary(ConanFile):
 
         if self.options.with_boost:
             self.cpp_info.requires += ["boost::headers"]
+
+        if self.options.with_expected_lite:
+            self.cpp_info.requires += ["expected-lite::expectedlite"]
 

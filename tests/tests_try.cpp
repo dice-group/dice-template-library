@@ -12,6 +12,20 @@
 
 namespace dtl = dice::template_library;
 
+#if __has_include(<nonstd/expected.hpp>)
+// in that mode nonstd::expected is std::expected and the nonstd tests would just repeat the std ones
+static_assert(!nsel_USES_STD_EXPECTED, "tests must be compiled with nsel_CONFIG_SELECT_EXPECTED=nsel_EXPECTED_NONSTD");
+#endif // __has_include(<nonstd/expected.hpp>)
+
+namespace {
+    // the expected test cases are templated over the implementation, these shorten the dependent names
+    template<typename Exp>
+    using unexpected_t = typename dtl::try_traits<Exp>::residual_type;
+
+    template<typename Exp, typename Out>
+    using rebind_t = typename dtl::try_traits<Exp>::template rebind_output<Out>;
+} // namespace
+
 TEST_SUITE("try_result concept") {
     static_assert(dtl::detail_try_traits::generalized_convertible_to<int, dtl::control_flow<int, double>>);
     static_assert(dtl::detail_try_traits::generalized_convertible_to<void, dtl::control_flow<int, void>>);
@@ -26,6 +40,11 @@ TEST_SUITE("try_result concept") {
     static_assert(dtl::try_result<std::expected<int, int>>);
     static_assert(dtl::try_result<std::expected<std::string, std::unique_ptr<int>>>);
 #endif // __cpp_lib_expected >= 202202L
+
+#if __has_include(<nonstd/expected.hpp>)
+    static_assert(dtl::try_result<nonstd::expected<int, int>>);
+    static_assert(dtl::try_result<nonstd::expected<std::string, std::unique_ptr<int>>>);
+#endif // __has_include(<nonstd/expected.hpp>)
 
     // types without a try_traits specialization are not try_results
     static_assert(!dtl::try_result<int>);
@@ -45,6 +64,9 @@ TEST_SUITE("try_result concept") {
 #if __cpp_lib_expected >= 202202L
         static_assert(std::same_as<dtl::try_traits<std::expected<int, std::string>>::rebind_output<double>, std::expected<double, std::string>>);
 #endif // __cpp_lib_expected >= 202202L
+#if __has_include(<nonstd/expected.hpp>)
+        static_assert(std::same_as<dtl::try_traits<nonstd::expected<int, std::string>>::rebind_output<double>, nonstd::expected<double, std::string>>);
+#endif // __has_include(<nonstd/expected.hpp>)
     }
 
     TEST_CASE("residuals stay usable after rebinding the output") {
@@ -53,6 +75,9 @@ TEST_SUITE("try_result concept") {
 #if __cpp_lib_expected >= 202202L
         static_assert(std::convertible_to<dtl::try_traits<std::expected<int, std::string>>::residual_type, std::expected<double, std::string>>);
 #endif // __cpp_lib_expected >= 202202L
+#if __has_include(<nonstd/expected.hpp>)
+        static_assert(std::convertible_to<dtl::try_traits<nonstd::expected<int, std::string>>::residual_type, nonstd::expected<double, std::string>>);
+#endif // __has_include(<nonstd/expected.hpp>)
     }
 }
 
@@ -105,9 +130,7 @@ TEST_SUITE("try_traits") {
         }
     }
 
-#if __cpp_lib_expected >= 202202L
-    TEST_CASE("expected") {
-        using exp = std::expected<int, std::string>;
+    TEST_CASE_TEMPLATE_DEFINE("expected", exp, try_traits_expected) {
         using traits = dtl::try_traits<exp>;
 
         SUBCASE("get_output") {
@@ -117,18 +140,23 @@ TEST_SUITE("try_traits") {
         }
 
         SUBCASE("get_residual") {
-            exp const self{std::unexpect, "boom"};
+            exp const self{unexpected_t<exp>{"boom"}};
             REQUIRE_FALSE(traits::has_output(self));
             CHECK_EQ(traits::get_residual(self).error(), "boom");
         }
 
         SUBCASE("from_output") {
-            exp exp = 42;
-            REQUIRE(exp.has_value());
-            CHECK_EQ(*exp, 42);
+            exp e = 42;
+            REQUIRE(e.has_value());
+            CHECK_EQ(*e, 42);
         }
     }
+#if __cpp_lib_expected >= 202202L
+    TEST_CASE_TEMPLATE_INVOKE(try_traits_expected, std::expected<int, std::string>);
 #endif // __cpp_lib_expected >= 202202L
+#if __has_include(<nonstd/expected.hpp>)
+    TEST_CASE_TEMPLATE_INVOKE(try_traits_expected, nonstd::expected<int, std::string>);
+#endif // __has_include(<nonstd/expected.hpp>)
 }
 
 namespace {
@@ -267,18 +295,17 @@ TEST_SUITE("DICE_TRY") {
         }
     }
 
-#if __cpp_lib_expected >= 202202L
-    TEST_CASE("expected") {
-        auto const fail = [] -> std::expected<int, std::string> {
-            return std::unexpected{"boom"};
+    TEST_CASE_TEMPLATE_DEFINE("expected", exp, dice_try_expected) {
+        auto const fail = [] -> exp {
+            return unexpected_t<exp>{"boom"};
         };
 
-        auto const success = [] -> std::expected<int, std::string> {
+        auto const success = [] -> exp {
             return 42;
         };
 
         SUBCASE("error") {
-            auto const f = [&] -> std::expected<int, std::string> {
+            auto const f = [&] -> exp {
                 auto const x = DICE_TRY(fail());
                 return x + 1;
             };
@@ -289,7 +316,7 @@ TEST_SUITE("DICE_TRY") {
         }
 
         SUBCASE("value") {
-            auto const f = [&] -> std::expected<int, std::string> {
+            auto const f = [&] -> exp {
                 auto const x = DICE_TRY(success());
                 return x + 1;
             };
@@ -298,8 +325,24 @@ TEST_SUITE("DICE_TRY") {
             REQUIRE(res.has_value());
             CHECK_EQ(*res, 43);
         }
+
+        SUBCASE("residual propagates into a differently parameterized try_result") {
+            auto const f = [&] -> rebind_t<exp, std::string> {
+                auto const x = DICE_TRY(fail());
+                return std::to_string(x);
+            };
+
+            auto const res = f();
+            REQUIRE_FALSE(res.has_value());
+            CHECK_EQ(res.error(), "boom");
+        }
     }
+#if __cpp_lib_expected >= 202202L
+    TEST_CASE_TEMPLATE_INVOKE(dice_try_expected, std::expected<int, std::string>);
 #endif // __cpp_lib_expected >= 202202L
+#if __has_include(<nonstd/expected.hpp>)
+    TEST_CASE_TEMPLATE_INVOKE(dice_try_expected, nonstd::expected<int, std::string>);
+#endif // __has_include(<nonstd/expected.hpp>)
 
     TEST_CASE("residual propagates into a differently parameterized try_result") {
         SUBCASE("optional") {
@@ -329,23 +372,6 @@ TEST_SUITE("DICE_TRY") {
             REQUIRE(res.is_break());
             CHECK_EQ(res.get_break(), "stop");
         }
-
-#if __cpp_lib_expected >= 202202L
-        SUBCASE("expected") {
-            auto const fail = [] -> std::expected<int, std::string> {
-                return std::unexpected{"boom"};
-            };
-
-            auto const f = [&] -> std::expected<std::string, std::string> {
-                auto const x = DICE_TRY(fail());
-                return std::to_string(x);
-            };
-
-            auto const res = f();
-            REQUIRE_FALSE(res.has_value());
-            CHECK_EQ(res.error(), "boom");
-        }
-#endif // __cpp_lib_expected >= 202202L
     }
 
     TEST_CASE("move only output") {
@@ -376,13 +402,12 @@ TEST_SUITE("DICE_TRY") {
         }
     }
 
-#if __cpp_lib_expected >= 202202L
-    TEST_CASE("move only residual") {
-        auto const fail = [] -> std::expected<int, std::unique_ptr<int>> {
-            return std::unexpected{std::make_unique<int>(42)};
+    TEST_CASE_TEMPLATE_DEFINE("move only residual", exp, move_only_residual) {
+        auto const fail = [] -> exp {
+            return unexpected_t<exp>{std::make_unique<int>(42)};
         };
 
-        auto const f = [&] -> std::expected<std::string, std::unique_ptr<int>> {
+        auto const f = [&] -> rebind_t<exp, std::string> {
             auto const x = DICE_TRY(fail());
             return std::to_string(x);
         };
@@ -392,7 +417,12 @@ TEST_SUITE("DICE_TRY") {
         REQUIRE_NE(res.error(), nullptr);
         CHECK_EQ(*res.error(), 42);
     }
+#if __cpp_lib_expected >= 202202L
+    TEST_CASE_TEMPLATE_INVOKE(move_only_residual, std::expected<int, std::unique_ptr<int>>);
 #endif // __cpp_lib_expected >= 202202L
+#if __has_include(<nonstd/expected.hpp>)
+    TEST_CASE_TEMPLATE_INVOKE(move_only_residual, nonstd::expected<int, std::unique_ptr<int>>);
+#endif // __has_include(<nonstd/expected.hpp>)
 
     TEST_CASE("the expression is evaluated exactly once") {
         calls = 0;
