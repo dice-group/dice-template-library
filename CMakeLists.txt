@@ -14,6 +14,7 @@ option(BUILD_TESTING "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 option(WITH_SVECTOR "use ankerl/svector to provide flex_array with flex_array_implementation::sbo_vector" OFF)
 option(WITH_BOOST "use boost to provide offset_ptr_stl_allocator in polymorphic_allocator.hpp" OFF)
+option(WITH_EXPECTED_LITE "use expected-lite to provide a try implementation for nonstd::expected" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
     set(style_files
@@ -38,6 +39,12 @@ if (PROJECT_IS_TOP_LEVEL)
     if (WITH_BOOST)
         set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_boost=True;-o=boost/*:header_only=True")
     endif ()
+
+    if (WITH_EXPECTED_LITE)
+        set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_expected_lite=True")
+        # test expected-lite's own implementation, by default it aliases std::expected where that exists
+        add_compile_definitions(nsel_CONFIG_SELECT_EXPECTED=nsel_EXPECTED_NONSTD)
+    endif ()
 endif ()
 
 add_library(${PROJECT_NAME} INTERFACE)
@@ -60,6 +67,14 @@ if (WITH_BOOST)
 
     target_link_libraries(${PROJECT_NAME} INTERFACE
             Boost::headers
+            )
+endif ()
+
+if (WITH_EXPECTED_LITE)
+    find_package(expected-lite REQUIRED)
+
+    target_link_libraries(${PROJECT_NAME} INTERFACE
+            nonstd::expected-lite
             )
 endif ()
 
