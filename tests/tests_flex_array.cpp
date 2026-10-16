@@ -487,6 +487,8 @@ TEST_SUITE("flex_array") {
 		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<int, 0>>, std::strong_ordering>);
 		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<double, 0>>, std::partial_ordering>);
 		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, 0>>, std::weak_ordering>);
+		static_assert(!std::equality_comparable<flex_array<uncomparable, 2>>);
+		static_assert(!std::three_way_comparable<flex_array<uncomparable, 2>>);
 
 		SUBCASE("element type with operator< only") {
 			flex_array<less_only, 2> const a{less_only{1}, less_only{2}};
