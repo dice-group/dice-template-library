@@ -18,6 +18,14 @@
 
 static std::atomic<size_t> allocations = 0;
 
+// the static tsan runtime of clang also defines operator new and delete
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define TEST_TSAN_COMPILED 1
+#endif
+#endif
+
+#ifndef TEST_TSAN_COMPILED
 void *operator new(size_t size) {
 	++allocations;
 	if (void *ptr = std::malloc(size); ptr != nullptr) {
@@ -33,6 +41,7 @@ void operator delete(void *ptr) noexcept {
 void operator delete(void *ptr, size_t) noexcept {
 	std::free(ptr);
 }
+#endif
 
 TEST_SUITE("mpmc_channel") {
 	using namespace dice::template_library;
