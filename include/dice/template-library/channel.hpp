@@ -30,17 +30,17 @@ namespace dice::template_library {
         using const_pointer = T const *;
 
     private:
-        size_t max_cap_; ///< maximum allowed number of elements in queue_
-        std::vector<std::optional<T>> queue_; ///< ring buffer for elements, grows up to max_cap_ and never shrinks
-        size_t head_ = 0; ///< index of the first element in queue_
-        size_t size_ = 0; ///< number of elements in queue_
+        size_t max_cap_;                       ///< maximum allowed number of elements in queue_
+        std::vector<std::optional<T>> queue_;  ///< ring buffer for elements, grows up to max_cap_ and never shrinks
+        size_t head_ = 0;                      ///< index of the first element in queue_
+        size_t size_ = 0;                      ///< number of elements in queue_
 
-        std::atomic_flag closed_ = ATOMIC_FLAG_INIT; ///< true if this channel is closed
-        std::mutex queue_mutex_; ///< mutex for queue_
-        std::condition_variable queue_not_empty_; ///< condvar for size_ > 0
-        std::condition_variable queue_not_full_;  ///< condvar for size_ < max_cap_;
+        std::atomic_flag closed_ = ATOMIC_FLAG_INIT;  ///< true if this channel is closed
+        std::mutex queue_mutex_;                      ///< mutex for queue_
+        std::condition_variable queue_not_empty_;     ///< condvar for size_ > 0
+        std::condition_variable queue_not_full_;      ///< condvar for size_ < max_cap_
 
-        template<typename ...Args>
+        template<typename... Args>
         void emplace_back(Args &&...args) {
             if (size_ == queue_.size()) {
                 // full, move the elements to a larger buffer
@@ -110,7 +110,7 @@ namespace dice::template_library {
          * @param args constructor args
          * @return true if emplacing the element succeeded because the channel is not yet closed
          */
-        template<typename ...Args>
+        template<typename... Args>
         bool emplace(Args &&...args) {
             if (closed_.test(std::memory_order_acquire)) [[unlikely]] {
                 return false;
@@ -118,7 +118,9 @@ namespace dice::template_library {
 
             {
                 std::unique_lock lock{queue_mutex_};
-                queue_not_full_.wait(lock, [this]() noexcept { return size_ < max_cap_ || closed_.test(std::memory_order_relaxed); });
+                queue_not_full_.wait(lock, [this]() noexcept {
+                    return size_ < max_cap_ || closed_.test(std::memory_order_relaxed);
+                });
 
                 if (closed_.test(std::memory_order_relaxed)) [[unlikely]] {
                     // relaxed is enough because we hold the lock
@@ -139,7 +141,7 @@ namespace dice::template_library {
          * @param args constructor args
          * @return true if emplacing the element succeeded
          */
-        template<typename ...Args>
+        template<typename... Args>
         bool try_emplace(Args &&...args) {
             if (closed_.test(std::memory_order_acquire)) [[unlikely]] {
                 return false;
@@ -207,7 +209,9 @@ namespace dice::template_library {
          */
         [[nodiscard]] std::optional<value_type> pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             std::unique_lock lock{queue_mutex_};
-            queue_not_empty_.wait(lock, [this]() noexcept { return size_ > 0 || closed_.test(std::memory_order_relaxed); });
+            queue_not_empty_.wait(lock, [this]() noexcept {
+                return size_ > 0 || closed_.test(std::memory_order_relaxed);
+            });
 
             if (size_ == 0) [[unlikely]] {
                 // implies closed_ == true

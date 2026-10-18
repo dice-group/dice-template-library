@@ -173,7 +173,7 @@ TEST_SUITE("mpmc_channel") {
 	TEST_CASE("move only element") {
 		struct elem {
 			std::unique_ptr<int> ptr;
-			int const value; // not assignable
+			int const value;  // not assignable
 		};
 
 		channel<elem> chan{3};
@@ -181,18 +181,24 @@ TEST_SUITE("mpmc_channel") {
 		chan.emplace(std::make_unique<int>(1), 1);
 		REQUIRE_EQ(*chan.pop()->ptr, 0);
 		chan.emplace(std::make_unique<int>(2), 2);
-		chan.emplace(std::make_unique<int>(3), 3); // grows while wrapped around
+		chan.emplace(std::make_unique<int>(3), 3);  // grows while wrapped around
 		REQUIRE_EQ(*chan.pop()->ptr, 1);
 		REQUIRE_EQ(*chan.pop()->ptr, 2);
 		REQUIRE_EQ(*chan.pop()->ptr, 3);
 	}
 
 	struct counted {
-		static inline int alive = 0;
+		inline static int alive = 0;
 
-		counted() noexcept { ++alive; }
-		counted(counted const &) noexcept { ++alive; }
-		~counted() { --alive; }
+		counted() noexcept {
+			++alive;
+		}
+		counted(counted const &) noexcept {
+			++alive;
+		}
+		~counted() {
+			--alive;
+		}
 	};
 
 	TEST_CASE("every element is destroyed once") {
