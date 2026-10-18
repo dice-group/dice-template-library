@@ -78,6 +78,13 @@ target_link_libraries(example_channel
         dice-template-library::dice-template-library
 )
 
+add_executable(example_channel_throughput
+        example_channel_throughput.cpp)
+target_link_libraries(example_channel_throughput
+        PRIVATE
+        dice-template-library::dice-template-library
+)
+
 add_executable(example_exchange_channel
         example_exchange_channel.cpp)
 target_link_libraries(example_exchange_channel
