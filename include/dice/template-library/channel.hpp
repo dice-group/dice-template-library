@@ -1,13 +1,15 @@
 #ifndef DICE_TEMPLATELIBRARY_CHANNEL_HPP
 #define DICE_TEMPLATELIBRARY_CHANNEL_HPP
 
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
 #include <cstddef>
-#include <deque>
 #include <mutex>
 #include <optional>
+#include <utility>
+#include <vector>
 
 namespace dice::template_library {
 
@@ -29,17 +31,44 @@ namespace dice::template_library {
 
     private:
         size_t max_cap_; ///< maximum allowed number of elements in queue_
-        std::deque<T> queue_; ///< queue for elements
+        std::vector<std::optional<T>> queue_; ///< ring buffer for elements, grows up to max_cap_ and never shrinks
+        size_t head_ = 0; ///< index of the first element in queue_
+        size_t size_ = 0; ///< number of elements in queue_
 
         std::atomic_flag closed_ = ATOMIC_FLAG_INIT; ///< true if this channel is closed
         std::mutex queue_mutex_; ///< mutex for queue_
-        std::condition_variable queue_not_empty_; ///< condvar for queue_.size() > 0
-        std::condition_variable queue_not_full_;  ///< condvar for queue_.size() < max_cap_;
+        std::condition_variable queue_not_empty_; ///< condvar for size_ > 0
+        std::condition_variable queue_not_full_;  ///< condvar for size_ < max_cap_;
+
+        template<typename ...Args>
+        void emplace_back(Args &&...args) {
+            if (size_ == queue_.size()) {
+                // full, move the elements to a larger buffer
+                std::vector<std::optional<T>> grown(std::min(max_cap_, std::max(size_t{1}, 2 * size_)));
+                for (size_t ix = 0; ix < size_; ++ix) {
+                    grown[ix].emplace(std::move_if_noexcept(*queue_[(head_ + ix) % size_]));
+                }
+                queue_ = std::move(grown);
+                head_ = 0;
+            }
+
+            auto const tail = head_ + size_ < queue_.size() ? head_ + size_ : head_ + size_ - queue_.size();
+            queue_[tail].emplace(std::forward<Args>(args)...);
+            ++size_;
+        }
+
+        std::optional<T> pop_front() noexcept(std::is_nothrow_move_constructible_v<T>) {
+            auto ret = std::exchange(queue_[head_], std::nullopt);
+            head_ = head_ + 1 < queue_.size() ? head_ + 1 : 0;
+            --size_;
+            return ret;
+        }
 
     public:
+        /**
+         * @param capacity maximum number of elements in the channel, memory for them is allocated when needed
+         */
         explicit channel(size_t capacity) : max_cap_{capacity} {
-            // note: for some reason std::deque does not have .reserve()
-            // TODO: it would probably make sense to implement a VecDeque for this (https://doc.rust-lang.org/std/collections/struct.VecDeque.html)
         }
 
         // there is no way to safely implement these with concurrent access
@@ -82,14 +111,14 @@ namespace dice::template_library {
          * @return true if emplacing the element succeeded because the channel is not yet closed
          */
         template<typename ...Args>
-        bool emplace(Args &&...args) noexcept(std::is_nothrow_constructible_v<value_type, decltype(std::forward<Args>(args))...>) {
+        bool emplace(Args &&...args) {
             if (closed_.test(std::memory_order_acquire)) [[unlikely]] {
                 return false;
             }
 
             {
                 std::unique_lock lock{queue_mutex_};
-                queue_not_full_.wait(lock, [this]() noexcept { return queue_.size() < max_cap_ || closed_.test(std::memory_order_relaxed); });
+                queue_not_full_.wait(lock, [this]() noexcept { return size_ < max_cap_ || closed_.test(std::memory_order_relaxed); });
 
                 if (closed_.test(std::memory_order_relaxed)) [[unlikely]] {
                     // relaxed is enough because we hold the lock
@@ -97,7 +126,7 @@ namespace dice::template_library {
                     return false;
                 }
 
-                queue_.emplace_back(std::forward<Args>(args)...);
+                emplace_back(std::forward<Args>(args)...);
             }
 
             queue_not_empty_.notify_one();
@@ -111,19 +140,19 @@ namespace dice::template_library {
          * @return true if emplacing the element succeeded
          */
         template<typename ...Args>
-        bool try_emplace(Args &&...args) noexcept(std::is_nothrow_constructible_v<value_type, decltype(std::forward<Args>(args))...>) {
+        bool try_emplace(Args &&...args) {
             if (closed_.test(std::memory_order_acquire)) [[unlikely]] {
                 return false;
             }
 
             {
                 std::unique_lock lock{queue_mutex_};
-                if (queue_.size() >= max_cap_ || closed_.test(std::memory_order_relaxed)) {
+                if (size_ >= max_cap_ || closed_.test(std::memory_order_relaxed)) {
                     // relaxed is enough because we hold the lock
                     return false;
                 }
 
-                queue_.emplace_back(std::forward<Args>(args)...);
+                emplace_back(std::forward<Args>(args)...);
             }
 
             queue_not_empty_.notify_one();
@@ -136,7 +165,7 @@ namespace dice::template_library {
          * @param value the element to push
          * @return true if pushing the element succeeded because the channel is not yet closed
          */
-        bool push(value_type const &value) noexcept(std::is_nothrow_copy_constructible_v<value_type>) {
+        bool push(value_type const &value) {
             return emplace(value);
         }
 
@@ -146,7 +175,7 @@ namespace dice::template_library {
          * @param value the element to push
          * @return true if pushing the element succeeded because the channel is not yet closed
          */
-        bool try_push(value_type const &value) noexcept(std::is_nothrow_copy_constructible_v<value_type>) {
+        bool try_push(value_type const &value) {
             return try_emplace(value);
         }
 
@@ -156,7 +185,7 @@ namespace dice::template_library {
          * @param value the element to push
          * @return true if pushing the element succeeded because the channel is not yet closed
          */
-        bool push(value_type &&value) noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+        bool push(value_type &&value) {
             return emplace(std::move(value));
         }
 
@@ -166,7 +195,7 @@ namespace dice::template_library {
          * @param value the element to push
          * @return true if pushing the element succeeded because the channel is not yet closed
          */
-        bool try_push(value_type &&value) noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+        bool try_push(value_type &&value) {
             return try_emplace(std::move(value));
         }
 
@@ -178,15 +207,14 @@ namespace dice::template_library {
          */
         [[nodiscard]] std::optional<value_type> pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             std::unique_lock lock{queue_mutex_};
-            queue_not_empty_.wait(lock, [this]() noexcept { return !queue_.empty() || closed_.test(std::memory_order_relaxed); });
+            queue_not_empty_.wait(lock, [this]() noexcept { return size_ > 0 || closed_.test(std::memory_order_relaxed); });
 
-            if (queue_.empty()) [[unlikely]] {
+            if (size_ == 0) [[unlikely]] {
                 // implies closed_ == true
                 return std::nullopt;
             }
 
-            auto ret = std::move(queue_.front());
-            queue_.pop_front();
+            auto ret = pop_front();
 
 			lock.unlock();
             queue_not_full_.notify_one();
@@ -199,12 +227,11 @@ namespace dice::template_library {
          */
         [[nodiscard]] std::optional<value_type> try_pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
             std::unique_lock lock{queue_mutex_};
-            if (queue_.empty()) {
+            if (size_ == 0) {
                 return std::nullopt;
             }
 
-            auto ret = std::move(queue_.front());
-            queue_.pop_front();
+            auto ret = pop_front();
 
             lock.unlock();
             queue_not_full_.notify_one();
