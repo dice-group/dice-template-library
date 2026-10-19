@@ -155,9 +155,9 @@ statically known or a runtime variable depending on the `extent`/`max_extent` te
 A multi-producer, multi-consumer queue. This can be used to communicate between threads in a more high level
 fashion than a mutex+container would allow. Memory for the elements is allocated when needed: the first push allocates
 space for 64 KiB worth of elements (at least one, at most the capacity), a full buffer doubles up to the capacity of the
-channel, and when the channel becomes empty, a buffer of more than four times the first size is freed. The next buffer
-then gets space for as many elements as the freed one held at most. So a channel can be created with an effectively
-unlimited capacity (`std::numeric_limits<size_t>::max()`). Growing moves the elements, so they must be nothrow move
+channel, and when the channel becomes empty, a buffer of more than four times the first size is freed. After that, the
+first push allocates the first size again, and the first growth goes to as many elements as the freed buffer held at
+most. So a channel can be created with an effectively unlimited capacity (`std::numeric_limits<size_t>::max()`). Growing moves the elements, so they must be nothrow move
 constructible or copy constructible.
 
 ### `fixed_channel`

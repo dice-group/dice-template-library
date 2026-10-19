@@ -247,32 +247,37 @@ TEST_SUITE("mpmc_channel") {
 
 		SUBCASE("freed") {
 			channel<big> chan{100};
+			auto const fill = [&chan]() {
+				for (int x = 0; x < 100; ++x) {
+					chan.push(big{x});
+				}
+			};
+			auto const drain = [&chan]() {
+				for (int x = 0; x < 100; ++x) {
+					REQUIRE_EQ(chan.pop()->value, x);
+				}
+			};
+
 			auto const before = allocations.load();
-			for (int x = 0; x < 100; ++x) {
-				chan.push(big{x});
-			}
+			fill();
 			REQUIRE_EQ(allocations.load(), before + 4);  // 16, 32, 64, 100 elements
+			drain();  // frees the buffer of 100 elements
 
-			for (int x = 0; x < 100; ++x) {
-				REQUIRE_EQ(chan.pop()->value, x);
-			}
-			for (int x = 0; x < 100; ++x) {
-				chan.push(big{x});
-			}
-			REQUIRE_EQ(allocations.load(), before + 5);  // freed when empty, then 100 elements at once
-
-			for (int x = 0; x < 100; ++x) {
-				REQUIRE_EQ(chan.pop()->value, x);
-			}
-			chan.push(big{0});
-			REQUIRE_EQ(chan.pop()->value, 0);
-			REQUIRE_EQ(allocations.load(), before + 6);  // 100 elements, freed again, it held 1 element at most
+			fill();
+			REQUIRE_EQ(allocations.load(), before + 6);  // 16, then straight to 100, the most the freed buffer held
+			drain();
 
 			chan.push(big{0});
 			REQUIRE_EQ(chan.pop()->value, 0);
-			chan.push(big{0});
-			REQUIRE_EQ(allocations.load(), before + 7);  // 16 elements, kept
+			REQUIRE_EQ(allocations.load(), before + 7);  // a single push after a free allocates 16 elements, kept when empty
+
+			fill();
+			REQUIRE_EQ(allocations.load(), before + 8);  // straight from 16 to 100 elements
 		}
+	}
+
+	TEST_CASE("fixed channel has no growth state") {
+		static_assert(sizeof(channel<int>) - sizeof(fixed_channel<int>) == 2 * sizeof(size_t));
 	}
 
 	struct big_not_trivial {
@@ -470,8 +475,9 @@ TEST_SUITE("mpmc_channel") {
 			move_throws::fail_next = true;
 			chan.emplace(1);
 			// the consumer that wakes up first throws, the other one gets the element
-			REQUIRE(eventually([&]() { return received == 1; }));
-			chan.close();
+			bool const ok = eventually([&]() { return received == 1; });
+			chan.close();  // before the check, so that a failure does not hang in the destructors of the threads
+			REQUIRE(ok);
 		}
 
 		SUBCASE("producer") {
@@ -493,8 +499,9 @@ TEST_SUITE("mpmc_channel") {
 
 			REQUIRE_EQ(chan.pop()->value, 0);
 			// if the producer that throws wakes up first, the other one pushes
-			REQUIRE(eventually([&]() { return pushed.load(); }));
-			chan.close();
+			bool const ok = eventually([&]() { return pushed.load(); });
+			chan.close();  // before the check, so that a failure does not hang in the destructors of the threads
+			REQUIRE(ok);
 		}
 	}
 

@@ -177,10 +177,20 @@ namespace dice::template_library {
 
         private:
             /**
-             * Number of elements a growable channel allocates at least: 64 KiB worth of elements, at least one.
+             * Number of elements a growable channel allocates first: 64 KiB worth of elements, at least one.
              * When the channel becomes empty, a buffer of more than `4 * min_buffer_size` elements is freed.
              */
             static constexpr size_t min_buffer_size = std::max(size_t{1}, size_t{64 * 1024} / sizeof(T));
+
+            /**
+             * Sizing state of a growable channel.
+             */
+            struct growth {
+                size_t peak = 0;       ///< most elements in `queue_` since its buffer was allocated
+                size_t next_size = 0;  ///< number of elements the first growth after a free goes to at least
+            };
+
+            struct no_growth {};
 
             static_assert(Fixed || std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>,
                           "channel moves its elements when its buffer grows, so they must be nothrow move constructible "
@@ -191,10 +201,7 @@ namespace dice::template_library {
 
             size_t max_cap_;  ///< maximum allowed number of elements in `queue_`
             ring<T> queue_;   ///< queue for elements
-
-            // only used by a growable channel
-            size_t peak_ = 0;                    ///< most elements in `queue_` since its buffer was allocated
-            size_t next_size_ = min_buffer_size;  ///< number of elements the next allocation into an empty `queue_` gets
+            [[no_unique_address]] std::conditional_t<Fixed, no_growth, growth> growth_;
 
             std::atomic_flag closed_ = ATOMIC_FLAG_INIT;  ///< true if this channel is closed
             std::mutex queue_mutex_;                      ///< mutex for `queue_`
@@ -209,20 +216,20 @@ namespace dice::template_library {
             void emplace_back(ring<T> &old, Args &&...args) noexcept(nothrow_emplace<Args...>) {
                 if constexpr (!Fixed) {
                     if (queue_.size() == queue_.capacity()) {
-                        auto const grown = queue_.capacity() == 0 ? next_size_ : 2 * queue_.size();
-                        queue_.reallocate(std::min(max_cap_, std::max(min_buffer_size, grown)), old);
+                        auto const grown = queue_.capacity() == 0 ? min_buffer_size : std::max(2 * queue_.size(), growth_.next_size);
+                        queue_.reallocate(std::min(max_cap_, grown), old);
                     }
                 }
                 queue_.emplace_back(std::forward<Args>(args)...);
                 if constexpr (!Fixed) {
-                    peak_ = std::max(peak_, queue_.size());
+                    growth_.peak = std::max(growth_.peak, queue_.size());
                 }
             }
 
             /**
              * Move the first element into `out` and remove it, requires `queue_.size() > 0` and an empty `out`.
              * A buffer that is freed goes to `spare`, so that the caller frees it after unlocking.
-             * The next buffer gets space for as many elements as the freed one held at most.
+             * The first growth after a free goes to as many elements as the freed buffer held at most.
              */
             void pop_front_into(std::optional<T> &out, ring<T> &spare) noexcept(std::is_nothrow_move_constructible_v<T>) {
                 assert(!out.has_value());
@@ -230,15 +237,16 @@ namespace dice::template_library {
                 if constexpr (!Fixed) {
                     if (queue_.size() == 0 && queue_.capacity() > 4 * min_buffer_size) {
                         queue_.swap(spare);
-                        next_size_ = peak_;
-                        peak_ = 0;
+                        growth_.next_size = growth_.peak;
+                        growth_.peak = 0;
                     }
                 }
             }
 
             /**
              * Move an element into the empty `out`, blocks until there is one available or the channel is closed.
-             * `out` is empty, so that no element is destroyed while the channel is locked.
+             * The source of the move is destroyed while the channel is locked. `out` is empty, so that no other element is
+             * destroyed under the lock.
              *
              * @return false if the channel was closed and is empty, `out` stays empty then
              */
@@ -572,8 +580,8 @@ namespace dice::template_library {
      * Memory for the elements is allocated when needed. The first push allocates space for 64 KiB worth of elements
      * (at least one, at most the capacity), and a full buffer doubles up to the capacity. Growing moves all elements
      * while the channel is locked. So the elements must be nothrow move constructible or copy constructible.
-     * When the channel becomes empty, a buffer of more than four times the first size is freed. The next buffer then
-     * gets space for as many elements as the freed one held at most.
+     * When the channel becomes empty, a buffer of more than four times the first size is freed. After that, the first push
+     * allocates the first size again, and the first growth goes to as many elements as the freed buffer held at most.
      * Use `fixed_channel` if pushing must not allocate.
      *
      * @tparam T value type of the channel
