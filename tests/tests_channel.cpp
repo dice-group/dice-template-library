@@ -360,6 +360,14 @@ TEST_SUITE("mpmc_channel") {
 		REQUIRE_EQ(fragile::alive, 0);
 	}
 
+	TEST_CASE("iterator assignment is noexcept only if it cannot throw") {
+		static_assert(std::is_nothrow_copy_assignable_v<channel<int>::iterator>);
+		static_assert(std::is_nothrow_move_assignable_v<channel<int>::iterator>);
+		// assigning may copy into the empty slot, and the copy constructor of `fragile` may throw
+		static_assert(!std::is_nothrow_copy_assignable_v<channel<fragile>::iterator>);
+		static_assert(!std::is_nothrow_move_assignable_v<channel<fragile>::iterator>);
+	}
+
 	TEST_CASE("iterator keeps its element if popping throws") {
 		{
 			channel<fragile> chan{4};
@@ -445,7 +453,7 @@ TEST_SUITE("mpmc_channel") {
 		using namespace std::chrono_literals;
 
 		SUBCASE("consumer") {
-			channel<move_throws> chan{4};
+			fixed_channel<move_throws> chan{4};  // a growing channel requires a nothrow move or a copy
 			std::atomic<int> received = 0;
 			auto const consume = [&]() {
 				try {
