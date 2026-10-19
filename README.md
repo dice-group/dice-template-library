@@ -153,9 +153,11 @@ statically known or a runtime variable depending on the `extent`/`max_extent` te
 
 ### `channel`
 A multi-producer, multi-consumer queue. This can be used to communicate between threads in a more high level
-fashion than a mutex+container would allow. Memory for the elements is allocated when needed: the buffer grows up to
-the capacity of the channel, and a buffer larger than 64 KiB is freed when the channel is empty. So a channel can be
-created with an effectively unlimited capacity (`std::numeric_limits<size_t>::max()`).
+fashion than a mutex+container would allow. Memory for the elements is allocated when needed: the first push allocates
+space for 64 KiB worth of elements (at least one), a full buffer doubles up to the capacity of the channel, and when the
+channel becomes empty, a buffer of more than four times the first size is freed. So a channel can be created with an
+effectively unlimited capacity (`std::numeric_limits<size_t>::max()`). The elements must be nothrow move constructible
+or copy constructible.
 
 ### `fixed_channel`
 Like `channel`, but memory for all elements is allocated when the channel is constructed. Pushing and popping do not

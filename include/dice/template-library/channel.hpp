@@ -67,16 +67,22 @@ namespace dice::template_library {
             }
 
             /**
-             * Remove the first element, requires `size() > 0`.
+             * Move the first element into `out` and remove it, requires `size() > 0`.
              * If moving the element throws, the ring buffer is unchanged.
              */
-            [[nodiscard]] std::optional<T> pop_front() noexcept(std::is_nothrow_move_constructible_v<T>) {
+            void pop_front_into(std::optional<T> &out) noexcept(std::is_nothrow_move_constructible_v<T>) {
                 assert(size_ > 0);
-                std::optional<T> ret{std::move(buf_[head_])};
+                out.emplace(std::move(buf_[head_]));
                 std::destroy_at(buf_ + head_);
                 head_ = index(1);
                 --size_;
-                return ret;
+            }
+
+            void swap(ring &other) noexcept {
+                std::swap(buf_, other.buf_);
+                std::swap(cap_, other.cap_);
+                std::swap(head_, other.head_);
+                std::swap(size_, other.size_);
             }
 
             /**
@@ -142,10 +148,14 @@ namespace dice::template_library {
 
         private:
             /**
-             * Number of elements a growable channel allocates first and keeps when it is empty.
-             * A larger buffer is freed when the channel is empty.
+             * Number of elements a growable channel allocates first: 64 KiB worth of elements, at least one.
+             * When the channel becomes empty, a buffer of more than `4 * min_buffer_size` elements is freed.
              */
             static constexpr size_t min_buffer_size = std::max(size_t{1}, size_t{64 * 1024} / sizeof(T));
+
+            static_assert(Fixed || std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>,
+                          "channel moves its elements when its buffer grows, so they must be nothrow move constructible "
+                          "or copy constructible; use fixed_channel otherwise");
 
             template<typename... Args>
             static constexpr bool nothrow_emplace = Fixed && std::is_nothrow_constructible_v<T, Args...>;
@@ -168,14 +178,52 @@ namespace dice::template_library {
                 queue_.emplace_back(std::forward<Args>(args)...);
             }
 
-            [[nodiscard]] std::optional<T> pop_front() noexcept(std::is_nothrow_move_constructible_v<T>) {
-                auto ret = queue_.pop_front();
+            /**
+             * Move the first element into `out` and remove it, requires `queue_.size() > 0`.
+             * A buffer that is freed goes to `spare`, so that the caller frees it after unlocking.
+             */
+            void pop_front_into(std::optional<T> &out, ring<T> &spare) noexcept(std::is_nothrow_move_constructible_v<T>) {
+                queue_.pop_front_into(out);
                 if constexpr (!Fixed) {
-                    if (queue_.size() == 0 && queue_.capacity() > min_buffer_size) {
-                        queue_.clear();
+                    if (queue_.size() == 0 && queue_.capacity() > 4 * min_buffer_size) {
+                        queue_.swap(spare);
                     }
                 }
-                return ret;
+            }
+
+            /**
+             * Move an element into `out`, blocks until there is one available or the channel is closed.
+             *
+             * @return false if the channel was closed and is empty, `out` is empty then
+             */
+            bool pop_into(std::optional<T> &out) noexcept(std::is_nothrow_move_constructible_v<T>) {
+                ring<T> spare;
+                std::unique_lock lock{queue_mutex_};
+                queue_not_empty_.wait(lock, [this]() noexcept {
+                    return queue_.size() > 0 || closed_.test(std::memory_order_relaxed);
+                });
+
+                if (queue_.size() == 0) [[unlikely]] {
+                    // implies `closed_` is true
+                    out.reset();
+                    return false;
+                }
+
+                if constexpr (std::is_nothrow_move_constructible_v<T>) {
+                    pop_front_into(out, spare);
+                } else {
+                    try {
+                        pop_front_into(out, spare);
+                    } catch (...) {
+                        // pass the wakeup on to another waiting consumer
+                        queue_not_empty_.notify_one();
+                        throw;
+                    }
+                }
+
+                lock.unlock();
+                queue_not_full_.notify_one();
+                return true;
             }
 
         public:
@@ -206,12 +254,12 @@ namespace dice::template_library {
                     // "Even if the shared variable is atomic, it must be modified while owning the mutex to correctly publish the modification to the waiting thread."
                     // - https://en.cppreference.com/w/cpp/thread/condition_variable
                     //
-                    // Here closed_ is the shared variable used by queue_not_empty_ in another thread (the one waiting in pop)
+                    // Here `closed_` is the shared variable used by `queue_not_empty_` in another thread (the one waiting in `pop()`)
                     std::lock_guard lock{queue_mutex_};
                     closed_.test_and_set(std::memory_order_release);
                 }
-                queue_not_empty_.notify_all();  // notify pop() so that it does not get stuck
-                queue_not_full_.notify_all();   // notify emplace()
+                queue_not_empty_.notify_all();  // notify `pop()` so that it does not get stuck
+                queue_not_full_.notify_all();   // notify `emplace()`
             }
 
             /**
@@ -241,7 +289,7 @@ namespace dice::template_library {
 
                     if (closed_.test(std::memory_order_relaxed)) [[unlikely]] {
                         // relaxed is enough because we hold the lock
-                        // wait was exited because closed_ was true (channel closed)
+                        // wait was exited because `closed_` was true (channel closed)
                         return false;
                     }
 
@@ -335,33 +383,8 @@ namespace dice::template_library {
              * @return std::nullopt if the channel was closed, an element otherwise
              */
             [[nodiscard]] std::optional<value_type> pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
-                std::unique_lock lock{queue_mutex_};
-                queue_not_empty_.wait(lock, [this]() noexcept {
-                    return queue_.size() > 0 || closed_.test(std::memory_order_relaxed);
-                });
-
-                if (queue_.size() == 0) [[unlikely]] {
-                    // implies closed_ == true
-                    return std::nullopt;
-                }
-
-                // initialized by a lambda, because `std::optional<T>` is not assignable if `T` is not
-                std::optional<value_type> ret = [this]() {
-                    if constexpr (std::is_nothrow_move_constructible_v<value_type>) {
-                        return pop_front();
-                    } else {
-                        try {
-                            return pop_front();
-                        } catch (...) {
-                            // pass the wakeup on to another waiting consumer
-                            queue_not_empty_.notify_one();
-                            throw;
-                        }
-                    }
-                }();
-
-                lock.unlock();
-                queue_not_full_.notify_one();
+                std::optional<value_type> ret;
+                pop_into(ret);
                 return ret;
             }
 
@@ -370,12 +393,14 @@ namespace dice::template_library {
              * Unlike `pop()`, if there is no element available, returns `std::nullopt` immediately.
              */
             [[nodiscard]] std::optional<value_type> try_pop() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
+                std::optional<value_type> ret;
+                ring<T> spare;
                 std::unique_lock lock{queue_mutex_};
                 if (queue_.size() == 0) {
-                    return std::nullopt;
+                    return ret;
                 }
 
-                auto ret = pop_front();
+                pop_front_into(ret, spare);
 
                 lock.unlock();
                 queue_not_full_.notify_one();
@@ -394,10 +419,10 @@ namespace dice::template_library {
 
             private:
                 channel_type *chan_;
-                mutable std::optional<value_type> buf_;  ///< this has to be mutable for this iterator to fullfill std::input_iterator
+                mutable std::optional<value_type> buf_;  ///< this has to be mutable for this iterator to fullfill `std::input_iterator`
 
                 void advance() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
-                    buf_ = chan_->pop();
+                    chan_->pop_into(buf_);
                 }
 
             public:
@@ -484,8 +509,9 @@ namespace dice::template_library {
      * A multi producer, multi consumer channel/queue
      * @warning close() must be called once the producing threads are done, otherwise the reading thread will hang indefinitely
      *
-     * Memory for the elements is allocated when needed, the buffer grows up to the capacity.
-     * A buffer larger than 64 KiB is freed when the channel is empty.
+     * Memory for the elements is allocated when needed. The first push allocates space for 64 KiB worth of elements
+     * (at least one, at most the capacity), and a full buffer doubles up to the capacity. Growing moves all elements
+     * while the channel is locked. When the channel becomes empty, a buffer of more than four times the first size is freed.
      * Use `fixed_channel` if pushing must not allocate.
      *
      * @tparam T value type of the channel
