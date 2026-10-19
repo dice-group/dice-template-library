@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <iterator>
 #include <memory>
@@ -16,6 +17,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 static std::atomic<size_t> allocations = 0;
@@ -254,26 +256,237 @@ TEST_SUITE("mpmc_channel") {
 			for (int x = 0; x < 100; ++x) {
 				REQUIRE_EQ(chan.pop()->value, x);
 			}
+			for (int x = 0; x < 100; ++x) {
+				chan.push(big{x});
+			}
+			REQUIRE_EQ(allocations.load(), before + 5);  // freed when empty, then 100 elements at once
+
+			for (int x = 0; x < 100; ++x) {
+				REQUIRE_EQ(chan.pop()->value, x);
+			}
 			chan.push(big{0});
-			REQUIRE_EQ(allocations.load(), before + 5);  // the buffer of 100 elements was freed when empty
+			REQUIRE_EQ(chan.pop()->value, 0);
+			REQUIRE_EQ(allocations.load(), before + 6);  // 100 elements, freed again, it held 1 element at most
+
+			chan.push(big{0});
+			REQUIRE_EQ(chan.pop()->value, 0);
+			chan.push(big{0});
+			REQUIRE_EQ(allocations.load(), before + 7);  // 16 elements, kept
 		}
 	}
 
-	TEST_CASE("growth while wrapped around") {
-		channel<big> chan{64};
+	struct big_not_trivial {
+		int value;
+		std::unique_ptr<int> ptr;  // not trivially copyable, so growing moves element by element
+		std::array<char, 4080> pad{};  // 16 elements fit into 64 KiB
+
+		explicit big_not_trivial(int value) : value{value}, ptr{std::make_unique<int>(value)} {
+		}
+	};
+
+	TEST_CASE_TEMPLATE("growth while wrapped around", T, big, big_not_trivial) {
+		channel<T> chan{64};
 		int pushed = 0;
 		int popped = 0;
 		for (; pushed < 16; ++pushed) {
-			chan.push(big{pushed});
+			chan.emplace(pushed);
 		}
 		for (; popped < 8; ++popped) {
 			REQUIRE_EQ(chan.pop()->value, popped);
 		}
 		for (; pushed < 25; ++pushed) {
-			chan.push(big{pushed});  // wraps around, then grows from 16 to 32 elements
+			chan.emplace(pushed);  // wraps around, then grows from 16 to 32 elements
 		}
 		for (; popped < pushed; ++popped) {
-			REQUIRE_EQ(chan.pop()->value, popped);
+			auto const e = chan.pop();
+			REQUIRE_EQ(e->value, popped);
+			if constexpr (std::is_same_v<T, big_not_trivial>) {
+				REQUIRE_EQ(*e->ptr, popped);
+			}
+		}
+	}
+
+	struct fragile {
+		inline static int copies_left = -1;  ///< copies before one throws, negative for no limit
+		inline static int alive = 0;
+		int value;
+		std::array<char, 4088> pad{};  // 16 elements fit into 64 KiB
+
+		explicit fragile(int value) noexcept : value{value} {
+			++alive;
+		}
+		// no move constructor, so moving copies
+		fragile(fragile const &other) : value{other.value} {
+			if (copies_left == 0) {
+				throw std::runtime_error{"copy"};
+			}
+			if (copies_left > 0) {
+				--copies_left;
+			}
+			++alive;
+		}
+		~fragile() {
+			--alive;
+		}
+	};
+
+	TEST_CASE("throwing copy while growing and popping") {
+		{
+			channel<fragile> chan{64};
+			for (int x = 0; x < 16; ++x) {
+				chan.emplace(x);
+			}
+			for (int x = 0; x < 4; ++x) {
+				REQUIRE_EQ(chan.pop()->value, x);
+			}
+			for (int x = 16; x < 20; ++x) {
+				chan.emplace(x);  // wraps around, the buffer of 16 elements is full
+			}
+			REQUIRE_EQ(fragile::alive, 16);
+
+			fragile::copies_left = 5;
+			REQUIRE_THROWS_AS(chan.emplace(20), std::runtime_error);  // the sixth copy into the grown buffer throws
+			REQUIRE_EQ(fragile::alive, 16);  // the five copies were destroyed
+
+			fragile::copies_left = 0;
+			REQUIRE_THROWS_AS((void) chan.pop(), std::runtime_error);
+			fragile::copies_left = -1;
+
+			chan.emplace(20);
+			for (int x = 4; x <= 20; ++x) {
+				REQUIRE_EQ(chan.pop()->value, x);
+			}
+		}
+		REQUIRE_EQ(fragile::alive, 0);
+	}
+
+	TEST_CASE("iterator keeps its element if popping throws") {
+		{
+			channel<fragile> chan{4};
+			chan.emplace(0);
+			chan.emplace(1);
+
+			auto it = chan.begin();
+			REQUIRE_EQ(it->value, 0);
+			fragile::copies_left = 0;
+			REQUIRE_THROWS_AS(++it, std::runtime_error);
+			fragile::copies_left = -1;
+			REQUIRE(it != chan.end());
+			REQUIRE_EQ(it->value, 0);
+
+			++it;
+			REQUIRE_EQ(it->value, 1);
+			chan.close();
+			++it;
+			REQUIRE(it == chan.end());
+		}
+		REQUIRE_EQ(fragile::alive, 0);
+	}
+
+	struct pushes_when_destroyed {
+		channel<pushes_when_destroyed> *chan;
+		int value;
+
+		pushes_when_destroyed(channel<pushes_when_destroyed> *chan, int value) noexcept : chan{chan}, value{value} {
+		}
+		pushes_when_destroyed(pushes_when_destroyed &&other) noexcept : chan{std::exchange(other.chan, nullptr)}, value{other.value} {
+		}
+		~pushes_when_destroyed() {
+			if (chan != nullptr) {
+				chan->try_emplace(nullptr, value + 10);
+			}
+		}
+	};
+
+	TEST_CASE("iterator destroys its element after unlocking the channel") {
+		channel<pushes_when_destroyed> chan{4};
+		chan.emplace(&chan, 0);
+		chan.emplace(nullptr, 1);
+
+		std::vector<int> values;
+		auto it = chan.begin();
+		values.push_back(it->value);
+		++it;  // the destructor of the element 0 pushes 10
+		values.push_back(it->value);
+		++it;
+		values.push_back(it->value);
+		chan.close();
+		++it;
+		REQUIRE(it == chan.end());
+		REQUIRE_EQ(values, std::vector<int>{0, 1, 10});
+	}
+
+	template<typename Pred>
+	bool eventually(Pred pred) {
+		auto const deadline = std::chrono::steady_clock::now() + std::chrono::seconds{10};
+		while (!pred()) {
+			if (std::chrono::steady_clock::now() > deadline) {
+				return false;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds{1});
+		}
+		return true;
+	}
+
+	struct move_throws {
+		inline static std::atomic<bool> fail_next = false;
+		int value;
+
+		explicit move_throws(int value) noexcept : value{value} {
+		}
+		move_throws(move_throws &&other) : value{other.value} {
+			if (fail_next.exchange(false)) {
+				throw std::runtime_error{"move"};
+			}
+		}
+	};
+
+	TEST_CASE("a thread that throws passes its wakeup on") {
+		using namespace std::chrono_literals;
+
+		SUBCASE("consumer") {
+			channel<move_throws> chan{4};
+			std::atomic<int> received = 0;
+			auto const consume = [&]() {
+				try {
+					if (chan.pop().has_value()) {
+						++received;
+					}
+				} catch (std::runtime_error const &) {
+				}
+			};
+			std::jthread const a{consume};
+			std::jthread const b{consume};
+			std::this_thread::sleep_for(50ms);  // both consumers wait
+
+			move_throws::fail_next = true;
+			chan.emplace(1);
+			// the consumer that wakes up first throws, the other one gets the element
+			REQUIRE(eventually([&]() { return received == 1; }));
+			chan.close();
+		}
+
+		SUBCASE("producer") {
+			channel<maybe_throws> chan{1};
+			chan.emplace(0);
+			std::atomic<bool> pushed = false;
+			std::jthread const a{[&]() {
+				try {
+					chan.emplace(-1);
+				} catch (std::runtime_error const &) {
+				}
+			}};
+			std::jthread const b{[&]() {
+				if (chan.emplace(2)) {
+					pushed = true;
+				}
+			}};
+			std::this_thread::sleep_for(50ms);  // both producers wait
+
+			REQUIRE_EQ(chan.pop()->value, 0);
+			// if the producer that throws wakes up first, the other one pushes
+			REQUIRE(eventually([&]() { return pushed.load(); }));
+			chan.close();
 		}
 	}
 

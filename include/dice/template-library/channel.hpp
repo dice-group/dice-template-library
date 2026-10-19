@@ -2,6 +2,7 @@
 #define DICE_TEMPLATELIBRARY_CHANNEL_HPP
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
@@ -175,20 +176,20 @@ namespace dice::template_library {
 
         private:
             /**
-             * Number of elements a growable channel allocates first: 64 KiB worth of elements, at least one.
+             * Number of elements a growable channel allocates at least: 64 KiB worth of elements, at least one.
              * When the channel becomes empty, a buffer of more than `4 * min_buffer_size` elements is freed.
              */
             static constexpr size_t min_buffer_size = std::max(size_t{1}, size_t{64 * 1024} / sizeof(T));
-
-            static_assert(Fixed || std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>,
-                          "channel moves its elements when its buffer grows, so they must be nothrow move constructible "
-                          "or copy constructible; use fixed_channel otherwise");
 
             template<typename... Args>
             static constexpr bool nothrow_emplace = Fixed && std::is_nothrow_constructible_v<T, Args...>;
 
             size_t max_cap_;  ///< maximum allowed number of elements in `queue_`
             ring<T> queue_;   ///< queue for elements
+
+            // only used by a growable channel
+            size_t peak_ = 0;                    ///< most elements in `queue_` since its buffer was allocated
+            size_t next_size_ = min_buffer_size;  ///< number of elements the next allocation into an empty `queue_` gets
 
             std::atomic_flag closed_ = ATOMIC_FLAG_INIT;  ///< true if this channel is closed
             std::mutex queue_mutex_;                      ///< mutex for `queue_`
@@ -199,29 +200,38 @@ namespace dice::template_library {
             void emplace_back(Args &&...args) noexcept(nothrow_emplace<Args...>) {
                 if constexpr (!Fixed) {
                     if (queue_.size() == queue_.capacity()) {
-                        queue_.reallocate(std::min(max_cap_, std::max(min_buffer_size, 2 * queue_.size())));
+                        auto const grown = queue_.capacity() == 0 ? next_size_ : 2 * queue_.size();
+                        queue_.reallocate(std::min(max_cap_, std::max(min_buffer_size, grown)));
                     }
                 }
                 queue_.emplace_back(std::forward<Args>(args)...);
+                if constexpr (!Fixed) {
+                    peak_ = std::max(peak_, queue_.size());
+                }
             }
 
             /**
-             * Move the first element into `out` and remove it, requires `queue_.size() > 0`.
+             * Move the first element into `out` and remove it, requires `queue_.size() > 0` and an empty `out`.
              * A buffer that is freed goes to `spare`, so that the caller frees it after unlocking.
+             * The next buffer gets space for as many elements as the freed one held at most.
              */
             void pop_front_into(std::optional<T> &out, ring<T> &spare) noexcept(std::is_nothrow_move_constructible_v<T>) {
+                assert(!out.has_value());
                 queue_.pop_front_into(out);
                 if constexpr (!Fixed) {
                     if (queue_.size() == 0 && queue_.capacity() > 4 * min_buffer_size) {
                         queue_.swap(spare);
+                        next_size_ = peak_;
+                        peak_ = 0;
                     }
                 }
             }
 
             /**
-             * Move an element into `out`, blocks until there is one available or the channel is closed.
+             * Move an element into the empty `out`, blocks until there is one available or the channel is closed.
+             * `out` is empty, so that no element is destroyed while the channel is locked.
              *
-             * @return false if the channel was closed and is empty, `out` is empty then
+             * @return false if the channel was closed and is empty, `out` stays empty then
              */
             bool pop_into(std::optional<T> &out) noexcept(std::is_nothrow_move_constructible_v<T>) {
                 ring<T> spare;
@@ -232,7 +242,6 @@ namespace dice::template_library {
 
                 if (queue_.size() == 0) [[unlikely]] {
                     // implies `closed_` is true
-                    out.reset();
                     return false;
                 }
 
@@ -446,10 +455,18 @@ namespace dice::template_library {
 
             private:
                 channel_type *chan_;
-                mutable std::optional<value_type> buf_;  ///< this has to be mutable for this iterator to fullfill `std::input_iterator`
+                /// the current element and an empty slot for the next one, mutable for this iterator to fullfill `std::input_iterator`
+                mutable std::array<std::optional<value_type>, 2> buf_;
+                size_t cur_ = 0;  ///< index of the current element in `buf_`
 
+                /**
+                 * The next element goes into the empty slot. So the current element is destroyed after the channel is
+                 * unlocked, and it stays if popping throws.
+                 */
                 void advance() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
-                    chan_->pop_into(buf_);
+                    chan_->pop_into(buf_[1 - cur_]);
+                    buf_[cur_].reset();
+                    cur_ = 1 - cur_;
                 }
 
             public:
@@ -460,7 +477,8 @@ namespace dice::template_library {
 
                 iterator(iterator const &other) noexcept(std::is_nothrow_copy_constructible_v<value_type>)
                     : chan_{other.chan_},
-                      buf_{other.buf_} {
+                      buf_{other.buf_},
+                      cur_{other.cur_} {
                 }
 
                 iterator &operator=(iterator const &other) noexcept(std::is_nothrow_copy_assignable_v<value_type>) {
@@ -470,35 +488,38 @@ namespace dice::template_library {
 
                     chan_ = other.chan_;
                     buf_ = other.buf_;
+                    cur_ = other.cur_;
                     return *this;
                 }
 
                 iterator(iterator &&other) noexcept(std::is_nothrow_move_constructible_v<value_type>)
                     : chan_{other.chan_},
-                      buf_{std::move(other.buf_)} {
+                      buf_{std::move(other.buf_)},
+                      cur_{other.cur_} {
                 }
 
                 iterator &operator=(iterator &&other) noexcept(std::is_nothrow_swappable_v<value_type>) {
                     assert(this != &other);
                     std::swap(chan_, other.chan_);
                     std::swap(buf_, other.buf_);
+                    std::swap(cur_, other.cur_);
                     return *this;
                 }
 
                 reference operator*() noexcept {
-                    return *buf_;
+                    return *buf_[cur_];
                 }
 
                 reference operator*() const noexcept {
-                    return *buf_;
+                    return *buf_[cur_];
                 }
 
                 pointer operator->() noexcept {
-                    return &*buf_;
+                    return &*buf_[cur_];
                 }
 
                 pointer operator->() const noexcept {
-                    return &*buf_;
+                    return &*buf_[cur_];
                 }
 
                 iterator &operator++() noexcept(std::is_nothrow_move_constructible_v<value_type>) {
@@ -511,7 +532,7 @@ namespace dice::template_library {
                 }
 
                 bool operator==(std::default_sentinel_t) const noexcept {
-                    return !buf_.has_value();
+                    return !buf_[cur_].has_value();
                 }
             };
 
@@ -538,7 +559,10 @@ namespace dice::template_library {
      *
      * Memory for the elements is allocated when needed. The first push allocates space for 64 KiB worth of elements
      * (at least one, at most the capacity), and a full buffer doubles up to the capacity. Growing moves all elements
-     * while the channel is locked. When the channel becomes empty, a buffer of more than four times the first size is freed.
+     * while the channel is locked. If moving an element can throw and the element is not copyable, an exception while
+     * growing leaves the elements moved before in a moved-from state, like in `std::vector`.
+     * When the channel becomes empty, a buffer of more than four times the first size is freed. The next buffer then
+     * gets space for as many elements as the freed one held at most.
      * Use `fixed_channel` if pushing must not allocate.
      *
      * @tparam T value type of the channel
