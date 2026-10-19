@@ -225,3 +225,9 @@ target_link_libraries(example_try
         dice-template-library::dice-template-library
 )
 
+add_executable(example_optional_ref
+        example_optional_ref.cpp)
+target_link_libraries(example_optional_ref
+        PRIVATE
+        dice-template-library::dice-template-library
+)

@@ -138,3 +138,6 @@ custom_add_test(tests_control_flow)
 
 add_executable(tests_try tests_try.cpp)
 custom_add_test(tests_try)
+
+add_executable(tests_optional_ref tests_optional_ref.cpp)
+custom_add_test(tests_optional_ref)
