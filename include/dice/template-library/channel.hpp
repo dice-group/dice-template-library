@@ -128,7 +128,13 @@ namespace dice::template_library {
                     return false;
                 }
 
-                emplace_back(std::forward<Args>(args)...);
+                try {
+                    emplace_back(std::forward<Args>(args)...);
+                } catch (...) {
+                    // pass the wakeup on to another waiting producer
+                    queue_not_full_.notify_one();
+                    throw;
+                }
             }
 
             queue_not_empty_.notify_one();
