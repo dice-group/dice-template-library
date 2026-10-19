@@ -481,6 +481,8 @@ TEST_SUITE("flex_array") {
 	}
 
 	TEST_CASE("comparison category of the static size") {
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, dynamic_extent, 2>>, std::weak_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, 2, dynamic_extent>>, std::weak_ordering>);
 		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<int, 2>>, std::strong_ordering>);
 		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<double, 2>>, std::partial_ordering>);
 		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, 2>>, std::weak_ordering>);

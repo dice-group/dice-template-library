@@ -30,7 +30,7 @@ It contains:
 - `lazy_conditional`: Lazy conditional type selection that only instantiates the selected branch.
 - `format_to_ostream`: Provide an ostream `operator<<` overload for any type that is formattable with `std::format`.
 - `stdint`: User defined literals for fixed size integers.
-- `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument.
+- `functional`: Extensions for `<functional>`. Currently, contains a `bind_front` implementation with constexpr function argument and `synth_three_way`.
 - `DICE_DBG`: Prints and returns the value of a given expression for quick and dirty debugging.
 - `opt_min`/`opt_max`/`opt_minmax`: Optional-aware min/max/minmax algorithms that treat `std::nullopt` as "no value".
 - `pointer_tag_pair`: A pointer and value pair that stores a small integer tag in the pointer alignment bits based on the API
@@ -245,7 +245,8 @@ when a type is being deduced.
 ### `functional`
 Extensions for `<functional>`.
 Currently, contains an implementation of bind_front with constexpr function argument (`bind_front<constexpr_func>(args...)`)
-that is only available from C++26 onwards.
+that is only available from C++26 onwards, and `synth_three_way`, the exposition-only comparator the standard library
+uses to compare container elements with `operator<=>` or else with `operator<`.
 
 ### `DICE_DBG`
 A macro for debugging inspired by rust's `dbg!` macro.

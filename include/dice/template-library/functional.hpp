@@ -3,6 +3,8 @@
 
 #include <dice/template-library/type_traits.hpp>
 
+#include <compare>
+#include <concepts>
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -55,6 +57,32 @@ namespace dice::template_library {
 	        return dice::template_library::forward_like<Self>(self.value);
 	    }
 	};
+
+	/**
+     * Three-way comparison of two values in the way std::array compares its elements:
+     * with operator<=> if the type has it, else with operator<.
+     * See https://en.cppreference.com/w/cpp/standard_library/synth-three-way.html
+     */
+    struct synth_three_way {
+        template<typename U>
+        constexpr auto operator()(U const &lhs, U const &rhs) const
+        requires requires {
+            { lhs < rhs } -> std::convertible_to<bool>;
+            { rhs < lhs } -> std::convertible_to<bool>;
+        } {
+            if constexpr (std::three_way_comparable<U>) {
+                return lhs <=> rhs;
+            } else {
+                if (lhs < rhs) {
+                    return std::weak_ordering::less;
+                }
+                if (rhs < lhs) {
+                    return std::weak_ordering::greater;
+                }
+                return std::weak_ordering::equivalent;
+            }
+        }
+    };
 
 }// namespace dice::template_library
 

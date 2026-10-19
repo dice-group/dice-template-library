@@ -1,6 +1,8 @@
 #ifndef DICE_TEMPLATELIBRARY_FLEXARRAY_HPP
 #define DICE_TEMPLATELIBRARY_FLEXARRAY_HPP
 
+#include <dice/template-library/functional.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -31,32 +33,6 @@ namespace dice::template_library {
 
 	namespace detail_flex_array {
 		/**
-		 * Three-way comparison of two elements in the way std::array compares its elements:
-		 * with operator<=> if the element type has it, else with operator<.
-		 */
-		struct synth_three_way {
-			template<typename U>
-			constexpr auto operator()(U const &lhs, U const &rhs) const
-				requires requires {
-					{ lhs < rhs } -> std::convertible_to<bool>;
-					{ rhs < lhs } -> std::convertible_to<bool>;
-				}
-			{
-				if constexpr (std::three_way_comparable<U>) {
-					return lhs <=> rhs;
-				} else {
-					if (lhs < rhs) {
-						return std::weak_ordering::less;
-					}
-					if (rhs < lhs) {
-						return std::weak_ordering::greater;
-					}
-					return std::weak_ordering::equivalent;
-				}
-			}
-		};
-
-		/**
 		 * The element storage of a direct mode with room for no element (extent 0 or max_extent 0).
 		 * It is empty.
 		 */
@@ -70,10 +46,12 @@ namespace dice::template_library {
 			 * There is no element, so no index is valid.
 			 */
 			T &operator[](size_t) const noexcept {
-				std::abort();
+			    assert(false);
+				__builtin_unreachable();
 			}
 
 			constexpr bool operator==(no_elements const &) const noexcept = default;
+		    constexpr std::strong_ordering operator<=>(no_elements const &) const noexcept = default;
 		};
 
 		template<typename T, size_t n>
@@ -91,7 +69,7 @@ namespace dice::template_library {
 		 * A C array of length 0 is not valid C++, so for `n == 0` it is `no_elements<T>`.
 		 */
 		template<typename T, size_t n>
-		using c_array_t = typename c_array<T, n>::type;
+		using c_array_t = c_array<T, n>::type;
 
 		template<typename T, size_t extent, size_t max_extent>
 		struct flex_array_inner;
@@ -165,51 +143,12 @@ namespace dice::template_library {
 				return {data(), size_};
 			}
 
-			template<typename Cmp>
-			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
-				std::span<T const> const self_s{*this};
-				std::span<T const> const other_s{other};
-				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
+			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T const &x) { x == x; } {
+				return std::equal(data(), data() + size(), other.data(), other.data() + other.size());
 			}
 
-			template<typename Cmp>
-			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
-				std::span<T const> const self_s{*this};
-				std::span<T const> const other_s{other};
-				return std::ranges::equal(self_s, other_s, Cmp{});
-			}
-
-			// operator <=> is not defaulted
-			// so we need to provide all comparison operators manually
-
-			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
-				std::span<T const> const self_s{*this};
-				std::span<T const> const other_s{other};
-				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
-			}
-
-			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T x) { x == x; } {
-				return eq_compare_impl<std::equal_to<T>>(other);
-			}
-
-			constexpr bool operator!=(flex_array_inner const &other) const noexcept requires requires (T x) { x != x; } {
-				return eq_compare_impl<std::not_equal_to<T>>(other);
-			}
-
-			constexpr bool operator<(flex_array_inner const &other) const noexcept requires requires (T x) { x < x; } {
-				return lex_compare_impl<std::less<T>>(other);
-			}
-
-			constexpr bool operator<=(flex_array_inner const &other) const noexcept requires requires (T x) { x <= x; } {
-				return lex_compare_impl<std::less_equal<T>>(other);
-			}
-
-			constexpr bool operator>(flex_array_inner const &other) const noexcept requires requires (T x) { x > x; } {
-				return lex_compare_impl<std::greater<T>>(other);
-			}
-
-			constexpr bool operator>=(flex_array_inner const &other) const noexcept requires requires (T x) { x >= x; } {
-				return lex_compare_impl<std::greater_equal<T>>(other);
+			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T const &x) { synth_three_way{}(x, x); } {
+				return std::lexicographical_compare_three_way(data(), data() + size(), other.data(), other.data() + other.size(), synth_three_way{});
 			}
 		};
 
@@ -279,51 +218,12 @@ namespace dice::template_library {
 				data_.resize(size);
 			}
 
-			template<typename Cmp>
-			constexpr auto lex_compare_impl(flex_array_inner const &other) const noexcept {
-				std::span<T const> const self_s{*this};
-				std::span<T const> const other_s{other};
-				return std::ranges::lexicographical_compare(self_s, other_s, Cmp{});
+			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T const &x) { x == x; } {
+				return std::equal(data(), data() + size(), other.data(), other.data() + other.size());
 			}
 
-			template<typename Cmp>
-			constexpr auto eq_compare_impl(flex_array_inner const &other) const noexcept {
-				std::span<T const> const self_s{*this};
-				std::span<T const> const other_s{other};
-				return std::ranges::equal(self_s, other_s, Cmp{});
-			}
-
-			// operator <=> is not defaulted
-			// so we need to provide all comparison operators manually
-
-			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T x) { x <=> x; } {
-				std::span<T const> const self_s{*this};
-				std::span<T const> const other_s{other};
-				return std::lexicographical_compare_three_way(self_s.begin(), self_s.end(), other_s.begin(), other_s.end());
-			}
-
-			constexpr bool operator==(flex_array_inner const &other) const noexcept requires requires (T x) { x == x; } {
-				return eq_compare_impl<std::equal_to<T>>(other);
-			}
-
-			constexpr bool operator!=(flex_array_inner const &other) const noexcept requires requires (T x) { x != x; } {
-				return eq_compare_impl<std::not_equal_to<T>>(other);
-			}
-
-			constexpr bool operator<(flex_array_inner const &other) const noexcept requires requires (T x) { x < x; } {
-				return lex_compare_impl<std::less<T>>(other);
-			}
-
-			constexpr bool operator<=(flex_array_inner const &other) const noexcept requires requires (T x) { x <= x; } {
-				return lex_compare_impl<std::less_equal<T>>(other);
-			}
-
-			constexpr bool operator>(flex_array_inner const &other) const noexcept requires requires (T x) { x > x; } {
-				return lex_compare_impl<std::greater<T>>(other);
-			}
-
-			constexpr bool operator>=(flex_array_inner const &other) const noexcept requires requires (T x) { x >= x; } {
-				return lex_compare_impl<std::greater_equal<T>>(other);
+			constexpr auto operator<=>(flex_array_inner const &other) const noexcept requires requires (T const &x) { synth_three_way{}(x, x); } {
+				return std::lexicographical_compare_three_way(data(), data() + size(), other.data(), other.data() + other.size(), synth_three_way{});
 			}
 		};
 #else // __has_include
