@@ -46,7 +46,7 @@ namespace dice::template_library {
                 // full, move the elements to a larger buffer
                 std::vector<std::optional<T>> grown(std::min(max_cap_, std::max(size_t{1}, 2 * size_)));
                 for (size_t ix = 0; ix < size_; ++ix) {
-                    grown[ix].emplace(std::move_if_noexcept(*queue_[(head_ + ix) % size_]));
+                    grown[ix].emplace(std::move_if_noexcept(*queue_[(head_ + ix) % queue_.size()]));
                 }
                 queue_ = std::move(grown);
                 head_ = 0;
