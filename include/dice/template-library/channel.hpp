@@ -6,6 +6,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <mutex>
@@ -31,10 +32,25 @@ namespace dice::template_library {
             size_t size_ = 0;   ///< number of elements in `buf_`
 
             /**
+             * True if `reallocate` copies the elements as bytes, with `std::memcpy`, instead of moving them one by one.
+             */
+            static constexpr bool copies_bytes = std::is_trivially_copyable_v<T> && std::is_trivially_move_constructible_v<T>;
+
+            /**
              * @return index in `buf_` of the element at position `pos` behind `head_`, `pos` is at most `cap_`
              */
             [[nodiscard]] size_t index(size_t pos) const noexcept {
                 return head_ + pos < cap_ ? head_ + pos : head_ + pos - cap_;
+            }
+
+            /**
+             * Copy `count` elements from `source` to `target` as bytes, with `std::memcpy`. The ranges do not overlap.
+             */
+            static void copy_bytes(T *target, T const *source, size_t count) noexcept {
+                static_assert(copies_bytes);
+                if (count > 0) {
+                    std::memcpy(static_cast<void *>(target), static_cast<void const *>(source), count * sizeof(T));
+                }
             }
 
         public:
@@ -94,17 +110,25 @@ namespace dice::template_library {
                 assert(new_cap >= size_);
                 T *new_buf = std::allocator<T>{}.allocate(new_cap);
 
-                size_t moved = 0;
-                try {
-                    for (; moved < size_; ++moved) {
-                        std::construct_at(new_buf + moved, std::move_if_noexcept(buf_[index(moved)]));
+                if constexpr (copies_bytes) {
+                    // the elements before and after the end of `buf_`
+                    auto const first = std::min(size_, cap_ - head_);
+                    copy_bytes(new_buf, buf_ + head_, first);
+                    copy_bytes(new_buf + first, buf_, size_ - first);
+                } else {
+                    size_t moved = 0;
+                    try {
+                        for (; moved < size_; ++moved) {
+                            std::construct_at(new_buf + moved, std::move_if_noexcept(buf_[index(moved)]));
+                        }
+                    } catch (...) {
+                        std::destroy(new_buf, new_buf + moved);
+                        std::allocator<T>{}.deallocate(new_buf, new_cap);
+                        throw;
                     }
-                } catch (...) {
-                    std::destroy(new_buf, new_buf + moved);
-                    std::allocator<T>{}.deallocate(new_buf, new_cap);
-                    throw;
                 }
 
+                // the old elements are destroyed here, if they were copied as bytes the storage is only freed
                 auto const size = size_;
                 clear();
                 buf_ = new_buf;
@@ -116,9 +140,11 @@ namespace dice::template_library {
              * Destroy all elements and free the storage.
              */
             void clear() noexcept {
-                for (; size_ > 0; --size_) {
-                    std::destroy_at(buf_ + head_);
-                    head_ = index(1);
+                if constexpr (!std::is_trivially_destructible_v<T>) {
+                    for (; size_ > 0; --size_) {
+                        std::destroy_at(buf_ + head_);
+                        head_ = index(1);
+                    }
                 }
                 if (buf_ != nullptr) {
                     std::allocator<T>{}.deallocate(buf_, cap_);
@@ -126,6 +152,7 @@ namespace dice::template_library {
                 buf_ = nullptr;
                 cap_ = 0;
                 head_ = 0;
+                size_ = 0;
             }
         };
 
