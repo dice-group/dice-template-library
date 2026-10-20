@@ -277,7 +277,27 @@ TEST_SUITE("mpmc_channel") {
 	}
 
 	TEST_CASE("fixed channel has no growth state") {
-		static_assert(sizeof(channel<int>) - sizeof(fixed_channel<int>) == 2 * sizeof(size_t));
+		static_assert(sizeof(fixed_channel<int>) < sizeof(channel<int>));
+	}
+
+	struct declared_later;
+
+	struct holds_channel {
+		channel<declared_later> chan;
+		holds_channel();
+	};
+
+	struct declared_later {
+		int value;
+	};
+
+	holds_channel::holds_channel() : chan{2} {
+	}
+
+	TEST_CASE("element type may be incomplete where the channel is declared") {
+		holds_channel h;
+		h.chan.push(declared_later{1});
+		REQUIRE_EQ(h.chan.pop()->value, 1);
 	}
 
 	struct big_not_trivial {

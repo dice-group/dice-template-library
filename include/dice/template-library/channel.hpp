@@ -113,16 +113,19 @@ namespace dice::template_library {
                 assert(old.buf_ == nullptr);
                 T *new_buf = std::allocator<T>{}.allocate(new_cap);
 
+                // the elements before and after the end of `buf_`
+                auto const first = std::min(size_, cap_ - head_);
                 if constexpr (copies_bytes) {
-                    // the elements before and after the end of `buf_`
-                    auto const first = std::min(size_, cap_ - head_);
                     copy_bytes(new_buf, buf_ + head_, first);
                     copy_bytes(new_buf + first, buf_, size_ - first);
                 } else {
                     size_t moved = 0;
                     try {
+                        for (; moved < first; ++moved) {
+                            std::construct_at(new_buf + moved, std::move_if_noexcept(buf_[head_ + moved]));
+                        }
                         for (; moved < size_; ++moved) {
-                            std::construct_at(new_buf + moved, std::move_if_noexcept(buf_[index(moved)]));
+                            std::construct_at(new_buf + moved, std::move_if_noexcept(buf_[moved - first]));
                         }
                     } catch (...) {
                         std::destroy(new_buf, new_buf + moved);
@@ -186,15 +189,11 @@ namespace dice::template_library {
              * Sizing state of a growable channel.
              */
             struct growth {
-                size_t peak = 0;       ///< most elements in `queue_` since its buffer was allocated
+                size_t peak = 0;       ///< most elements in `queue_` since its buffer was last freed
                 size_t next_size = 0;  ///< number of elements the first growth after a free goes to at least
             };
 
             struct no_growth {};
-
-            static_assert(Fixed || std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>,
-                          "channel moves its elements when its buffer grows, so they must be nothrow move constructible "
-                          "or copy constructible; mark the move constructor noexcept or use fixed_channel");
 
             template<typename... Args>
             static constexpr bool nothrow_emplace = Fixed && std::is_nothrow_constructible_v<T, Args...>;
@@ -284,6 +283,10 @@ namespace dice::template_library {
              * @param capacity maximum number of elements in the channel
              */
             explicit basic_channel(size_t capacity) : max_cap_{capacity} {
+                // here and not at class scope, so that `T` may be incomplete where the channel is declared
+                static_assert(Fixed || std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>,
+                              "channel moves its elements when its buffer grows, so they must be nothrow move constructible "
+                              "or copy constructible; mark the move constructor noexcept or use fixed_channel");
                 if constexpr (Fixed) {
                     ring<T> old;
                     queue_.reallocate(capacity, old);
@@ -579,7 +582,8 @@ namespace dice::template_library {
      *
      * Memory for the elements is allocated when needed. The first push allocates space for 64 KiB worth of elements
      * (at least one, at most the capacity), and a full buffer doubles up to the capacity. Growing moves all elements
-     * while the channel is locked. So the elements must be nothrow move constructible or copy constructible.
+     * while the channel is locked, and copies an element whose move may throw, like `std::vector`. So the elements must
+     * be nothrow move constructible or copy constructible.
      * When the channel becomes empty, a buffer of more than four times the first size is freed. After that, the first push
      * allocates the first size again, and the first growth goes to as many elements as the freed buffer held at most.
      * Use `fixed_channel` if pushing must not allocate.
