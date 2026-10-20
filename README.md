@@ -18,7 +18,8 @@ It contains:
 - `flex_array`: A combination of `std::array`, `std::span` and a `vector` with small buffer optimization
 - `tuple_algorithms`: Some algorithms for iterating tuples
 - `fmt_join`: A helper to join elements of a range with a separator for use with `std::format` alike [fmt::join](https://fmt.dev/latest/api/#range-and-tuple-formatting)
-- `channel`: A single producer, single consumer queue
+- `channel`: A multi producer, multi consumer queue
+- `fixed_channel`: Like `channel`, but memory for all elements is allocated up front
 - `exchange_channel`: Like `channel`, but retains only the most recently sent value (unread values are overwritten)
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
@@ -151,8 +152,17 @@ A combination of `std::array`, `std::span` and a `vector` with small buffer opti
 statically known or a runtime variable depending on the `extent`/`max_extent` template parameters
 
 ### `channel`
-A single-producer, single-consume queue. This can be used to communicate between threads in a more high level
-fashion than a mutex+container would allow.
+A multi-producer, multi-consumer queue. This can be used to communicate between threads in a more high level
+fashion than a mutex+container would allow. Memory for the elements is allocated when needed: the first push allocates
+space for 64 KiB worth of elements (at least one, at most the capacity), a full buffer doubles up to the capacity of the
+channel, and when the channel becomes empty, a buffer of more than four times the first size is freed. After that, the
+first push allocates the first size again, and the first growth goes to as many elements as the freed buffer held at
+most. So a channel can be created with an effectively unlimited capacity (`std::numeric_limits<size_t>::max()`). Growing moves the elements (and copies an element whose move
+may throw), so they must be nothrow move constructible or copy constructible.
+
+### `fixed_channel`
+Like `channel`, but memory for all elements is allocated when the channel is constructed. Pushing and popping do not
+allocate, and pushing is `noexcept` if constructing the element is `noexcept`.
 
 ### `exchange_channel`
 Like `channel`, but only the most recently sent value is retained: pushing overwrites any unread value, so a slow
