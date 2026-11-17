@@ -91,6 +91,9 @@ custom_add_test(tests_shared_mutex)
 add_executable(tests_static_string tests_static_string.cpp)
 custom_add_test(tests_static_string)
 
+add_executable(tests_static_vector tests_static_vector.cpp)
+custom_add_test(tests_static_vector)
+
 add_executable(tests_next_to_range tests_next_to_range.cpp)
 custom_add_test(tests_next_to_range)
 
