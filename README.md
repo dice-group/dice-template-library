@@ -23,6 +23,7 @@ It contains:
 - `variant2`: Like `std::variant` but optimized for exactly two types
 - `mutex`/`shared_mutex`: Rust inspired mutex interfaces that hold their data instead of living next to it
 - `static_string`: A string type that is smaller than `std::string` for use cases where you do not need to resize the string
+- `static_vector`: A vector type that is smaller than `std::vector` for use cases where you do not need to resize the vector
 - `ranges`: Additional range algorithms and adaptors that are missing from the standard library.  
 - `next_to_range`/`next_to_view`/`next_to_iter`: Eliminate the boilerplate required to write C++ iterators and ranges.
 - `inplace_polymorphic`: `std::variant`-like on-stack polymorphism based on `virtual` functions.
@@ -178,6 +179,11 @@ data without holding the mutex.
 ### `static_string`
 A string type that is smaller than `std::string` but does not have the ability to grow or shrink.
 This is useful if you never need to resize the string and want to keep the memory footprint low.
+It also supports allocators with "fancy" pointers.
+
+### `static_vector`
+A vector type that is smaller than `std::vector` but does not have the ability to grow or shrink.
+This is useful if you never need to resize the vector and want to keep the memory footprint low.
 It also supports allocators with "fancy" pointers.
 
 ### `ranges`
