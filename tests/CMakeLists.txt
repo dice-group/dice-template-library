@@ -127,6 +127,9 @@ custom_add_test(tests_opt_minmax)
 add_executable(tests_exchange_channel tests_exchange_channel.cpp)
 custom_add_test(tests_exchange_channel)
 
+add_executable(tests_batched_spsc_channel tests_batched_spsc_channel.cpp)
+custom_add_test(tests_batched_spsc_channel)
+
 add_executable(tests_sandbox tests_sandbox.cpp)
 custom_add_test(tests_sandbox)
 
