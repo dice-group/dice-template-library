@@ -4,21 +4,111 @@
 #include <dice/template-library/flex_array.hpp>
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <compare>
+#include <concepts>
+#include <cstdint>
+#include <limits>
 #include <numeric>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 namespace dice::template_library {
 	// extern templates sometimes make problems if internal types are too eagerly instantiated
 	extern template struct flex_array<int, 5>;
 	extern template struct flex_array<int, dynamic_extent, 5>;
+	extern template struct flex_array<int, 0>;
+	extern template struct flex_array<int, dynamic_extent, 0>;
 
 	template struct flex_array<int, 5>;
 	template struct flex_array<int, dynamic_extent, 5>;
+	template struct flex_array<int, 0>;
+	template struct flex_array<int, dynamic_extent, 0>;
 } // namespace dice::template_library
+
+namespace {
+	using dice::template_library::dynamic_extent;
+	using dice::template_library::flex_array;
+
+	// the bytes of the direct_dynamic_limited_size mode: the size, then the elements
+	template<typename T, size_t n>
+	struct limited_reference {
+		size_t size;
+		T data[n];
+	};
+
+	struct empty_member {};
+
+	// the bytes of the direct_dynamic_limited_size mode with max_extent 0: the size and no element
+	struct limited_reference_0 {
+		size_t size;
+		empty_member data;
+	};
+
+	struct int_array_4 {
+		int data[4];
+	};
+
+	struct alignas(16) over_aligned {
+		uint8_t value;
+	};
+
+	// has operator< and operator==, but no operator<=>
+	struct less_only {
+		int value;
+
+		constexpr bool operator==(less_only const &other) const noexcept = default;
+
+		constexpr bool operator<(less_only const &other) const noexcept {
+			return value < other.value;
+		}
+	};
+
+	struct uncomparable {};
+
+	template<typename T, size_t n>
+	constexpr bool check_static_size_layout() {
+		using F = flex_array<T, n>;
+		static_assert(F::mode == dice::template_library::flex_array_mode::direct_static_size);
+		static_assert(std::is_standard_layout_v<F> == std::is_standard_layout_v<T>);
+		static_assert(std::is_trivially_copyable_v<F> == std::is_trivially_copyable_v<T>);
+		static_assert(sizeof(F) == sizeof(T[n]));
+		static_assert(alignof(F) == alignof(T[n]));
+		return true;
+	}
+
+	template<typename T, size_t n>
+	constexpr bool check_limited_size_layout() {
+		using F = flex_array<T, dynamic_extent, n>;
+		static_assert(F::mode == dice::template_library::flex_array_mode::direct_dynamic_limited_size);
+		static_assert(std::is_standard_layout_v<F> == std::is_standard_layout_v<T>);
+		static_assert(std::is_trivially_copyable_v<F> == std::is_trivially_copyable_v<T>);
+		static_assert(sizeof(F) == sizeof(limited_reference<T, n>));
+		static_assert(alignof(F) == alignof(limited_reference<T, n>));
+		return true;
+	}
+
+	static_assert(std::is_standard_layout_v<int> && std::is_trivially_copyable_v<int>);
+	static_assert(std::is_standard_layout_v<over_aligned> && std::is_trivially_copyable_v<over_aligned>);
+	static_assert(std::is_trivially_copyable_v<std::optional<uint64_t>>);
+
+	static_assert(check_static_size_layout<int, 1>());
+	static_assert(check_static_size_layout<int, 5>());
+	static_assert(check_static_size_layout<uint8_t, 3>());
+	static_assert(check_static_size_layout<over_aligned, 3>());
+	static_assert(check_static_size_layout<std::optional<uint64_t>, 3>());
+
+	static_assert(check_limited_size_layout<int, 1>());
+	static_assert(check_limited_size_layout<int, 5>());
+	static_assert(check_limited_size_layout<uint8_t, 3>());
+	static_assert(check_limited_size_layout<over_aligned, 3>());
+	static_assert(check_limited_size_layout<std::optional<uint64_t>, 3>());
+} // namespace
 
 TEST_SUITE("flex_array") {
 	using namespace dice::template_library;
@@ -305,5 +395,122 @@ TEST_SUITE("flex_array") {
 			REQUIRE_THROWS_AS((flex_array<int, 4>{d2}), std::length_error);
 		}
 #endif //__has_include(<ankerl/svector.h>)
+	}
+	TEST_CASE("bytes of the direct modes") {
+		SUBCASE("static size") {
+			static constexpr flex_array<int, 4> f{1, 2, 3, 4};
+			static constexpr auto bytes = std::bit_cast<int_array_4>(f);
+			static_assert(bytes.data[0] == 1 && bytes.data[1] == 2 && bytes.data[2] == 3 && bytes.data[3] == 4);
+
+			auto const back = std::bit_cast<flex_array<int, 4>>(bytes);
+			REQUIRE(back == f);
+		}
+
+		SUBCASE("dynamic size but bounded") {
+			static constexpr flex_array<int, dynamic_extent, 4> f{1, 2, 3, 4};
+			static constexpr auto bytes = std::bit_cast<limited_reference<int, 4>>(f);
+			static_assert(bytes.size == 4);
+			static_assert(bytes.data[0] == 1 && bytes.data[1] == 2 && bytes.data[2] == 3 && bytes.data[3] == 4);
+
+			auto const back = std::bit_cast<flex_array<int, dynamic_extent, 4>>(bytes);
+			REQUIRE(back == f);
+		}
+	}
+
+	TEST_CASE("extent 0") {
+		SUBCASE("static size") {
+			using F = flex_array<int, 0>;
+			static_assert(F::mode == flex_array_mode::direct_static_size);
+			static_assert(std::is_standard_layout_v<F>);
+			static_assert(std::is_trivially_copyable_v<F>);
+			// holds no element, and an object takes at least one byte
+			static_assert(sizeof(F) == 1);
+			static_assert(alignof(F) == 1);
+
+			static constexpr F f{};
+			static_assert(f.size() == 0);
+			static_assert(f.empty());
+			static_assert(f.data() == nullptr);
+			static_assert(f.begin() == f.end());
+			static_assert(f.rbegin() == f.rend());
+			static_assert(f == f);
+			static_assert((f <=> f) == std::strong_ordering::equal);
+
+			std::span<int const, 0> const s{f};
+			REQUIRE(s.empty());
+
+			std::array<int, 1> const ref{1};
+			REQUIRE_THROWS_AS((F{1}), std::length_error);
+			REQUIRE_THROWS_AS((F(ref.begin(), ref.end())), std::length_error);
+			F const g(ref.begin(), ref.begin());
+			REQUIRE(g.empty());
+
+			flex_array<int, dynamic_extent, 3> const d{f};
+			REQUIRE(d.empty());
+
+			[[maybe_unused]] flex_array<uncomparable, 0> u; // checking if this compiles
+		}
+
+		SUBCASE("dynamic size but bounded") {
+			using F = flex_array<int, dynamic_extent, 0>;
+			static_assert(F::mode == flex_array_mode::direct_dynamic_limited_size);
+			static_assert(std::is_standard_layout_v<F>);
+			static_assert(std::is_trivially_copyable_v<F>);
+			static_assert(sizeof(F) == sizeof(limited_reference_0));
+			static_assert(alignof(F) == alignof(limited_reference_0));
+
+			F f;
+			REQUIRE(f.empty());
+			REQUIRE_EQ(f.size(), 0);
+			REQUIRE_EQ(f.max_size(), 0);
+			REQUIRE(f.data() == nullptr);
+			REQUIRE(f.begin() == f.end());
+			REQUIRE(f == F{});
+			REQUIRE_EQ(f <=> F{}, std::strong_ordering::equal);
+
+			std::span<int const> const s{f};
+			REQUIRE(s.empty());
+
+			f.resize(0);
+			REQUIRE(f.empty());
+			REQUIRE_THROWS_AS(f.resize(1), std::invalid_argument);
+			REQUIRE_THROWS_AS((F{1}), std::length_error);
+
+			[[maybe_unused]] flex_array<uncomparable, dynamic_extent, 0> u; // checking if this compiles
+		}
+	}
+
+	TEST_CASE("comparison category of the static size") {
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, dynamic_extent, 2>>, std::weak_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, 2, dynamic_extent>>, std::weak_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<int, 2>>, std::strong_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<double, 2>>, std::partial_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, 2>>, std::weak_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<int, 0>>, std::strong_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<double, 0>>, std::partial_ordering>);
+		static_assert(std::same_as<std::compare_three_way_result_t<flex_array<less_only, 0>>, std::weak_ordering>);
+		static_assert(!std::equality_comparable<flex_array<uncomparable, 2>>);
+		static_assert(!std::three_way_comparable<flex_array<uncomparable, 2>>);
+
+		SUBCASE("element type with operator< only") {
+			flex_array<less_only, 2> const a{less_only{1}, less_only{2}};
+			flex_array<less_only, 2> const b{less_only{1}, less_only{3}};
+
+			REQUIRE_EQ(a <=> b, std::weak_ordering::less);
+			REQUIRE_EQ(b <=> a, std::weak_ordering::greater);
+			REQUIRE_EQ(a <=> a, std::weak_ordering::equivalent);
+			REQUIRE(a < b);
+			REQUIRE(a != b);
+			REQUIRE(a == a);
+		}
+
+		SUBCASE("partial order") {
+			flex_array<double, 2> const a{1.0, 2.0};
+			flex_array<double, 2> const nan{1.0, std::numeric_limits<double>::quiet_NaN()};
+
+			REQUIRE_EQ(a <=> a, std::partial_ordering::equivalent);
+			REQUIRE_EQ(a <=> nan, std::partial_ordering::unordered);
+			REQUIRE_FALSE(nan == nan);
+		}
 	}
 }

@@ -112,3 +112,24 @@ TEST_CASE("always") {
         }
     }
 }
+
+TEST_CASE("synth_three_way") {
+	using dice::template_library::synth_three_way;
+
+	// has operator< but no operator<=>
+	struct less_only {
+		int value;
+		constexpr bool operator<(less_only const &other) const noexcept { return value < other.value; }
+	};
+	struct uncomparable {};
+
+	static_assert(std::is_same_v<decltype(synth_three_way{}(1, 2)), std::strong_ordering>);
+	static_assert(std::is_same_v<decltype(synth_three_way{}(1.0, 2.0)), std::partial_ordering>);
+	static_assert(std::is_same_v<decltype(synth_three_way{}(less_only{1}, less_only{2})), std::weak_ordering>);
+	static_assert(!std::is_invocable_v<synth_three_way, uncomparable, uncomparable>);
+
+	CHECK_EQ(synth_three_way{}(1, 2), std::strong_ordering::less);
+	CHECK_EQ(synth_three_way{}(less_only{1}, less_only{2}), std::weak_ordering::less);
+	CHECK_EQ(synth_three_way{}(less_only{2}, less_only{1}), std::weak_ordering::greater);
+	CHECK_EQ(synth_three_way{}(less_only{1}, less_only{1}), std::weak_ordering::equivalent);
+}
